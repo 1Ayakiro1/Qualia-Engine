@@ -1,0 +1,29 @@
+Start testing: Sep 24 16:03 MSK
+----------------------------------------------------------
+1/1 Testing: bci_core_tests
+1/1 Test: bci_core_tests
+Command: "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/bci_core_tests"
+Directory: /home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build
+"bci_core_tests" start time: Sep 24 16:03 MSK
+Output:
+----------------------------------------------------------
+[bci-core] engine started: 256 Hz, 1 ch, 6 modules
+[bci-core] engine stopped
+[bci-core] engine started: 250 Hz, 2 ch, 6 modules
+[bci-core] engine stopped
+[bci-core] engine started: 250 Hz, 2 ch, 6 modules
+[bci-core] engine stopped
+[bci-core] engine started: 250 Hz, 2 ch, 6 modules
+[bci-core] engine stopped
+===============================================================================
+All tests passed (47 assertions in 6 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"bci_core_tests" end time: Sep 24 16:03 MSK
+"bci_core_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 24 16:03 MSK

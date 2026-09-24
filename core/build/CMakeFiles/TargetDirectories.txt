@@ -1,0 +1,5 @@
+/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles/bci_engine_core.dir
+/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles/bci_core_tests.dir
+/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles/test.dir
+/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles/edit_cache.dir
+/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles/rebuild_cache.dir
