@@ -1,7 +1,7 @@
 CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/modules.cpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/modules.cpp \
  /usr/include/stdc-predef.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/modules.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/modules.hpp \
  /usr/include/c++/16/memory /usr/include/c++/16/bits/memoryfwd.h \
  /usr/include/c++/16/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \
@@ -110,7 +110,7 @@ CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: \
  /usr/include/c++/16/bits/erase_if.h /usr/include/c++/16/bits/vector.tcc \
  /usr/include/c++/16/bits/memory_resource.h /usr/include/c++/16/cstddef \
  /usr/include/c++/16/bits/uses_allocator_args.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/include/bci_engine/core.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/core.hpp \
  /usr/include/c++/16/atomic /usr/include/c++/16/cstdint \
  /usr/lib/gcc/x86_64-redhat-linux/16/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/stdint-intn.h \
@@ -152,7 +152,7 @@ CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: \
  /usr/include/c++/16/bits/basic_string.tcc /usr/include/c++/16/thread \
  /usr/include/c++/16/bits/std_thread.h \
  /usr/include/c++/16/bits/this_thread_sleep.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/include/bci_engine/version.h \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/version.h \
  /usr/include/c++/16/cmath /usr/include/math.h \
  /usr/include/bits/math-vector.h /usr/include/bits/libm-simd-decl-stubs.h \
  /usr/include/bits/flt-eval-method.h /usr/include/bits/fp-logb.h \
@@ -172,7 +172,7 @@ CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: \
  /usr/include/c++/16/tr1/poly_hermite.tcc \
  /usr/include/c++/16/tr1/poly_laguerre.tcc \
  /usr/include/c++/16/tr1/riemann_zeta.tcc \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/fft.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/fft.hpp \
  /usr/include/c++/16/complex /usr/include/c++/16/sstream \
  /usr/include/c++/16/istream /usr/include/c++/16/ios \
  /usr/include/c++/16/bits/ios_base.h \

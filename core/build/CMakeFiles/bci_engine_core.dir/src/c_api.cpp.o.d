@@ -1,7 +1,7 @@
 CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/c_api.cpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/c_api.cpp \
  /usr/include/stdc-predef.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/include/bci_engine/c_api.h \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/c_api.h \
  /usr/lib/gcc/x86_64-redhat-linux/16/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -130,7 +130,7 @@ CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: \
  /usr/include/c++/16/bits/basic_string.tcc \
  /usr/include/c++/16/bits/memory_resource.h /usr/include/c++/16/cstddef \
  /usr/include/c++/16/bits/uses_allocator_args.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/include/bci_engine/core.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/core.hpp \
  /usr/include/c++/16/memory /usr/include/c++/16/bits/stl_tempbuf.h \
  /usr/include/c++/16/bits/stl_uninitialized.h \
  /usr/include/c++/16/bits/stl_raw_storage_iter.h \
@@ -153,6 +153,6 @@ CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: \
  /usr/include/c++/16/bits/stl_vector.h \
  /usr/include/c++/16/bits/stl_bvector.h \
  /usr/include/c++/16/bits/vector.tcc \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/include/bci_engine/version.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/log_hook.hpp \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/modules.hpp
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/version.h \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/log_hook.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/modules.hpp

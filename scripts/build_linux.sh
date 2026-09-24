@@ -9,7 +9,9 @@ ensure_flutter
 # characters (LSP framing bug in the analysis server). Builders often carry
 # such paths (e.g. ".../Проекты/BCI/BCI Engine"), so static checks go through
 # a pure-ASCII symlink or plain `dart analyze` — never bare `flutter analyze`.
-if [[ "${ROOT_DIR}" =~ [^[:ascii:]] || "${ROOT_DIR}" == *" "* ]]; then
+# Note: bash `[[ =~ ]]` has no [[:ascii:]] class — probe bytes with grep -C locale.
+if [[ "${ROOT_DIR}" == *" "* ]] ||
+  printf '%s' "${ROOT_DIR}" | LC_ALL=C grep -q '[^ -~]'; then
   LINK="/tmp/bci-engine-build"
   warn "путь содержит не-ASCII/пробелы — анализ через симлинк ${LINK}"
   ln -sfn "${ROOT_DIR}" "${LINK}"

@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/tests/test_core.cpp" "CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o" "gcc" "CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o.d"
+  "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/tests/test_core.cpp" "CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o" "gcc" "CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o.d"
   "" "bci_core_tests" "gcc" "CMakeFiles/bci_core_tests.dir/link.d"
   )
 

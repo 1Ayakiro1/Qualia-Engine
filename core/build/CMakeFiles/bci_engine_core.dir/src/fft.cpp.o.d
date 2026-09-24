@@ -1,7 +1,7 @@
 CMakeFiles/bci_engine_core.dir/src/fft.cpp.o: \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/fft.cpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/fft.cpp \
  /usr/include/stdc-predef.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/core/src/fft.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/src/fft.hpp \
  /usr/include/c++/16/complex \
  /usr/include/c++/16/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \

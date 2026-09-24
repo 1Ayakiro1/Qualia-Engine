@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/thirdparty/catch2-v2.13.10" -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/include"
+CXX_INCLUDES = -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/thirdparty/catch2-v2.13.10" -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/include"
 
 CXX_FLAGS = -O3 -DNDEBUG -std=c++17 -fPIE -Wall -Wextra -Werror
 

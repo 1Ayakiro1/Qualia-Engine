@@ -54,10 +54,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core"
+CMAKE_SOURCE_DIR = "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build"
+CMAKE_BINARY_DIR = "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build"
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -88,14 +88,14 @@ clean: CMakeFiles/bci_core_tests.dir/clean
 CMakeFiles/bci_engine_core.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_engine_core.dir/build.make CMakeFiles/bci_engine_core.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_engine_core.dir/build.make CMakeFiles/bci_engine_core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" --progress-num=3,4,5,6,7,8 "Built target bci_engine_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" --progress-num=3,4,5,6,7,8 "Built target bci_engine_core"
 .PHONY : CMakeFiles/bci_engine_core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/bci_engine_core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" 6
+	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" 6
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/bci_engine_core.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" 0
+	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" 0
 .PHONY : CMakeFiles/bci_engine_core.dir/rule
 
 # Convenience name for target.
@@ -105,7 +105,7 @@ bci_engine_core: CMakeFiles/bci_engine_core.dir/rule
 # codegen rule for target.
 CMakeFiles/bci_engine_core.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_engine_core.dir/build.make CMakeFiles/bci_engine_core.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" --progress-num=3,4,5,6,7,8 "Finished codegen for target bci_engine_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" --progress-num=3,4,5,6,7,8 "Finished codegen for target bci_engine_core"
 .PHONY : CMakeFiles/bci_engine_core.dir/codegen
 
 # clean rule for target.
@@ -120,14 +120,14 @@ CMakeFiles/bci_engine_core.dir/clean:
 CMakeFiles/bci_core_tests.dir/all: CMakeFiles/bci_engine_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_core_tests.dir/build.make CMakeFiles/bci_core_tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_core_tests.dir/build.make CMakeFiles/bci_core_tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" --progress-num=1,2 "Built target bci_core_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" --progress-num=1,2 "Built target bci_core_tests"
 .PHONY : CMakeFiles/bci_core_tests.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/bci_core_tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" 8
+	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" 8
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/bci_core_tests.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" 0
+	$(CMAKE_COMMAND) -E cmake_progress_start "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" 0
 .PHONY : CMakeFiles/bci_core_tests.dir/rule
 
 # Convenience name for target.
@@ -137,7 +137,7 @@ bci_core_tests: CMakeFiles/bci_core_tests.dir/rule
 # codegen rule for target.
 CMakeFiles/bci_core_tests.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/bci_core_tests.dir/build.make CMakeFiles/bci_core_tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/core/build/CMakeFiles" --progress-num=1,2 "Finished codegen for target bci_core_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/CMakeFiles" --progress-num=1,2 "Finished codegen for target bci_core_tests"
 .PHONY : CMakeFiles/bci_core_tests.dir/codegen
 
 # clean rule for target.
