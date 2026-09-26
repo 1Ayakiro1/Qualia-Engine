@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../core/constants/app_info.dart';
 import '../../core/logging/log_window.dart';
 import '../../core/modules/module_registry.dart';
+import '../../core/theme/app_theme.dart';
 import '../../state/app_state.dart';
 import '../../state/engine_provider.dart';
 import '../../state/engine_state.dart';
@@ -120,7 +121,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               viewInsets: mediaQuery.viewInsets / uiScale,
             );
             return ColoredBox(
-              color: const Color(0xFF1E1E1E),
+              color: AppTheme.background,
               child: ClipRect(
                 child: SizedBox(
                   width: constraints.maxWidth,
@@ -325,8 +326,8 @@ class _TitleBar extends StatelessWidget {
     return Container(
       height: 36,
       decoration: const BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        border: Border(bottom: BorderSide(color: Color(0xFF3A3A3A))),
+        color: AppTheme.background,
+        border: Border(bottom: BorderSide(color: AppTheme.border)),
       ),
       child: Stack(
         children: [
@@ -346,13 +347,13 @@ class _TitleBar extends StatelessWidget {
                 height: 26,
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2D2D2D),
+                  color: AppTheme.panel,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Image.asset('assets/icons/bci_engine_64.png'),
               ),
               const SizedBox(width: 8),
-              Container(width: 1, height: 20, color: const Color(0xFF3C3C3C)),
+              Container(width: 1, height: 20, color: AppTheme.border),
               const SizedBox(width: 6),
               if (!compact) ...[
                 _TopMenuItem(label: 'File'),
@@ -367,8 +368,8 @@ class _TitleBar extends StatelessWidget {
                   tooltip: 'Открыть терминал отладки',
                   icon: const Icon(Icons.bug_report_outlined, size: 17),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D2D2D),
-                    foregroundColor: Colors.white70,
+                    backgroundColor: AppTheme.panel,
+                    foregroundColor: AppTheme.text,
                     minimumSize: const Size(28, 28),
                     maximumSize: const Size(28, 28),
                     padding: EdgeInsets.zero,
@@ -404,23 +405,19 @@ class _TitleBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 7),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2D2D2D),
+                    color: AppTheme.panel,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '${(scale * 100).round()}%',
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white70,
+                      color: AppTheme.text,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(
-                Icons.circle,
-                size: 8,
-                color: engine.isOnline ? Colors.tealAccent : Colors.orange,
-              ),
+              Icon(Icons.circle, size: 8, color: AppTheme.mutedText),
               const SizedBox(width: 7),
               Text(
                 engine.isOnline ? 'Engine online' : 'Engine offline',
@@ -431,7 +428,7 @@ class _TitleBar extends StatelessWidget {
                 onPressed: onRun,
                 icon: const Icon(Icons.play_arrow, size: 16),
                 label: const Text('Run'),
-                style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+                style: TextButton.styleFrom(foregroundColor: AppTheme.text),
               ),
               const SizedBox(width: 8),
               const _WindowControls(),
@@ -505,8 +502,8 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
     tooltip: tooltip,
     onPressed: onPressed,
     icon: Icon(icon, size: 15),
-    color: Colors.white60,
-    hoverColor: const Color(0xFF3C3C3C),
+    color: AppTheme.mutedText,
+    hoverColor: AppTheme.border,
     splashRadius: 16,
     padding: EdgeInsets.zero,
     constraints: const BoxConstraints.tightFor(width: 30, height: 30),
@@ -600,7 +597,7 @@ class _TopMenuItem extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall
-            ?.copyWith(color: Colors.white60),
+            ?.copyWith(color: AppTheme.mutedText),
       ),
     ),
   );
@@ -700,8 +697,8 @@ class _AnimatedContextMenuButtonState<T>
                   width: widget.menuWidth,
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF252526),
-                    border: Border.all(color: const Color(0xFF4A4A4A)),
+                    color: AppTheme.panel,
+                    border: Border.all(color: AppTheme.border),
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: const [
                       BoxShadow(
@@ -779,7 +776,7 @@ class _AnimatedMenuAction<T> extends StatelessWidget {
           child: Text(
             action.label,
             style: TextStyle(
-              color: action.enabled ? Colors.white70 : Colors.white30,
+              color: action.enabled ? AppTheme.text : AppTheme.mutedText,
               fontSize: 13,
             ),
           ),
@@ -822,8 +819,8 @@ class _GlobalSearchState extends State<_GlobalSearch> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF252526),
-                border: Border.all(color: const Color(0xFF4A4A4A)),
+                color: AppTheme.panel,
+                border: Border.all(color: AppTheme.border),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: const [
                   BoxShadow(
@@ -889,14 +886,14 @@ class _GlobalSearchState extends State<_GlobalSearch> {
         hintText: 'Search files, symbols...  (Ctrl+P)',
         prefixIcon: const Icon(Icons.search, size: 16),
         filled: true,
-        fillColor: const Color(0xFF3C3C3C),
+        fillColor: AppTheme.panel,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFF555555)),
+          borderSide: const BorderSide(color: AppTheme.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFF61B5FF)),
+          borderSide: const BorderSide(color: AppTheme.text),
         ),
         contentPadding: EdgeInsets.zero,
         border: OutlineInputBorder(
@@ -920,7 +917,7 @@ class _SearchSectionTitle extends StatelessWidget {
     child: Text(
       label,
       style: const TextStyle(
-        color: Colors.white54,
+        color: AppTheme.mutedText,
         fontSize: 10,
         fontWeight: FontWeight.bold,
         letterSpacing: .8,
@@ -952,7 +949,7 @@ class _SearchAction extends StatelessWidget {
       title: Text(label),
       trailing: shortcut == null
           ? null
-          : Text(shortcut!, style: const TextStyle(color: Colors.white38)),
+          : Text(shortcut!, style: const TextStyle(color: AppTheme.mutedText)),
     ),
   );
 }
@@ -969,9 +966,9 @@ class _ShellSurface extends StatelessWidget {
     width: width,
     child: DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF252526),
+        color: AppTheme.panel,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: const Color(0xFF353535)),
+        border: Border.all(color: AppTheme.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
@@ -1048,7 +1045,7 @@ class _ActivityRail extends StatelessWidget {
 
     return Container(
       width: 48,
-      color: const Color(0xFF202020),
+      color: AppTheme.background,
       child: Column(
         children: [
           const SizedBox(height: 8),
@@ -1111,23 +1108,19 @@ class _RailButton extends StatelessWidget {
         height: 40,
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF2D2D2D) : Colors.transparent,
+          color: active ? AppTheme.panel : Colors.transparent,
           borderRadius: BorderRadius.circular(5),
-          border: active
-              ? const Border(
-                  left: BorderSide(color: Color(0xFF61B5FF), width: 2),
-                )
-              : null,
+          border: active ? Border.all(color: AppTheme.border) : null,
         ),
         child: Center(
           child: Icon(
             item.icon,
             size: 20,
             color: active
-                ? const Color(0xFF61B5FF)
+                ? AppTheme.text
                 : enabled
-                ? Colors.white54
-                : Colors.white24,
+                ? AppTheme.mutedText
+                : AppTheme.mutedText.withAlpha(110),
           ),
         ),
       ),
@@ -1171,7 +1164,7 @@ class _ExplorerState extends State<_Explorer> {
     return SizedBox(
       width: widget.width,
       child: ColoredBox(
-        color: const Color(0xFF252526),
+        color: AppTheme.panel,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1234,7 +1227,7 @@ class _ExplorerState extends State<_Explorer> {
                                       setState(() => _moduleQuery = ''),
                                 ),
                           filled: true,
-                          fillColor: const Color(0xFF3C3C3C),
+                          fillColor: AppTheme.panel,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(4),
                             borderSide: BorderSide.none,
@@ -1249,7 +1242,10 @@ class _ExplorerState extends State<_Explorer> {
                         padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
                         child: Text(
                           'No modules found',
-                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                          style: TextStyle(
+                            color: AppTheme.mutedText,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     for (final module in _catalogModules)
@@ -1263,7 +1259,7 @@ class _ExplorerState extends State<_Explorer> {
               child: Text(
                 'NerveGears Engine ${AppInfo.version}',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white38,
+                  color: AppTheme.mutedText,
                 ),
               ),
             ),
@@ -1283,14 +1279,14 @@ class _ExplorerHeading extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
     child: Row(
       children: [
-        Icon(icon, size: 15, color: Colors.white70),
+        Icon(icon, size: 15, color: AppTheme.text),
         const SizedBox(width: 3),
         Text(
           title,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             letterSpacing: .8,
             fontWeight: FontWeight.bold,
-            color: Colors.white70,
+            color: AppTheme.text,
           ),
         ),
       ],
@@ -1324,30 +1320,30 @@ class _ModuleItem extends StatelessWidget {
           Icon(
             _icon,
             size: 14,
-            color: catalog ? Colors.white54 : const Color(0xFF4EC9B0),
+            color: catalog ? AppTheme.mutedText : AppTheme.text,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               module.name,
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+              style: TextStyle(color: AppTheme.text, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           Icon(
             Icons.circle,
             size: 6,
-            color: module.active ? const Color(0xFF4EC9B0) : Colors.white24,
+            color: module.active ? AppTheme.text : AppTheme.mutedText,
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              color: const Color(0xFF094771),
+              color: AppTheme.border,
               borderRadius: BorderRadius.circular(3),
             ),
             child: Text(
               'v${module.version}',
-              style: const TextStyle(fontSize: 10, color: Color(0xFF9CDCFE)),
+              style: const TextStyle(fontSize: 10, color: AppTheme.mutedText),
             ),
           ),
         ],
@@ -1370,8 +1366,8 @@ class _ModeSwitcherPanel extends StatelessWidget {
         width: 96,
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
-          border: Border.all(color: const Color(0xFF3C3C3C)),
+          color: AppTheme.background,
+          border: Border.all(color: AppTheme.border),
           borderRadius: BorderRadius.circular(14),
           boxShadow: const [
             BoxShadow(
@@ -1388,7 +1384,7 @@ class _ModeSwitcherPanel extends StatelessWidget {
               padding: EdgeInsets.only(bottom: 6),
               child: Text(
                 'change mode',
-                style: TextStyle(color: Colors.white54, fontSize: 13),
+                style: TextStyle(color: AppTheme.mutedText, fontSize: 13),
               ),
             ),
             for (final mode in AppMode.values)
@@ -1404,11 +1400,11 @@ class _ModeSwitcherPanel extends StatelessWidget {
                       height: 76,
                       decoration: BoxDecoration(
                         color: current == mode
-                            ? const Color(0xFF303030)
-                            : const Color(0xFF292929),
+                            ? AppTheme.panel
+                            : AppTheme.background,
                         borderRadius: BorderRadius.circular(12),
                         border: current == mode
-                            ? Border.all(color: const Color(0xFF61B5FF))
+                            ? Border.all(color: AppTheme.border)
                             : null,
                       ),
                       child: Icon(
@@ -1419,8 +1415,8 @@ class _ModeSwitcherPanel extends StatelessWidget {
                         },
                         size: 27,
                         color: current == mode
-                            ? const Color(0xFF61B5FF)
-                            : Colors.white54,
+                            ? AppTheme.text
+                            : AppTheme.mutedText,
                       ),
                     ),
                   ),
@@ -1439,7 +1435,7 @@ class _EditorTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 35,
-    color: const Color(0xFF202020),
+    color: AppTheme.background,
     child: Row(
       children: [
         Container(
@@ -1448,9 +1444,9 @@ class _EditorTabs extends StatelessWidget {
           margin: const EdgeInsets.only(top: 3),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF292929),
+            color: AppTheme.panel,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            border: Border.all(color: const Color(0xFF3D3D3D)),
+            border: Border.all(color: AppTheme.border),
           ),
           child: Stack(
             children: [
@@ -1461,7 +1457,7 @@ class _EditorTabs extends StatelessWidget {
                     Icon(
                       _phosphorFor(active.id),
                       size: 15,
-                      color: const Color(0xFF8ABEFF),
+                      color: AppTheme.text,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1470,7 +1466,11 @@ class _EditorTabs extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Icon(Icons.close, size: 14, color: Colors.white38),
+                    const Icon(
+                      Icons.close,
+                      size: 14,
+                      color: AppTheme.mutedText,
+                    ),
                   ],
                 ),
               ),
@@ -1480,7 +1480,7 @@ class _EditorTabs extends StatelessWidget {
                 right: 0,
                 height: 2,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xFF61B5FF)),
+                  decoration: BoxDecoration(color: AppTheme.text),
                 ),
               ),
             ],
@@ -1492,7 +1492,7 @@ class _EditorTabs extends StatelessWidget {
           child: Icon(
             Icons.view_sidebar_outlined,
             size: 17,
-            color: Colors.white54,
+            color: AppTheme.mutedText,
           ),
         ),
       ],
@@ -1513,7 +1513,7 @@ class _TerminalPanel extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedContainer(
     duration: const Duration(milliseconds: 180),
     height: open ? 200 : 32,
-    color: const Color(0xFF1E1E1E),
+    color: AppTheme.background,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1533,7 +1533,7 @@ class _TerminalPanel extends StatelessWidget {
               ),
               const Text(
                 'OUTPUT',
-                style: TextStyle(fontSize: 12, color: Colors.white38),
+                style: TextStyle(fontSize: 12, color: AppTheme.mutedText),
               ),
               const Spacer(),
               IconButton(

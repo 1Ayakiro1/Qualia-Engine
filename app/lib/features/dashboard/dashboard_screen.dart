@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/logging/log_window.dart';
 import '../../state/engine_provider.dart';
@@ -30,9 +31,9 @@ class DashboardScreen extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF242424),
+              color: AppTheme.panel,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: const Color(0xFF383838)),
+              border: Border.all(color: AppTheme.border),
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -48,7 +49,7 @@ class DashboardScreen extends ConsumerWidget {
                     Text(
                       'Интерфейс обновлён · рабочая область готова',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
+                        color: AppTheme.mutedText,
                       ),
                     ),
                   ],

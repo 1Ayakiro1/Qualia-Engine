@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
+import '../../core/theme/app_theme.dart';
 import '../../state/engine_state.dart';
 
 /// Settings page intentionally follows the dense, desktop-first reference UI.
@@ -64,7 +65,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             TextSpan(
                               text: 'Подробнее',
-                              style: TextStyle(color: Color(0xFF55AFFF)),
+                              style: TextStyle(color: AppTheme.text),
                             ),
                           ],
                         ),

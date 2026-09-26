@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 class AppTheme {
   const AppTheme._();
 
-  static const Color accent = Color(0xFF61B5FF);
-  static const Color accentSecondary = Color(0xFF8ABEFF);
+  static const Color background = Color(0xFF141414);
+  static const Color panel = Color(0xFF181818);
+  static const Color border = Color(0xFF272727);
+  static const Color text = Color(0xFFBDBDBD);
+  static const Color mutedText = Color(0xFF858585);
+  static const Color accent = text;
+  static const Color accentSecondary = text;
 
   static ThemeData dark() => _base(Brightness.dark);
 
@@ -13,48 +18,53 @@ class AppTheme {
 
   static ThemeData _base(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: accent,
+      seedColor: text,
       brightness: brightness,
     );
     final dark = brightness == Brightness.dark;
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: dark ? const Color(0xFF1E1E1E) : null,
-      canvasColor: dark ? const Color(0xFF1E1E1E) : null,
-      dividerColor: dark ? const Color(0xFF3C3C3C) : null,
+      scaffoldBackgroundColor: dark ? background : null,
+      canvasColor: dark ? background : null,
+      dividerColor: dark ? border : null,
       textTheme: ThemeData.dark().textTheme.apply(
-        bodyColor: const Color(0xFFE5E5E5),
-        displayColor: const Color(0xFFE5E5E5),
+        bodyColor: text,
+        displayColor: text,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: dark ? const Color(0xFF121212) : scheme.surface,
+        backgroundColor: dark ? background : scheme.surface,
         scrolledUnderElevation: 0,
         centerTitle: false,
         toolbarHeight: 36,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: dark ? const Color(0xFF242424) : scheme.surfaceContainerLow,
+        color: dark ? panel : scheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
-          side: BorderSide(color: dark ? const Color(0xFF3C3C3C) : scheme.outlineVariant.withAlpha(80)),
+          side: BorderSide(
+            color: dark ? border : scheme.outlineVariant.withAlpha(80),
+          ),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       ),
       navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: dark ? const Color(0xFF121212) : scheme.surface,
-        selectedIconTheme: const IconThemeData(color: accent),
-        selectedLabelTextStyle: const TextStyle(color: accent),
-        indicatorColor: accent.withAlpha(36),
+        backgroundColor: dark ? background : scheme.surface,
+        selectedIconTheme: const IconThemeData(color: text),
+        selectedLabelTextStyle: const TextStyle(color: text),
+        indicatorColor: panel,
       ),
       chipTheme: ChipThemeData(
         side: BorderSide(color: scheme.outlineVariant.withAlpha(80)),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: dark ? border : scheme.outline),
+        ),
         isDense: true,
-        hintStyle: TextStyle(color: dark ? Colors.white38 : null, fontSize: 12),
+        hintStyle: TextStyle(color: dark ? mutedText : null, fontSize: 12),
       ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
