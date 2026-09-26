@@ -19,7 +19,7 @@ void main(List<String> args) async {
   // this engine) — degrade gracefully instead of crashing the window.
   try {
     await windowManager.ensureInitialized();
-    await windowManager.setTitle('BCI Engine — Консоль логов');
+    await windowManager.setTitle('Ayakiro BCI Engine');
     await windowManager.setMinimumSize(const Size(760, 480));
   } catch (e) {
     debugPrint('window_manager недоступен: $e');
@@ -37,8 +37,16 @@ void main(List<String> args) async {
   }
 
   if (windowArgs == 'log_console') {
+    try {
+      await windowManager.setTitle('BCI Engine — Консоль логов');
+    } catch (_) {}
     runApp(const LogConsoleApp());
     return;
+  }
+  try {
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+  } catch (e) {
+    debugPrint('не удалось скрыть системную панель окна: $e');
   }
   await AppLogger.instance.init();
   // Smoke/CI hook: open the log console automatically so automated runs can
@@ -48,8 +56,11 @@ void main(List<String> args) async {
       try {
         await openLogConsole();
       } catch (e) {
-        AppLogger.instance.log('app', 'smoke: консоль не открылась: $e',
-            level: LogLevel.error);
+        AppLogger.instance.log(
+          'app',
+          'smoke: консоль не открылась: $e',
+          level: LogLevel.error,
+        );
       }
     });
   }
@@ -63,4 +74,3 @@ void main(List<String> args) async {
   };
   runApp(const ProviderScope(child: BciApp()));
 }
-

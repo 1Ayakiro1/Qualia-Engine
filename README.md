@@ -2,7 +2,7 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: v0.2.0 — скелет + логгер/консоль.** Каркас-оболочка собран,
+**Статус: v0.2.3 — полировка оболочки.** Каркас-оболочка собран,
 сборка и запуск проверяются на каждую версию (бинарник + AppImage + portable
 tar.gz; Windows/macOS — в CI). Готовые сборки — в папке [`builds/`](builds/README.md).
 
@@ -14,7 +14,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 | Исследователь | + Конвейер, Спектрограмма, Модули, Датасеты, Модели |
 | Разработчик | + FFI-консоль ядра |
 
-## Что уже работает (v0.2.0)
+## Что уже работает (v0.2.3)
 
 - **Логгер сессии** (`AppLogger`): с момента запуска и до завершения пишет
   форматированные логи ядра и UI в `~/.local/share/bci_engine/logs/`
@@ -41,7 +41,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Ayakiro_BCI_Engine-0.2.1-x86_64.AppImage
+./builds/Ayakiro_BCI_Engine-0.2.3-x86_64.AppImage
 ```
 
 Требования: Flutter SDK (Linux desktop toolchain), CMake ≥ 3.21, GCC/Clang, Ninja.
@@ -52,7 +52,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 core/        C++ ядро (CMake, Catch2, readerwriterqueue)
 app/         Flutter-приложение (Riverpod)
 builds/      Готовые сборки: AppImage, tar.gz, бинарник (для пользователей)
-dist/        Иконки, .desktop, AppRun
+scripts/packaging/  Метаданные AppImage и AppRun
 scripts/     Сборка/упаковка/проверки
 docs/        Архитектура, модули, сборка, роадмап
 ```

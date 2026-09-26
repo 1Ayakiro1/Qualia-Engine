@@ -14,10 +14,12 @@ mkdir -p "${APPDIR}"
 
 # Bundle already contains: bci_engine, lib/, data/.
 cp -a "${BUNDLE}/." "${APPDIR}/"
-cp "${ROOT_DIR}/dist/bci-engine.desktop" "${APPDIR}/bci-engine.desktop"
-cp "${ROOT_DIR}/dist/icons/bci_engine_256.png" "${APPDIR}/bci_engine.png"
+sed "s/@VERSION@/${VERSION}/g" \
+  "${ROOT_DIR}/scripts/packaging/bci-engine.desktop" \
+  > "${APPDIR}/bci-engine.desktop"
+cp "${ROOT_DIR}/app/assets/icons/bci_engine_256.png" "${APPDIR}/bci_engine.png"
 ln -sf bci_engine.png "${APPDIR}/.DirIcon"
-cp "${ROOT_DIR}/dist/appimage/AppRun.sh" "${APPDIR}/AppRun"
+cp "${ROOT_DIR}/scripts/packaging/AppRun.sh" "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
 
 # Locate (or download) appimagetool.

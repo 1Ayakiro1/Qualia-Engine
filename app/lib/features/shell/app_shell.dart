@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 
+import '../../core/constants/app_info.dart';
 import '../../core/logging/log_window.dart';
 import '../../core/modules/module_registry.dart';
 import '../../state/app_state.dart';
@@ -55,6 +58,19 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
+  double uiScale = 1.1;
+
+  static const double _minScale = 0.8;
+  static const double _maxScale = 1.5;
+  static const double _scaleStep = 0.1;
+
+  void _changeScale(double delta) {
+    setState(() {
+      uiScale = (uiScale + delta).clamp(_minScale, _maxScale).toDouble();
+    });
+  }
+
+  void _resetScale() => setState(() => uiScale = 1.1);
 
   Future<void> _openDebugConsole(BuildContext context) async {
     try {
@@ -77,72 +93,115 @@ class _AppShellState extends ConsumerState<AppShell> {
     final selected = sections.indexWhere((item) => item.id == section);
     final active = selected < 0 ? sections.first : sections[selected];
 
-    return Scaffold(
-      body: Column(
-        children: [
-          _TitleBar(
-            mode: mode,
-            engine: engine,
-            onModeChanged: (value) =>
-                ref.read(appModeProvider.notifier).setMode(value),
-            onRun: () =>
-                ref.read(navSectionProvider.notifier).select(SectionId.session),
-            onOpenDebugConsole: () => _openDebugConsole(context),
-          ),
-          Expanded(
-            child: Stack(
-              children: [
-                Row(
-                  children: [
-                    _ActivityRail(
-                      sections: sections,
-                      selected: selected < 0 ? 0 : selected,
-                      modeSwitcherOpen: modeSwitcherOpen,
-                      onSelected: (index) => ref
-                          .read(navSectionProvider.notifier)
-                          .select(sections[index].id),
-                      onModeSwitcher: () =>
-                          setState(() => modeSwitcherOpen = !modeSwitcherOpen),
-                    ),
-                    _Explorer(
-                      sections: sections,
-                      selected: selected < 0 ? 0 : selected,
-                      onSelected: (index) => ref
-                          .read(navSectionProvider.notifier)
-                          .select(sections[index].id),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _EditorTabs(active: active),
-                          Expanded(child: _SectionBody(section: active.id)),
-                          _TerminalPanel(
-                            open: terminalOpen,
-                            onToggle: () =>
-                                setState(() => terminalOpen = !terminalOpen),
-                            onOpenWindow: () => _openDebugConsole(context),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
+            _changeScale(_scaleStep),
+        const SingleActivator(LogicalKeyboardKey.add, control: true): () =>
+            _changeScale(_scaleStep),
+        const SingleActivator(LogicalKeyboardKey.minus, control: true): () =>
+            _changeScale(-_scaleStep),
+        const SingleActivator(LogicalKeyboardKey.digit0, control: true):
+            _resetScale,
+      },
+      child: Focus(
+        autofocus: true,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth / uiScale;
+            final height = constraints.maxHeight / uiScale;
+            return ColoredBox(
+              color: const Color(0xFF1E1E1E),
+              child: Transform.scale(
+                scale: uiScale,
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: Scaffold(
+                    body: Column(
+                      children: [
+                        _TitleBar(
+                          engine: engine,
+                          onRun: () => ref
+                              .read(navSectionProvider.notifier)
+                              .select(SectionId.session),
+                          onOpenDebugConsole: () => _openDebugConsole(context),
+                          scale: uiScale,
+                          onScaleChanged: (value) =>
+                              setState(() => uiScale = value),
+                        ),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Row(
+                                children: [
+                                  _ActivityRail(
+                                    sections: sections,
+                                    selected: selected < 0 ? 0 : selected,
+                                    modeSwitcherOpen: modeSwitcherOpen,
+                                    onSelected: (index) => ref
+                                        .read(navSectionProvider.notifier)
+                                        .select(sections[index].id),
+                                    onModeSwitcher: () => setState(
+                                      () =>
+                                          modeSwitcherOpen = !modeSwitcherOpen,
+                                    ),
+                                  ),
+                                  _Explorer(
+                                    sections: sections,
+                                    selected: selected < 0 ? 0 : selected,
+                                    onSelected: (index) => ref
+                                        .read(navSectionProvider.notifier)
+                                        .select(sections[index].id),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _EditorTabs(active: active),
+                                        Expanded(
+                                          child: _SectionBody(
+                                            section: active.id,
+                                          ),
+                                        ),
+                                        _TerminalPanel(
+                                          open: terminalOpen,
+                                          onToggle: () => setState(
+                                            () => terminalOpen = !terminalOpen,
+                                          ),
+                                          onOpenWindow: () =>
+                                              _openDebugConsole(context),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (modeSwitcherOpen)
+                                Positioned(
+                                  left: 56,
+                                  bottom: 54,
+                                  child: _ModeSwitcherPanel(
+                                    current: mode,
+                                    onSelected: (value) {
+                                      ref
+                                          .read(appModeProvider.notifier)
+                                          .setMode(value);
+                                      setState(() => modeSwitcherOpen = false);
+                                    },
+                                  ),
+                                ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (modeSwitcherOpen)
-                  Positioned(
-                    left: 56,
-                    bottom: 54,
-                    child: _ModeSwitcherPanel(
-                      current: mode,
-                      onSelected: (value) {
-                        ref.read(appModeProvider.notifier).setMode(value);
-                        setState(() => modeSwitcherOpen = false);
-                      },
+                        ),
+                      ],
                     ),
                   ),
-              ],
-            ),
-          ),
-        ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -150,160 +209,244 @@ class _AppShellState extends ConsumerState<AppShell> {
 
 class _TitleBar extends StatelessWidget {
   const _TitleBar({
-    required this.mode,
     required this.engine,
-    required this.onModeChanged,
     required this.onRun,
     required this.onOpenDebugConsole,
+    required this.scale,
+    required this.onScaleChanged,
   });
-  final AppMode mode;
   final EngineState engine;
-  final ValueChanged<AppMode> onModeChanged;
   final VoidCallback onRun;
   final VoidCallback onOpenDebugConsole;
+  final double scale;
+  final ValueChanged<double> onScaleChanged;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 1100;
-    return Container(
-      height: 36,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        border: Border(bottom: BorderSide(color: Color(0xFF3A3A3A))),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 0,
-            height: 0,
-            child: Text('Ayakiro BCI Engine'),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 22,
-            height: 26,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.circular(4),
+    return DragToMoveArea(
+      child: Container(
+        height: 36,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E1E1E),
+          border: Border(bottom: BorderSide(color: Color(0xFF3A3A3A))),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 0,
+              height: 0,
+              child: Text('Ayakiro BCI Engine'),
             ),
-            child: Image.asset('assets/icons/bci_engine_64.png'),
-          ),
-          const SizedBox(width: 8),
-          Container(width: 1, height: 20, color: const Color(0xFF3C3C3C)),
-          const SizedBox(width: 8),
-          Container(
-            height: 26,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2D2D2D),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              'ENGINE',
-              style: theme.textTheme.labelSmall?.copyWith(
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          if (!compact) ...[
-            const Spacer(),
-            Flexible(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _TopMenuItem(label: 'File'),
-                  _TopMenuItem(label: 'Edit'),
-                  _TopMenuItem(label: 'View'),
-                  _TopMenuItem(label: 'Build'),
-                ],
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: 320,
+            const SizedBox(width: 12),
+            Container(
+              width: 22,
               height: 26,
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search files, symbols...  (Ctrl+P)',
-                  prefixIcon: const Icon(Icons.search, size: 16),
-                  filled: true,
-                  fillColor: const Color(0xFF3C3C3C),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: const BorderSide(color: Color(0xFF555555)),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D2D2D),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Image.asset('assets/icons/bci_engine_64.png'),
+            ),
+            const SizedBox(width: 8),
+            Container(width: 1, height: 20, color: const Color(0xFF3C3C3C)),
+            const SizedBox(width: 6),
+            if (!compact) ...[
+              _TopMenuItem(label: 'File'),
+              _TopMenuItem(label: 'Edit'),
+              _TopMenuItem(label: 'View'),
+              _TopMenuItem(label: 'Build'),
+              const Spacer(),
+              SizedBox(
+                width: 320,
+                height: 26,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search files, symbols...  (Ctrl+P)',
+                    prefixIcon: const Icon(Icons.search, size: 16),
+                    filled: true,
+                    fillColor: const Color(0xFF3C3C3C),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: Color(0xFF555555)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: Color(0xFF61B5FF)),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: const BorderSide(color: Color(0xFF61B5FF)),
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: onOpenDebugConsole,
+                tooltip: 'Открыть терминал отладки',
+                icon: const Icon(Icons.bug_report_outlined, size: 17),
+                style: IconButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D2D2D),
+                  foregroundColor: Colors.white70,
+                  minimumSize: const Size(28, 28),
+                  maximumSize: const Size(28, 28),
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                style: theme.textTheme.bodySmall,
+              ),
+              const Spacer(),
+            ] else
+              const Spacer(),
+            PopupMenuButton<double>(
+              tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
+              onSelected: onScaleChanged,
+              itemBuilder: (context) => [
+                for (final value in <double>[0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5])
+                  PopupMenuItem<double>(
+                    value: value,
+                    child: Text('${(value * 100).round()}%'),
+                  ),
+              ],
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D2D2D),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${(scale * 100).round()}%',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white70,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              onPressed: onOpenDebugConsole,
-              tooltip: 'Открыть терминал отладки',
-              icon: const Icon(Icons.bug_report_outlined, size: 17),
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF2D2D2D),
-                foregroundColor: Colors.white70,
-                minimumSize: const Size(28, 28),
-                maximumSize: const Size(28, 28),
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
+            Icon(
+              Icons.circle,
+              size: 8,
+              color: engine.isOnline ? Colors.tealAccent : Colors.orange,
             ),
-            const Spacer(),
-          ] else
-            const Spacer(),
-          Icon(
-            Icons.circle,
-            size: 8,
-            color: engine.isOnline ? Colors.tealAccent : Colors.orange,
-          ),
-          const SizedBox(width: 7),
-          Text(
-            engine.isOnline ? 'Engine online' : 'Engine offline',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(width: 12),
-          PopupMenuButton<AppMode>(
-            tooltip: 'Режим приложения',
-            onSelected: onModeChanged,
-            itemBuilder: (_) => [
-              for (final item in AppMode.values)
-                PopupMenuItem(value: item, child: Text(item.label)),
-            ],
-            child: Chip(
-              label: Text(mode.label),
-              visualDensity: VisualDensity.compact,
+            const SizedBox(width: 7),
+            Text(
+              engine.isOnline ? 'Engine online' : 'Engine offline',
+              style: theme.textTheme.bodySmall,
             ),
-          ),
-          const SizedBox(width: 4),
-          TextButton.icon(
-            onPressed: onRun,
-            icon: const Icon(Icons.play_arrow, size: 16),
-            label: const Text('Run'),
-            style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-          ),
-          const SizedBox(width: 8),
-        ],
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: onRun,
+              icon: const Icon(Icons.play_arrow, size: 16),
+              label: const Text('Run'),
+              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+            ),
+            const SizedBox(width: 8),
+            const _WindowControls(),
+            const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _WindowControls extends StatefulWidget {
+  const _WindowControls();
+
+  @override
+  State<_WindowControls> createState() => _WindowControlsState();
+}
+
+class _WindowControlsState extends State<_WindowControls> with WindowListener {
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _syncMaximizedState();
+  }
+
+  Future<void> _syncMaximizedState() async {
+    try {
+      final maximized = await windowManager.isMaximized();
+      if (mounted) setState(() => _maximized = maximized);
+    } catch (_) {
+      // Native window methods are unavailable in widget tests.
+    }
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _maximized = false);
+  }
+
+  Future<void> _toggleMaximize() async {
+    try {
+      if (_maximized) {
+        await windowManager.unmaximize();
+      } else {
+        await windowManager.maximize();
+      }
+      await _syncMaximizedState();
+    } catch (_) {}
+  }
+
+  Widget _button({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    icon: Icon(icon, size: 15),
+    color: Colors.white60,
+    hoverColor: const Color(0xFF3C3C3C),
+    splashRadius: 16,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+  );
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _button(
+        tooltip: 'Свернуть окно',
+        icon: Icons.remove,
+        onPressed: () => windowManager.minimize(),
+      ),
+      _button(
+        tooltip: _maximized ? 'Восстановить окно' : 'Развернуть окно',
+        icon: _maximized ? Icons.filter_none : Icons.crop_square,
+        onPressed: _toggleMaximize,
+      ),
+      _button(
+        tooltip: 'Закрыть окно',
+        icon: Icons.close,
+        onPressed: () => windowManager.close(),
+      ),
+    ],
+  );
 }
 
 class _TopMenuItem extends StatelessWidget {
@@ -344,31 +487,31 @@ class _ActivityRail extends StatelessWidget {
     const railItems = <NavSection>[
       NavSection(
         id: SectionId.dashboard,
-        label: 'Обзор',
-        icon: Icons.folder_open_outlined,
+        label: 'User profile button',
+        icon: Icons.account_circle_outlined,
         modes: {},
       ),
       NavSection(
-        id: SectionId.devices,
-        label: 'Устройства',
-        icon: Icons.search,
+        id: SectionId.settings,
+        label: 'configs',
+        icon: Icons.settings_outlined,
         modes: {},
       ),
       NavSection(
         id: SectionId.modules,
-        label: 'Модули',
-        icon: Icons.extension_outlined,
+        label: 'marketplace',
+        icon: Icons.storefront_outlined,
         modes: {},
       ),
       NavSection(
         id: SectionId.pipeline,
-        label: 'Конвейер',
+        label: 'Modules',
         icon: Icons.account_tree_outlined,
         modes: {},
       ),
       NavSection(
         id: SectionId.developer,
-        label: 'Разработчик',
+        label: 'bug report',
         icon: Icons.bug_report_outlined,
         modes: {},
       ),
@@ -396,7 +539,7 @@ class _ActivityRail extends StatelessWidget {
           _RailButton(
             item: const NavSection(
               id: SectionId.session,
-              label: 'Режим пользователя',
+              label: 'user&dev switcher',
               icon: Icons.person_outline,
               modes: {},
             ),
@@ -407,14 +550,14 @@ class _ActivityRail extends StatelessWidget {
           const SizedBox(height: 2),
           _RailButton(
             item: const NavSection(
-              id: SectionId.settings,
-              label: 'Настройки',
-              icon: Icons.settings_outlined,
+              id: SectionId.dashboard,
+              label: 'projects',
+              icon: Icons.folder_open_outlined,
               modes: {},
             ),
-            active: sections[selected].id == SectionId.settings,
+            active: sections[selected].id == SectionId.dashboard,
             enabled: true,
-            onTap: () => select(SectionId.settings),
+            onTap: () => select(SectionId.dashboard),
           ),
           const SizedBox(height: 8),
         ],
@@ -556,7 +699,7 @@ class _Explorer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                'NerveGears Engine 0.2.2',
+                'NerveGears Engine ${AppInfo.version}',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: Colors.white38,
                 ),

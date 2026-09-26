@@ -1,4 +1,5 @@
 import 'package:bci_engine/app.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,8 +11,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Ayakiro BCI Engine'), findsOneWidget);
-    // Mode selector chip and engine status chip are present.
-    expect(find.text('Потребитель'), findsOneWidget);
+    // The mode selector is now available from the activity rail, not the top bar.
+    expect(find.byTooltip('user&dev switcher'), findsOneWidget);
+    expect(find.text('Потребитель'), findsNothing);
     // Dashboard header.
     expect(find.text('Обзор'), findsWidgets);
   });
@@ -23,7 +25,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Open the rail mode switcher and pick "Исследователь".
-    await tester.tap(find.byTooltip('Режим пользователя'));
+    await tester.tap(find.byTooltip('user&dev switcher'));
     await tester.pumpAndSettle();
     expect(find.text('change mode'), findsOneWidget);
     await tester.tap(
@@ -31,8 +33,29 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Исследователь'), findsOneWidget);
-    expect(find.byTooltip('Конвейер'), findsOneWidget);
+    expect(find.text('Исследователь'), findsNothing);
+    expect(find.byTooltip('Modules'), findsOneWidget);
     expect(find.text('ACTIVE MODULES'), findsOneWidget);
+  });
+
+  testWidgets('interface scale starts at 110% and responds to shortcuts', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('110%'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump();
+    expect(find.text('120%'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump();
+    expect(find.text('110%'), findsOneWidget);
   });
 }
