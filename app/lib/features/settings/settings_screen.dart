@@ -461,11 +461,11 @@ class _ActionButton extends StatelessWidget {
   final String action;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 210),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final narrow = constraints.maxWidth < 360;
+      final path = ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: narrow ? 180 : 210),
         child: Text(
           label,
           overflow: TextOverflow.ellipsis,
@@ -474,10 +474,25 @@ class _ActionButton extends StatelessWidget {
             fontFamily: 'monospace',
           ),
         ),
-      ),
-      const SizedBox(width: 12),
-      OutlinedButton(onPressed: () {}, child: Text(action)),
-    ],
+      );
+      return narrow
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Expanded(child: path),
+                const SizedBox(width: 8),
+                OutlinedButton(onPressed: () {}, child: Text(action)),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                path,
+                const SizedBox(width: 12),
+                OutlinedButton(onPressed: () {}, child: Text(action)),
+              ],
+            );
+    },
   );
 }
 

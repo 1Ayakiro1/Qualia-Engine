@@ -78,6 +78,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('General'), findsWidgets);
     expect(find.text('Back to app'), findsOneWidget);
+    expect(find.text('ACTIVE MODULES'), findsNothing);
+    expect(find.byTooltip('Modules'), findsNothing);
     await tester.tap(find.text('Back to app'));
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(20, 20));
@@ -113,6 +115,44 @@ void main() {
     expect(find.text('Исследователь'), findsNothing);
     expect(find.text('MODULE CATALOG'), findsOneWidget);
     expect(find.byTooltip('Modules'), findsOneWidget);
+  });
+
+  testWidgets('preferences replace the shell sidebars from the rail', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('configs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Back to app'), findsOneWidget);
+    expect(find.text('General'), findsWidgets);
+    expect(find.byTooltip('configs'), findsNothing);
+    expect(find.text('EXPLORER'), findsNothing);
+  });
+
+  testWidgets('active and catalog module searches are separate', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Modules'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(TextField, 'Search active modules...'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextField, 'Search modules...'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Search active modules...'),
+      'does-not-exist',
+    );
+    await tester.pump();
+    expect(find.text('No active modules found'), findsOneWidget);
+    expect(find.text('No modules found'), findsNothing);
   });
 
   testWidgets('Edit menu uses the themed contextual surface', (
