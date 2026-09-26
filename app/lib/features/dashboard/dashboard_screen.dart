@@ -34,35 +34,81 @@ class DashboardScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(17),
               border: Border.all(color: const Color(0xFF383838)),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withAlpha(35),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('NerveGears Engine', style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 4),
-                      Text('Интерфейс обновлён · рабочая область готова',
-                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54)),
-                    ],
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => ref.read(navSectionProvider.notifier).select(SectionId.settings),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 420;
+                final copy = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NerveGears Engine',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Интерфейс обновлён · рабочая область готова',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                      ),
+                    ),
+                  ],
+                );
+                final action = OutlinedButton.icon(
+                  onPressed: () => ref
+                      .read(navSectionProvider.notifier)
+                      .select(SectionId.settings),
                   icon: const Icon(Icons.settings_outlined, size: 17),
                   label: const Text('Настроить'),
-                ),
-              ],
+                );
+
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withAlpha(35),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.auto_awesome,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(child: copy),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Align(alignment: Alignment.centerLeft, child: action),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withAlpha(35),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(child: copy),
+                    action,
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -71,13 +117,30 @@ class DashboardScreen extends ConsumerWidget {
           headerIcon: Icons.memory,
           trailing: StatusChip(
             label: engine.isOnline ? 'онлайн' : 'офлайн',
-            color: engine.isOnline ? Colors.greenAccent : theme.colorScheme.outline,
+            color: engine.isOnline
+                ? Colors.greenAccent
+                : theme.colorScheme.outline,
           ),
           children: [
-            KeyValue(keyLabel: 'Версия ядра', value: engine.coreVersion.isEmpty ? '—' : engine.coreVersion),
-            KeyValue(keyLabel: 'ABI', value: '${engine.abiVersion} (ожидается ${AppInfo.expectedCoreAbi})'),
-            KeyValue(keyLabel: 'Библиотека', value: engine.libraryPath.isEmpty ? 'не найдена' : engine.libraryPath),
-            KeyValue(keyLabel: 'Модулей в конвейере', value: '${engine.moduleCount}'),
+            KeyValue(
+              keyLabel: 'Версия ядра',
+              value: engine.coreVersion.isEmpty ? '—' : engine.coreVersion,
+            ),
+            KeyValue(
+              keyLabel: 'ABI',
+              value:
+                  '${engine.abiVersion} (ожидается ${AppInfo.expectedCoreAbi})',
+            ),
+            KeyValue(
+              keyLabel: 'Библиотека',
+              value: engine.libraryPath.isEmpty
+                  ? 'не найдена'
+                  : engine.libraryPath,
+            ),
+            KeyValue(
+              keyLabel: 'Модулей в конвейере',
+              value: '${engine.moduleCount}',
+            ),
             if (engine.lastError.isNotEmpty)
               KeyValue(keyLabel: 'Ошибка', value: engine.lastError),
           ],
@@ -105,8 +168,9 @@ class DashboardScreen extends ConsumerWidget {
                   label: const Text('Спектрограмма (demo)'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () =>
-                      ref.read(navSectionProvider.notifier).select(SectionId.modules),
+                  onPressed: () => ref
+                      .read(navSectionProvider.notifier)
+                      .select(SectionId.modules),
                   icon: const Icon(Icons.extension_outlined),
                   label: const Text('Реестр модулей'),
                 ),
@@ -116,21 +180,27 @@ class DashboardScreen extends ConsumerWidget {
             Text(
               'Устройство ещё не подключено — сессия запустится на '
               'встроенном симуляторе сигнала (256 Гц, 1 канал).',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  AppLogger.instance.log('app', 'консоль логов открыта с дашборда');
+                  AppLogger.instance.log(
+                    'app',
+                    'консоль логов открыта с дашборда',
+                  );
                   try {
                     await openLogConsole();
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Не удалось открыть консоль: $e')),
+                        SnackBar(
+                          content: Text('Не удалось открыть консоль: $e'),
+                        ),
                       );
                     }
                   }
@@ -145,9 +215,18 @@ class DashboardScreen extends ConsumerWidget {
           title: 'Последние сессии',
           headerIcon: Icons.history,
           children: [
-            const KeyValue(keyLabel: '24.09 · тест', value: 'Симулятор · 00:32 · качество 0.86'),
-            const KeyValue(keyLabel: '23.09 · калибровка', value: 'Симулятор · 03:12 · готово'),
-            const KeyValue(keyLabel: '22.09 · сон', value: 'Симулятор · 01:05 · качество 0.71'),
+            const KeyValue(
+              keyLabel: '24.09 · тест',
+              value: 'Симулятор · 00:32 · качество 0.86',
+            ),
+            const KeyValue(
+              keyLabel: '23.09 · калибровка',
+              value: 'Симулятор · 03:12 · готово',
+            ),
+            const KeyValue(
+              keyLabel: '22.09 · сон',
+              value: 'Симулятор · 01:05 · качество 0.71',
+            ),
             Text(
               'Хранение сессий будет реализовано в Storage Service (v0.2).',
               style: theme.textTheme.bodySmall?.copyWith(

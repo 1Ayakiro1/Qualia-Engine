@@ -37,6 +37,8 @@ void main() {
     expect(find.text('Исследователь'), findsNothing);
     expect(find.byTooltip('Modules'), findsOneWidget);
     expect(find.text('ACTIVE MODULES'), findsOneWidget);
+    expect(find.text('MODULE CATALOG'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Search modules...'), findsOneWidget);
   });
 
   testWidgets('interface scale starts at 110% and responds to shortcuts', (

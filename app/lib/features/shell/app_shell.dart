@@ -121,130 +121,156 @@ class _AppShellState extends ConsumerState<AppShell> {
             );
             return ColoredBox(
               color: const Color(0xFF1E1E1E),
-              child: Transform.scale(
-                scale: uiScale,
-                alignment: Alignment.topLeft,
+              child: ClipRect(
                 child: SizedBox(
-                  width: width,
-                  height: height,
-                  child: MediaQuery(
-                    data: logicalMediaQuery,
-                    child: Scaffold(
-                      body: Column(
-                        children: [
-                          _TitleBar(
-                            engine: engine,
-                            onRun: () => ref
-                                .read(navSectionProvider.notifier)
-                                .select(SectionId.session),
-                            onOpenDebugConsole: () =>
-                                _openDebugConsole(context),
-                            scale: uiScale,
-                            onScaleChanged: (value) =>
-                                setState(() => uiScale = value),
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.all(layout.gap),
-                              child: Stack(
-                                children: [
-                                  Row(
-                                    children: [
-                                      _ShellSurface(
-                                        width: layout.railWidth,
-                                        radius: layout.radius,
-                                        child: _ActivityRail(
-                                          sections: sections,
-                                          selected: selected < 0 ? 0 : selected,
-                                          modeSwitcherOpen: modeSwitcherOpen,
-                                          onSelected: (index) => ref
-                                              .read(navSectionProvider.notifier)
-                                              .select(sections[index].id),
-                                          onModeSwitcher: () => setState(
-                                            () => modeSwitcherOpen =
-                                                !modeSwitcherOpen,
-                                          ),
-                                        ),
-                                      ),
-                                      _LayoutDivider(
-                                        onDrag: (delta) => setState(() {
-                                          layout = layout.copyWith(
-                                            railWidth:
-                                                (layout.railWidth + delta)
-                                                    .clamp(40, 96)
-                                                    .toDouble(),
-                                          );
-                                        }),
-                                      ),
-                                      _ShellSurface(
-                                        width: layout.explorerWidth,
-                                        radius: layout.radius,
-                                        child: _Explorer(
-                                          width: layout.explorerWidth,
-                                          sections: sections,
-                                          selected: selected < 0 ? 0 : selected,
-                                          onSelected: (index) => ref
-                                              .read(navSectionProvider.notifier)
-                                              .select(sections[index].id),
-                                        ),
-                                      ),
-                                      _LayoutDivider(
-                                        onDrag: (delta) => setState(() {
-                                          layout = layout.copyWith(
-                                            explorerWidth:
-                                                (layout.explorerWidth + delta)
-                                                    .clamp(220, 420)
-                                                    .toDouble(),
-                                          );
-                                        }),
-                                      ),
-                                      Expanded(
-                                        child: _ShellSurface(
-                                          radius: layout.radius,
-                                          child: Column(
-                                            children: [
-                                              _EditorTabs(active: active),
-                                              Expanded(
-                                                child: _SectionBody(
-                                                  section: active.id,
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Transform.scale(
+                      scale: uiScale,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: width,
+                        height: height,
+                        child: MediaQuery(
+                          data: logicalMediaQuery,
+                          child: Scaffold(
+                            body: Column(
+                              children: [
+                                _TitleBar(
+                                  engine: engine,
+                                  onRun: () => ref
+                                      .read(navSectionProvider.notifier)
+                                      .select(SectionId.session),
+                                  onOpenDebugConsole: () =>
+                                      _openDebugConsole(context),
+                                  scale: uiScale,
+                                  onScaleChanged: (value) =>
+                                      setState(() => uiScale = value),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(layout.gap),
+                                    child: Stack(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            _ShellSurface(
+                                              width: layout.railWidth,
+                                              radius: layout.radius,
+                                              child: _ActivityRail(
+                                                sections: sections,
+                                                selected: selected < 0
+                                                    ? 0
+                                                    : selected,
+                                                modeSwitcherOpen:
+                                                    modeSwitcherOpen,
+                                                onSelected: (index) => ref
+                                                    .read(
+                                                      navSectionProvider
+                                                          .notifier,
+                                                    )
+                                                    .select(sections[index].id),
+                                                onModeSwitcher: () => setState(
+                                                  () => modeSwitcherOpen =
+                                                      !modeSwitcherOpen,
                                                 ),
                                               ),
-                                              _TerminalPanel(
-                                                open: terminalOpen,
-                                                onToggle: () => setState(
-                                                  () => terminalOpen =
-                                                      !terminalOpen,
-                                                ),
-                                                onOpenWindow: () =>
-                                                    _openDebugConsole(context),
+                                            ),
+                                            _LayoutDivider(
+                                              onDrag: (delta) => setState(() {
+                                                layout = layout.copyWith(
+                                                  railWidth:
+                                                      (layout.railWidth + delta)
+                                                          .clamp(40, 96)
+                                                          .toDouble(),
+                                                );
+                                              }),
+                                            ),
+                                            _ShellSurface(
+                                              width: layout.explorerWidth,
+                                              radius: layout.radius,
+                                              child: _Explorer(
+                                                width: layout.explorerWidth,
+                                                sections: sections,
+                                                selected: selected < 0
+                                                    ? 0
+                                                    : selected,
+                                                onSelected: (index) => ref
+                                                    .read(
+                                                      navSectionProvider
+                                                          .notifier,
+                                                    )
+                                                    .select(sections[index].id),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                            _LayoutDivider(
+                                              onDrag: (delta) => setState(() {
+                                                layout = layout.copyWith(
+                                                  explorerWidth:
+                                                      (layout.explorerWidth +
+                                                              delta)
+                                                          .clamp(220, 420)
+                                                          .toDouble(),
+                                                );
+                                              }),
+                                            ),
+                                            Expanded(
+                                              child: _ShellSurface(
+                                                radius: layout.radius,
+                                                child: Column(
+                                                  children: [
+                                                    _EditorTabs(active: active),
+                                                    Expanded(
+                                                      child: _SectionBody(
+                                                        section: active.id,
+                                                      ),
+                                                    ),
+                                                    _TerminalPanel(
+                                                      open: terminalOpen,
+                                                      onToggle: () => setState(
+                                                        () => terminalOpen =
+                                                            !terminalOpen,
+                                                      ),
+                                                      onOpenWindow: () =>
+                                                          _openDebugConsole(
+                                                            context,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (modeSwitcherOpen)
-                                    Positioned(
-                                      left: layout.railWidth + layout.gap,
-                                      bottom: 54,
-                                      child: _ModeSwitcherPanel(
-                                        current: mode,
-                                        onSelected: (value) {
-                                          ref
-                                              .read(appModeProvider.notifier)
-                                              .setMode(value);
-                                          setState(
-                                            () => modeSwitcherOpen = false,
-                                          );
-                                        },
-                                      ),
+                                        if (modeSwitcherOpen)
+                                          Positioned(
+                                            left: layout.railWidth + layout.gap,
+                                            bottom: 54,
+                                            child: _ModeSwitcherPanel(
+                                              current: mode,
+                                              onSelected: (value) {
+                                                ref
+                                                    .read(
+                                                      appModeProvider.notifier,
+                                                    )
+                                                    .setMode(value);
+                                                setState(
+                                                  () =>
+                                                      modeSwitcherOpen = false,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                ],
-                              ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -911,7 +937,7 @@ class _RailButton extends StatelessWidget {
   );
 }
 
-class _Explorer extends StatelessWidget {
+class _Explorer extends StatefulWidget {
   const _Explorer({
     required this.width,
     required this.sections,
@@ -924,10 +950,28 @@ class _Explorer extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
+  State<_Explorer> createState() => _ExplorerState();
+}
+
+class _ExplorerState extends State<_Explorer> {
+  String _moduleQuery = '';
+
+  List<SystemModule> get _catalogModules {
+    final query = _moduleQuery.trim().toLowerCase();
+    if (query.isEmpty) return kSystemModules;
+    return kSystemModules.where((module) {
+      return module.name.toLowerCase().contains(query) ||
+          module.id.toLowerCase().contains(query) ||
+          module.category.toLowerCase().contains(query) ||
+          module.stage.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: width,
+      width: widget.width,
       child: ColoredBox(
         color: const Color(0xFF252526),
         child: Column(
@@ -966,12 +1010,31 @@ class _Explorer extends StatelessWidget {
                       title: 'ACTIVE MODULES',
                       icon: Icons.expand_more,
                     ),
+                    for (final module in kSystemModules.where(
+                      (item) => item.active,
+                    ))
+                      _ModuleItem(module: module),
+                    const SizedBox(height: 12),
+                    _ExplorerHeading(
+                      title: 'MODULE CATALOG',
+                      icon: Icons.search,
+                    ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 3, 10, 7),
                       child: TextField(
+                        onChanged: (value) =>
+                            setState(() => _moduleQuery = value),
                         decoration: InputDecoration(
                           hintText: 'Search modules...',
                           prefixIcon: const Icon(Icons.search, size: 17),
+                          suffixIcon: _moduleQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear module search',
+                                  icon: const Icon(Icons.close, size: 16),
+                                  onPressed: () =>
+                                      setState(() => _moduleQuery = ''),
+                                ),
                           filled: true,
                           fillColor: const Color(0xFF3C3C3C),
                           border: OutlineInputBorder(
@@ -983,10 +1046,16 @@ class _Explorer extends StatelessWidget {
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
-                    for (final module in kSystemModules.where(
-                      (item) => item.active,
-                    ))
-                      _ModuleItem(module: module),
+                    if (_catalogModules.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                        child: Text(
+                          'No modules found',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                      ),
+                    for (final module in _catalogModules)
+                      _ModuleItem(module: module, catalog: true),
                   ],
                 ),
               ),
@@ -1032,8 +1101,9 @@ class _ExplorerHeading extends StatelessWidget {
 }
 
 class _ModuleItem extends StatelessWidget {
-  const _ModuleItem({required this.module});
+  const _ModuleItem({required this.module, this.catalog = false});
   final SystemModule module;
+  final bool catalog;
 
   IconData get _icon {
     return switch (module.category) {
@@ -1053,7 +1123,11 @@ class _ModuleItem extends StatelessWidget {
       height: 28,
       child: Row(
         children: [
-          Icon(_icon, size: 14, color: const Color(0xFF4EC9B0)),
+          Icon(
+            _icon,
+            size: 14,
+            color: catalog ? Colors.white54 : const Color(0xFF4EC9B0),
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -1062,7 +1136,11 @@ class _ModuleItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Icon(Icons.circle, size: 6, color: const Color(0xFF4EC9B0)),
+          Icon(
+            Icons.circle,
+            size: 6,
+            color: module.active ? const Color(0xFF4EC9B0) : Colors.white24,
+          ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
