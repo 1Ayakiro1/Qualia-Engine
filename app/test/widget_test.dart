@@ -134,7 +134,7 @@ void main() {
       final projects = railTooltips.firstWhere(
         (tooltip) => tooltip.message == 'projects',
       );
-      expect(projects.waitDuration, const Duration(milliseconds: 1333));
+      expect(projects.waitDuration, const Duration(seconds: 1));
 
       expect(find.byTooltip('projects'), findsOneWidget);
       await tester.tap(find.byTooltip('projects'));
@@ -156,6 +156,40 @@ void main() {
     expect(find.text('General'), findsWidgets);
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
+  });
+
+  testWidgets('global search focuses, toggles its menu, and closes outside', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final search = find.byKey(const ValueKey<String>('global search field'));
+    await tester.tap(search);
+    await tester.pumpAndSettle();
+    expect(find.text('QUICK ACTIONS'), findsOneWidget);
+    expect(tester.widget<TextField>(search).focusNode?.hasFocus, isTrue);
+
+    await tester.enterText(search, 'signal');
+    expect(find.text('signal'), findsOneWidget);
+
+    await tester.tap(search);
+    await tester.pumpAndSettle();
+    expect(find.text('QUICK ACTIONS'), findsNothing);
+
+    await tester.tap(search);
+    await tester.pumpAndSettle();
+    expect(find.text('QUICK ACTIONS'), findsOneWidget);
+    await tester.tapAt(const Offset(30, 300));
+    await tester.pumpAndSettle();
+    expect(find.text('QUICK ACTIONS'), findsNothing);
   });
 
   testWidgets('active and catalog module searches are separate', (

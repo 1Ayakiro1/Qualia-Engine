@@ -66,6 +66,11 @@ class AppTheme {
         isDense: true,
         hintStyle: TextStyle(color: dark ? mutedText : null, fontSize: 12),
       ),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(seconds: 1),
+        showDuration: const Duration(seconds: 4),
+        textStyle: const TextStyle(color: text, fontSize: 14),
+      ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
       ),

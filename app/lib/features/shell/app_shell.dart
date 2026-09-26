@@ -400,20 +400,6 @@ class _TitleBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!compact)
-                        Flexible(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              minWidth: 170,
-                              maxWidth: 320,
-                            ),
-                            child: const SizedBox(
-                              height: 26,
-                              child: _GlobalSearch(),
-                            ),
-                          ),
-                        ),
-                      if (!compact) const SizedBox(width: 4),
                       if (!narrowHeader && !compact)
                         IconButton(
                           onPressed: onOpenDebugConsole,
@@ -483,6 +469,13 @@ class _TitleBar extends StatelessWidget {
               ),
             ],
           ),
+          if (!compact)
+            const Positioned.fill(
+              child: Align(
+                alignment: Alignment.center,
+                child: SizedBox(width: 320, height: 26, child: _GlobalSearch()),
+              ),
+            ),
         ],
       ),
     );
@@ -873,86 +866,121 @@ class _GlobalSearch extends StatefulWidget {
 }
 
 class _GlobalSearchState extends State<_GlobalSearch> {
+  final TextEditingController _controller = TextEditingController();
   final LayerLink _layerLink = LayerLink();
   final FocusNode _focusNode = FocusNode();
+  final Object _tapRegionGroup = Object();
   OverlayEntry? _overlayEntry;
+  bool _disposing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (mounted && !_disposing) setState(() {});
+  }
 
   @override
   void dispose() {
+    _disposing = true;
+    _focusNode.removeListener(_onFocusChanged);
     _removeMenu();
     _focusNode.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   void _showMenu() {
     if (_overlayEntry != null) return;
     _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        width: 320,
-        child: CompositedTransformFollower(
-          link: _layerLink,
-          showWhenUnlinked: false,
-          offset: const Offset(0, 32),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.panel,
-                border: Border.all(color: AppTheme.border),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black54,
-                    blurRadius: 16,
-                    offset: Offset(0, 5),
+      builder: (context) => Stack(
+        children: [
+          Positioned(
+            width: 320,
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(0, 32),
+              child: TapRegion(
+                groupId: _tapRegionGroup,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.panel,
+                      border: Border.all(color: AppTheme.border),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black54,
+                          blurRadius: 16,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _SearchSectionTitle('QUICK ACTIONS'),
+                        _SearchAction(
+                          icon: Icons.file_open_outlined,
+                          label: 'Open project',
+                          shortcut: 'Ctrl+O',
+                        ),
+                        _SearchAction(
+                          icon: Icons.extension_outlined,
+                          label: 'Find module',
+                          shortcut: 'Ctrl+Shift+M',
+                        ),
+                        Divider(height: 12),
+                        _SearchSectionTitle('KEYBOARD SHORTCUTS'),
+                        _SearchAction(
+                          icon: Icons.zoom_in,
+                          label: 'Increase interface scale',
+                          shortcut: 'Ctrl++',
+                        ),
+                        _SearchAction(
+                          icon: Icons.zoom_out,
+                          label: 'Decrease interface scale',
+                          shortcut: 'Ctrl+-',
+                        ),
+                        _SearchAction(
+                          icon: Icons.tune,
+                          label: 'Shortcuts',
+                          onTap: _openShortcuts,
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _SearchSectionTitle('QUICK ACTIONS'),
-                  _SearchAction(
-                    icon: Icons.file_open_outlined,
-                    label: 'Open project',
-                    shortcut: 'Ctrl+O',
-                  ),
-                  _SearchAction(
-                    icon: Icons.extension_outlined,
-                    label: 'Find module',
-                    shortcut: 'Ctrl+Shift+M',
-                  ),
-                  Divider(height: 12),
-                  _SearchSectionTitle('KEYBOARD SHORTCUTS'),
-                  _SearchAction(
-                    icon: Icons.zoom_in,
-                    label: 'Increase interface scale',
-                    shortcut: 'Ctrl++',
-                  ),
-                  _SearchAction(
-                    icon: Icons.zoom_out,
-                    label: 'Decrease interface scale',
-                    shortcut: 'Ctrl+-',
-                  ),
-                  _SearchAction(
-                    icon: Icons.tune,
-                    label: 'Shortcuts',
-                    onTap: _openShortcuts,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
     Overlay.of(context).insert(_overlayEntry!);
+    setState(() {});
   }
 
   void _removeMenu() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+    _focusNode.unfocus();
+    if (mounted && !_disposing) setState(() {});
+  }
+
+  void _toggleMenu() {
+    if (_overlayEntry != null) {
+      _removeMenu();
+      return;
+    }
+    _showMenu();
+    _focusNode.requestFocus();
   }
 
   void _openShortcuts() {
@@ -967,39 +995,35 @@ class _GlobalSearchState extends State<_GlobalSearch> {
   @override
   Widget build(BuildContext context) => CompositedTransformTarget(
     link: _layerLink,
-    child: Container(
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
       decoration: BoxDecoration(
-        color: AppTheme.panel,
-        border: Border.all(color: AppTheme.border),
+        color: _focusNode.hasFocus ? AppTheme.panel : AppTheme.background,
+        border: Border.all(
+          color: _focusNode.hasFocus ? AppTheme.text : AppTheme.border,
+        ),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
-        children: [
-          const SizedBox(width: 8),
-          const Icon(Icons.search, size: 16),
-          Expanded(
-            child: GestureDetector(
-              onTap: _showMenu,
-              child: const Text(
-                'Search files, symbols...  (Ctrl+P)',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: AppTheme.mutedText, fontSize: 11),
-              ),
-            ),
+      child: TapRegion(
+        groupId: _tapRegionGroup,
+        onTapOutside: (_) => _removeMenu(),
+        child: TextField(
+          key: const ValueKey<String>('global search field'),
+          controller: _controller,
+          focusNode: _focusNode,
+          onTap: _toggleMenu,
+          onSubmitted: (_) => _removeMenu(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppTheme.text, fontSize: 12),
+          decoration: const InputDecoration(
+            hintText: 'Search files, symbols...  (Ctrl+P)',
+            hintStyle: TextStyle(color: AppTheme.mutedText, fontSize: 11),
+            prefixIcon: Icon(Icons.search, size: 16),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            isDense: true,
           ),
-          SizedBox(
-            width: 1,
-            height: 1,
-            child: TextField(
-              key: const ValueKey<String>('global search field'),
-              focusNode: _focusNode,
-              onTap: _showMenu,
-              decoration: const InputDecoration.collapsed(hintText: ''),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
     ),
   );
@@ -1544,7 +1568,7 @@ class _RailButtonState extends State<_RailButton> {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: widget.item.label,
-    waitDuration: const Duration(milliseconds: 1333),
+    waitDuration: const Duration(seconds: 1),
     showDuration: const Duration(seconds: 4),
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
@@ -1555,7 +1579,7 @@ class _RailButtonState extends State<_RailButton> {
         BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
       ],
     ),
-    textStyle: const TextStyle(color: AppTheme.text, fontSize: 12),
+    textStyle: const TextStyle(color: AppTheme.text, fontSize: 14),
     child: MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
