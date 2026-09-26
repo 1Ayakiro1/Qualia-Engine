@@ -1130,29 +1130,51 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
   Widget build(BuildContext context) => Dialog(
     backgroundColor: AppTheme.panel,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: 430,
+      width: 520,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Icon(Icons.keyboard_alt_outlined, size: 18),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppTheme.background,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: const Icon(Icons.keyboard_alt_outlined, size: 18),
+                ),
                 const SizedBox(width: 9),
                 const Expanded(
-                  child: Text(
-                    'Keyboard shortcuts',
-                    style: TextStyle(
-                      color: AppTheme.text,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Keyboard shortcuts',
+                        style: TextStyle(
+                          color: AppTheme.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Configure the commands you use most often',
+                        style: TextStyle(
+                          color: AppTheme.mutedText,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
@@ -1163,10 +1185,20 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                 ),
               ],
             ),
+            const SizedBox(height: 18),
+            const Text(
+              'AVAILABLE SHORTCUTS',
+              style: TextStyle(
+                color: AppTheme.mutedText,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
             const SizedBox(height: 8),
             for (final entry in _shortcuts.entries)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.only(bottom: 6),
                 child: _ShortcutRow(
                   label: entry.key,
                   shortcut: entry.value,
@@ -1175,14 +1207,26 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                       setState(() => _shortcuts[entry.key] = value),
                 ),
               ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: () => setState(() => _editing = !_editing),
-                icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
-                label: Text(_editing ? 'Done' : 'Edit shortcuts'),
-              ),
+            const SizedBox(height: 8),
+            Container(height: 1, color: AppTheme.border),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Click a key field and press a new combination.',
+                    style: TextStyle(color: AppTheme.mutedText, fontSize: 11),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => setState(() => _editing = !_editing),
+                  icon: Icon(
+                    _editing ? Icons.check : Icons.edit_outlined,
+                    size: 16,
+                  ),
+                  label: Text(_editing ? 'Done' : 'Edit shortcuts'),
+                ),
+              ],
             ),
           ],
         ),
@@ -1205,14 +1249,27 @@ class _ShortcutRow extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(label, style: const TextStyle(color: AppTheme.text)),
-      ),
-      const SizedBox(width: 14),
-      _ShortcutCapture(value: shortcut, editing: editing, onChanged: onChanged),
-    ],
+  Widget build(BuildContext context) => Container(
+    height: 48,
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    decoration: BoxDecoration(
+      color: AppTheme.background,
+      borderRadius: BorderRadius.circular(9),
+      border: Border.all(color: AppTheme.border),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(label, style: const TextStyle(color: AppTheme.text)),
+        ),
+        const SizedBox(width: 14),
+        _ShortcutCapture(
+          value: shortcut,
+          editing: editing,
+          onChanged: onChanged,
+        ),
+      ],
+    ),
   );
 }
 
@@ -1285,8 +1342,8 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 132,
-    height: 32,
+    width: 148,
+    height: 34,
     child: Focus(
       focusNode: _focusNode,
       onKeyEvent: (node, event) {
@@ -1307,10 +1364,18 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
           hintText: widget.editing ? 'Press keys' : null,
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           filled: true,
-          fillColor: AppTheme.background,
+          fillColor: widget.editing ? AppTheme.panel : AppTheme.background,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(7),
             borderSide: const BorderSide(color: AppTheme.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(7),
+            borderSide: const BorderSide(color: AppTheme.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(7),
+            borderSide: const BorderSide(color: AppTheme.text),
           ),
         ),
         style: const TextStyle(color: AppTheme.text, fontSize: 12),
@@ -1853,21 +1918,28 @@ class _ModuleItemState extends State<_ModuleItem> {
   );
 }
 
-class _ModeSwitcherPanel extends StatelessWidget {
+class _ModeSwitcherPanel extends StatefulWidget {
   const _ModeSwitcherPanel({required this.current, required this.onSelected});
 
   final AppMode current;
   final ValueChanged<AppMode> onSelected;
 
   @override
+  State<_ModeSwitcherPanel> createState() => _ModeSwitcherPanelState();
+}
+
+class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
+  AppMode? _hoveredMode;
+
+  @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 74,
-        padding: const EdgeInsets.symmetric(vertical: 5),
+        width: 164,
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 9),
         decoration: BoxDecoration(
-          color: AppTheme.background,
+          color: AppTheme.panel,
           border: Border.all(color: AppTheme.border),
           borderRadius: BorderRadius.circular(14),
           boxShadow: const [
@@ -1882,10 +1954,24 @@ class _ModeSwitcherPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
-              padding: EdgeInsets.only(bottom: 6),
-              child: Text(
-                'change mode',
-                style: TextStyle(color: AppTheme.mutedText, fontSize: 13),
+              padding: EdgeInsets.fromLTRB(2, 0, 2, 9),
+              child: Row(
+                children: [
+                  Icon(Icons.swap_vert, size: 15, color: AppTheme.mutedText),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Change mode',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             for (final mode in AppMode.values)
@@ -1893,31 +1979,57 @@ class _ModeSwitcherPanel extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Tooltip(
                   message: '${mode.label}: ${mode.hint}',
-                  child: InkWell(
-                    onTap: () => onSelected(mode),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: current == mode
-                            ? AppTheme.panel
-                            : AppTheme.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: current == mode
-                            ? Border.all(color: AppTheme.border)
-                            : null,
-                      ),
-                      child: Icon(
-                        switch (mode) {
-                          AppMode.consumer => Icons.person_outline,
-                          AppMode.researcher => Icons.science_outlined,
-                          AppMode.developer => Icons.code_outlined,
-                        },
-                        size: 24,
-                        color: current == mode
-                            ? AppTheme.text
-                            : AppTheme.mutedText,
+                  child: MouseRegion(
+                    onEnter: (_) => setState(() => _hoveredMode = mode),
+                    onExit: (_) => setState(() => _hoveredMode = null),
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => widget.onSelected(mode),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 140),
+                        curve: Curves.easeOut,
+                        width: 140,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: _hoveredMode == mode || widget.current == mode
+                              ? AppTheme.border
+                              : AppTheme.background,
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                            color: widget.current == mode
+                                ? AppTheme.text
+                                : AppTheme.border,
+                            width: widget.current == mode ? 1.2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              switch (mode) {
+                                AppMode.consumer => Icons.person_outline,
+                                AppMode.researcher => Icons.science_outlined,
+                                AppMode.developer => Icons.code_outlined,
+                              },
+                              size: 25,
+                              color: widget.current == mode
+                                  ? AppTheme.text
+                                  : AppTheme.mutedText,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              mode.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: widget.current == mode
+                                    ? AppTheme.text
+                                    : AppTheme.mutedText,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

@@ -28,7 +28,7 @@ void main() {
     // Open the rail mode switcher and pick "Исследователь".
     await tester.tap(find.byTooltip('user&dev switcher'));
     await tester.pumpAndSettle();
-    expect(find.text('change mode'), findsOneWidget);
+    expect(find.text('Change mode'), findsOneWidget);
     await tester.tap(
       find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
     );
