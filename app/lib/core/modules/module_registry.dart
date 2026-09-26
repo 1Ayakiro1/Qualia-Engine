@@ -78,10 +78,10 @@ const List<SystemModule> kSystemModules = <SystemModule>[
     name: 'Рекордер сессий',
     category: 'output',
     stage: 'Storage',
-    description:
-        'Заготовка записи потока в локальное хранилище сессий.',
+    description: 'Заготовка записи потока в локальное хранилище сессий.',
   ),
-  // --- planned (TODO per roadmap) ---
+  // These modules are exposed in the active workspace while their individual
+  // controls are being implemented incrementally.
   SystemModule(
     id: 'future.spectrogram_tools',
     name: 'Инструменты спектрограммы',
@@ -90,7 +90,7 @@ const List<SystemModule> kSystemModules = <SystemModule>[
     description:
         'Обрезка, заметки, маркировка, экспорт спектрограмм. Реализуется '
         'на экране «Спектрограмма».',
-    active: false,
+    active: true,
   ),
   SystemModule(
     id: 'future.ml_training',
@@ -100,7 +100,7 @@ const List<SystemModule> kSystemModules = <SystemModule>[
     description:
         'Обучение нейросетевых моделей без кода: батчи, кластеры '
         'спектрограмм, экспорт в ONNX.',
-    active: false,
+    active: true,
   ),
   SystemModule(
     id: 'future.pattern_detection',
@@ -110,7 +110,7 @@ const List<SystemModule> kSystemModules = <SystemModule>[
     description:
         'Обнаружение паттернов заболеваний и автопометка (медицинский '
         'режим, под контролем прав).',
-    active: false,
+    active: true,
   ),
   SystemModule(
     id: 'future.topomap',
@@ -118,6 +118,6 @@ const List<SystemModule> kSystemModules = <SystemModule>[
     category: 'feature',
     stage: 'Visualization',
     description: 'Топокарты и 3D-визуализация активации ЭЭГ.',
-    active: false,
+    active: true,
   ),
 ];

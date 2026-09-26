@@ -17,9 +17,8 @@ void main() {
     }
   });
 
-  test('active modules follow the core.* id convention', () {
-    for (final m in kSystemModules.where((m) => m.active)) {
-      expect(m.id, startsWith('core.'));
-    }
+  test('all catalog modules are available in the active workspace', () {
+    expect(kSystemModules, isNotEmpty);
+    expect(kSystemModules.every((m) => m.active), isTrue);
   });
 }

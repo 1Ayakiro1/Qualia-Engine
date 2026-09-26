@@ -19,6 +19,7 @@ import '../pipeline/pipeline_screen.dart';
 import '../session/session_screen.dart';
 import '../settings/settings_screen.dart';
 import '../spectrogram/spectrogram_screen.dart';
+import 'layout_model.dart';
 import 'nav_registry.dart';
 
 IconData _phosphorFor(SectionId id) {
@@ -59,6 +60,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
   double uiScale = 1.1;
+  ShellLayoutConfig layout = const ShellLayoutConfig.defaults();
 
   static const double _minScale = 0.8;
   static const double _maxScale = 1.5;
@@ -110,6 +112,13 @@ class _AppShellState extends ConsumerState<AppShell> {
           builder: (context, constraints) {
             final width = constraints.maxWidth / uiScale;
             final height = constraints.maxHeight / uiScale;
+            final mediaQuery = MediaQuery.of(context);
+            final logicalMediaQuery = mediaQuery.copyWith(
+              size: Size(width, height),
+              padding: mediaQuery.padding / uiScale,
+              viewPadding: mediaQuery.viewPadding / uiScale,
+              viewInsets: mediaQuery.viewInsets / uiScale,
+            );
             return ColoredBox(
               color: const Color(0xFF1E1E1E),
               child: Transform.scale(
@@ -118,83 +127,125 @@ class _AppShellState extends ConsumerState<AppShell> {
                 child: SizedBox(
                   width: width,
                   height: height,
-                  child: Scaffold(
-                    body: Column(
-                      children: [
-                        _TitleBar(
-                          engine: engine,
-                          onRun: () => ref
-                              .read(navSectionProvider.notifier)
-                              .select(SectionId.session),
-                          onOpenDebugConsole: () => _openDebugConsole(context),
-                          scale: uiScale,
-                          onScaleChanged: (value) =>
-                              setState(() => uiScale = value),
-                        ),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Row(
+                  child: MediaQuery(
+                    data: logicalMediaQuery,
+                    child: Scaffold(
+                      body: Column(
+                        children: [
+                          _TitleBar(
+                            engine: engine,
+                            onRun: () => ref
+                                .read(navSectionProvider.notifier)
+                                .select(SectionId.session),
+                            onOpenDebugConsole: () =>
+                                _openDebugConsole(context),
+                            scale: uiScale,
+                            onScaleChanged: (value) =>
+                                setState(() => uiScale = value),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.all(layout.gap),
+                              child: Stack(
                                 children: [
-                                  _ActivityRail(
-                                    sections: sections,
-                                    selected: selected < 0 ? 0 : selected,
-                                    modeSwitcherOpen: modeSwitcherOpen,
-                                    onSelected: (index) => ref
-                                        .read(navSectionProvider.notifier)
-                                        .select(sections[index].id),
-                                    onModeSwitcher: () => setState(
-                                      () =>
-                                          modeSwitcherOpen = !modeSwitcherOpen,
-                                    ),
-                                  ),
-                                  _Explorer(
-                                    sections: sections,
-                                    selected: selected < 0 ? 0 : selected,
-                                    onSelected: (index) => ref
-                                        .read(navSectionProvider.notifier)
-                                        .select(sections[index].id),
-                                  ),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        _EditorTabs(active: active),
-                                        Expanded(
-                                          child: _SectionBody(
-                                            section: active.id,
+                                  Row(
+                                    children: [
+                                      _ShellSurface(
+                                        width: layout.railWidth,
+                                        radius: layout.radius,
+                                        child: _ActivityRail(
+                                          sections: sections,
+                                          selected: selected < 0 ? 0 : selected,
+                                          modeSwitcherOpen: modeSwitcherOpen,
+                                          onSelected: (index) => ref
+                                              .read(navSectionProvider.notifier)
+                                              .select(sections[index].id),
+                                          onModeSwitcher: () => setState(
+                                            () => modeSwitcherOpen =
+                                                !modeSwitcherOpen,
                                           ),
                                         ),
-                                        _TerminalPanel(
-                                          open: terminalOpen,
-                                          onToggle: () => setState(
-                                            () => terminalOpen = !terminalOpen,
-                                          ),
-                                          onOpenWindow: () =>
-                                              _openDebugConsole(context),
+                                      ),
+                                      _LayoutDivider(
+                                        onDrag: (delta) => setState(() {
+                                          layout = layout.copyWith(
+                                            railWidth:
+                                                (layout.railWidth + delta)
+                                                    .clamp(40, 96)
+                                                    .toDouble(),
+                                          );
+                                        }),
+                                      ),
+                                      _ShellSurface(
+                                        width: layout.explorerWidth,
+                                        radius: layout.radius,
+                                        child: _Explorer(
+                                          width: layout.explorerWidth,
+                                          sections: sections,
+                                          selected: selected < 0 ? 0 : selected,
+                                          onSelected: (index) => ref
+                                              .read(navSectionProvider.notifier)
+                                              .select(sections[index].id),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      _LayoutDivider(
+                                        onDrag: (delta) => setState(() {
+                                          layout = layout.copyWith(
+                                            explorerWidth:
+                                                (layout.explorerWidth + delta)
+                                                    .clamp(220, 420)
+                                                    .toDouble(),
+                                          );
+                                        }),
+                                      ),
+                                      Expanded(
+                                        child: _ShellSurface(
+                                          radius: layout.radius,
+                                          child: Column(
+                                            children: [
+                                              _EditorTabs(active: active),
+                                              Expanded(
+                                                child: _SectionBody(
+                                                  section: active.id,
+                                                ),
+                                              ),
+                                              _TerminalPanel(
+                                                open: terminalOpen,
+                                                onToggle: () => setState(
+                                                  () => terminalOpen =
+                                                      !terminalOpen,
+                                                ),
+                                                onOpenWindow: () =>
+                                                    _openDebugConsole(context),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  if (modeSwitcherOpen)
+                                    Positioned(
+                                      left: layout.railWidth + layout.gap,
+                                      bottom: 54,
+                                      child: _ModeSwitcherPanel(
+                                        current: mode,
+                                        onSelected: (value) {
+                                          ref
+                                              .read(appModeProvider.notifier)
+                                              .setMode(value);
+                                          setState(
+                                            () => modeSwitcherOpen = false,
+                                          );
+                                        },
+                                      ),
+                                    ),
                                 ],
                               ),
-                              if (modeSwitcherOpen)
-                                Positioned(
-                                  left: 56,
-                                  bottom: 54,
-                                  child: _ModeSwitcherPanel(
-                                    current: mode,
-                                    onSelected: (value) {
-                                      ref
-                                          .read(appModeProvider.notifier)
-                                          .setMode(value);
-                                      setState(() => modeSwitcherOpen = false);
-                                    },
-                                  ),
-                                ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -225,134 +276,122 @@ class _TitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 1100;
-    return DragToMoveArea(
-      child: Container(
-        height: 36,
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E1E1E),
-          border: Border(bottom: BorderSide(color: Color(0xFF3A3A3A))),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 0,
-              height: 0,
-              child: Text('Ayakiro BCI Engine'),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              width: 22,
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2D2D2D),
-                borderRadius: BorderRadius.circular(4),
+    return Container(
+      height: 36,
+      decoration: const BoxDecoration(
+        color: Color(0xFF1E1E1E),
+        border: Border(bottom: BorderSide(color: Color(0xFF3A3A3A))),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DragToMoveArea(child: const SizedBox.expand()),
+          ),
+          Row(
+            children: [
+              const SizedBox(
+                width: 0,
+                height: 0,
+                child: Text('Ayakiro BCI Engine'),
               ),
-              child: Image.asset('assets/icons/bci_engine_64.png'),
-            ),
-            const SizedBox(width: 8),
-            Container(width: 1, height: 20, color: const Color(0xFF3C3C3C)),
-            const SizedBox(width: 6),
-            if (!compact) ...[
-              _TopMenuItem(label: 'File'),
-              _TopMenuItem(label: 'Edit'),
-              _TopMenuItem(label: 'View'),
-              _TopMenuItem(label: 'Build'),
-              const Spacer(),
-              SizedBox(
-                width: 320,
+              const SizedBox(width: 12),
+              Container(
+                width: 22,
                 height: 26,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search files, symbols...  (Ctrl+P)',
-                    prefixIcon: const Icon(Icons.search, size: 16),
-                    filled: true,
-                    fillColor: const Color(0xFF3C3C3C),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: const BorderSide(color: Color(0xFF555555)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: const BorderSide(color: Color(0xFF61B5FF)),
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                onPressed: onOpenDebugConsole,
-                tooltip: 'Открыть терминал отладки',
-                icon: const Icon(Icons.bug_report_outlined, size: 17),
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D2D2D),
-                  foregroundColor: Colors.white70,
-                  minimumSize: const Size(28, 28),
-                  maximumSize: const Size(28, 28),
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const Spacer(),
-            ] else
-              const Spacer(),
-            PopupMenuButton<double>(
-              tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
-              onSelected: onScaleChanged,
-              itemBuilder: (context) => [
-                for (final value in <double>[0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5])
-                  PopupMenuItem<double>(
-                    value: value,
-                    child: Text('${(value * 100).round()}%'),
-                  ),
-              ],
-              child: Container(
-                height: 26,
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2D2D2D),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text(
-                  '${(scale * 100).round()}%',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white70,
+                child: Image.asset('assets/icons/bci_engine_64.png'),
+              ),
+              const SizedBox(width: 8),
+              Container(width: 1, height: 20, color: const Color(0xFF3C3C3C)),
+              const SizedBox(width: 6),
+              if (!compact) ...[
+                _TopMenuItem(label: 'File'),
+                _TopMenuItem(label: 'Edit'),
+                _TopMenuItem(label: 'View'),
+                _TopMenuItem(label: 'Build'),
+                const Spacer(),
+                const SizedBox(width: 320, height: 26, child: _GlobalSearch()),
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onOpenDebugConsole,
+                  tooltip: 'Открыть терминал отладки',
+                  icon: const Icon(Icons.bug_report_outlined, size: 17),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D2D2D),
+                    foregroundColor: Colors.white70,
+                    minimumSize: const Size(28, 28),
+                    maximumSize: const Size(28, 28),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+              ] else
+                const Spacer(),
+              PopupMenuButton<double>(
+                tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
+                onSelected: onScaleChanged,
+                itemBuilder: (context) => [
+                  for (final value in <double>[
+                    0.8,
+                    0.9,
+                    1.0,
+                    1.1,
+                    1.2,
+                    1.3,
+                    1.5,
+                  ])
+                    PopupMenuItem<double>(
+                      value: value,
+                      child: Text('${(value * 100).round()}%'),
+                    ),
+                ],
+                child: Container(
+                  height: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D2D2D),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${(scale * 100).round()}%',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white70,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.circle,
-              size: 8,
-              color: engine.isOnline ? Colors.tealAccent : Colors.orange,
-            ),
-            const SizedBox(width: 7),
-            Text(
-              engine.isOnline ? 'Engine online' : 'Engine offline',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(width: 8),
-            TextButton.icon(
-              onPressed: onRun,
-              icon: const Icon(Icons.play_arrow, size: 16),
-              label: const Text('Run'),
-              style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
-            ),
-            const SizedBox(width: 8),
-            const _WindowControls(),
-            const SizedBox(width: 4),
-          ],
-        ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.circle,
+                size: 8,
+                color: engine.isOnline ? Colors.tealAccent : Colors.orange,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                engine.isOnline ? 'Engine online' : 'Engine offline',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: onRun,
+                icon: const Icon(Icons.play_arrow, size: 16),
+                label: const Text('Run'),
+                style: TextButton.styleFrom(foregroundColor: Colors.tealAccent),
+              ),
+              const SizedBox(width: 8),
+              const _WindowControls(),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -454,16 +493,277 @@ class _TopMenuItem extends StatelessWidget {
 
   final String label;
 
+  List<PopupMenuEntry<String>> _items() {
+    switch (label) {
+      case 'File':
+        return const [
+          PopupMenuItem(value: 'new', child: Text('New workspace')),
+          PopupMenuItem(value: 'open', child: Text('Open project')),
+          PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'import',
+            enabled: false,
+            child: Text('Import module (soon)'),
+          ),
+        ];
+      case 'Edit':
+        return const [
+          PopupMenuItem(value: 'undo', child: Text('Undo')),
+          PopupMenuItem(value: 'redo', enabled: false, child: Text('Redo')),
+          PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'preferences',
+            enabled: false,
+            child: Text('Preferences (soon)'),
+          ),
+        ];
+      case 'View':
+        return const [
+          PopupMenuItem(value: 'explorer', child: Text('Explorer')),
+          PopupMenuItem(value: 'terminal', child: Text('Terminal')),
+          PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'layout',
+            enabled: false,
+            child: Text('Customize layout (soon)'),
+          ),
+        ];
+      default:
+        return const [
+          PopupMenuItem(value: 'build', child: Text('Build project')),
+          PopupMenuItem(value: 'run', child: Text('Run session')),
+          PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'tasks',
+            enabled: false,
+            child: Text('Build tasks (soon)'),
+          ),
+        ];
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () {},
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+    key: ValueKey<String>('$label menu button'),
+    tooltip: '$label menu',
+    onSelected: (_) {},
+    itemBuilder: (_) => _items(),
+    padding: EdgeInsets.zero,
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: Colors.white60),
       ),
+    ),
+  );
+}
+
+class _GlobalSearch extends StatefulWidget {
+  const _GlobalSearch();
+
+  @override
+  State<_GlobalSearch> createState() => _GlobalSearchState();
+}
+
+class _GlobalSearchState extends State<_GlobalSearch> {
+  final LayerLink _layerLink = LayerLink();
+  final FocusNode _focusNode = FocusNode();
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void dispose() {
+    _removeMenu();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _showMenu() {
+    if (_overlayEntry != null) return;
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: 320,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 32),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF252526),
+                border: Border.all(color: const Color(0xFF4A4A4A)),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 16,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SearchSectionTitle('QUICK ACTIONS'),
+                  _SearchAction(
+                    icon: Icons.file_open_outlined,
+                    label: 'Open project',
+                    shortcut: 'Ctrl+O',
+                  ),
+                  _SearchAction(
+                    icon: Icons.extension_outlined,
+                    label: 'Find module',
+                    shortcut: 'Ctrl+Shift+M',
+                  ),
+                  Divider(height: 12),
+                  _SearchSectionTitle('KEYBOARD SHORTCUTS'),
+                  _SearchAction(
+                    icon: Icons.zoom_in,
+                    label: 'Increase interface scale',
+                    shortcut: 'Ctrl++',
+                  ),
+                  _SearchAction(
+                    icon: Icons.zoom_out,
+                    label: 'Decrease interface scale',
+                    shortcut: 'Ctrl+-',
+                  ),
+                  _SearchAction(
+                    icon: Icons.tune,
+                    label: 'Customize shortcuts (soon)',
+                    disabled: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _removeMenu() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  @override
+  Widget build(BuildContext context) => CompositedTransformTarget(
+    link: _layerLink,
+    child: TextField(
+      focusNode: _focusNode,
+      onTap: _showMenu,
+      decoration: InputDecoration(
+        hintText: 'Search files, symbols...  (Ctrl+P)',
+        prefixIcon: const Icon(Icons.search, size: 16),
+        filled: true,
+        fillColor: const Color(0xFF3C3C3C),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFF555555)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFF61B5FF)),
+        ),
+        contentPadding: EdgeInsets.zero,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  );
+}
+
+class _SearchSectionTitle extends StatelessWidget {
+  const _SearchSectionTitle(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 4, 14, 5),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white54,
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        letterSpacing: .8,
+      ),
+    ),
+  );
+}
+
+class _SearchAction extends StatelessWidget {
+  const _SearchAction({
+    required this.icon,
+    required this.label,
+    this.shortcut,
+    this.disabled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? shortcut;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: ListTile(
+      dense: true,
+      enabled: !disabled,
+      leading: Icon(icon, size: 17),
+      title: Text(label),
+      trailing: shortcut == null
+          ? null
+          : Text(shortcut!, style: const TextStyle(color: Colors.white38)),
+    ),
+  );
+}
+
+class _ShellSurface extends StatelessWidget {
+  const _ShellSurface({required this.child, required this.radius, this.width});
+
+  final Widget child;
+  final double radius;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF252526),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: const Color(0xFF353535)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _LayoutDivider extends StatelessWidget {
+  const _LayoutDivider({required this.onDrag});
+
+  final ValueChanged<double> onDrag;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeColumn,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+      child: const SizedBox(width: 8),
     ),
   );
 }
@@ -613,10 +913,12 @@ class _RailButton extends StatelessWidget {
 
 class _Explorer extends StatelessWidget {
   const _Explorer({
+    required this.width,
     required this.sections,
     required this.selected,
     required this.onSelected,
   });
+  final double width;
   final List<NavSection> sections;
   final int selected;
   final ValueChanged<int> onSelected;
@@ -625,7 +927,7 @@ class _Explorer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SizedBox(
-      width: 280,
+      width: width,
       child: ColoredBox(
         color: const Color(0xFF252526),
         child: Column(
@@ -681,17 +983,10 @@ class _Explorer extends StatelessWidget {
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
-                    for (final module
-                        in kSystemModules.where((item) => item.active).take(8))
+                    for (final module in kSystemModules.where(
+                      (item) => item.active,
+                    ))
                       _ModuleItem(module: module),
-                    const Divider(height: 18),
-                    _ExplorerHeading(
-                      title: 'MODULE CATALOG',
-                      icon: Icons.expand_more,
-                    ),
-                    for (final module
-                        in kSystemModules.where((item) => !item.active).take(4))
-                      _ModuleItem(module: module, catalog: true),
                   ],
                 ),
               ),
@@ -737,18 +1032,10 @@ class _ExplorerHeading extends StatelessWidget {
 }
 
 class _ModuleItem extends StatelessWidget {
-  const _ModuleItem({required this.module, this.catalog = false});
+  const _ModuleItem({required this.module});
   final SystemModule module;
-  final bool catalog;
 
   IconData get _icon {
-    if (catalog) {
-      return switch (module.category) {
-        'feature' => Icons.auto_graph_outlined,
-        'inference' => Icons.psychology_outlined,
-        _ => Icons.extension_outlined,
-      };
-    }
     return switch (module.category) {
       'acquisition' => Icons.bolt_outlined,
       'dsp' => Icons.layers_outlined,
@@ -766,40 +1053,27 @@ class _ModuleItem extends StatelessWidget {
       height: 28,
       child: Row(
         children: [
-          Icon(
-            _icon,
-            size: 14,
-            color: catalog ? Colors.white38 : const Color(0xFF4EC9B0),
-          ),
+          Icon(_icon, size: 14, color: const Color(0xFF4EC9B0)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               module.name,
-              style: TextStyle(
-                color: catalog ? Colors.white54 : Colors.white70,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.white70, fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (!catalog)
-            Icon(
-              Icons.circle,
-              size: 6,
-              color: module.active ? const Color(0xFF4EC9B0) : Colors.white24,
+          Icon(Icons.circle, size: 6, color: const Color(0xFF4EC9B0)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFF094771),
+              borderRadius: BorderRadius.circular(3),
             ),
-          if (catalog)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: const Color(0xFF094771),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Text(
-                'v${module.version}',
-                style: const TextStyle(fontSize: 10, color: Color(0xFF9CDCFE)),
-              ),
+            child: Text(
+              'v${module.version}',
+              style: const TextStyle(fontSize: 10, color: Color(0xFF9CDCFE)),
             ),
+          ),
         ],
       ),
     ),
