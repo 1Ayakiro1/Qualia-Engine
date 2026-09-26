@@ -41,25 +41,25 @@ void main() {
     expect(find.widgetWithText(TextField, 'Search modules...'), findsOneWidget);
   });
 
-  testWidgets('interface scale starts at 110% and responds to shortcuts', (
+  testWidgets('interface scale starts at 100% with a denser 120% visual base', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('110%'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
     await tester.sendKeyEvent(LogicalKeyboardKey.equal);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
     await tester.pump();
-    expect(find.text('120%'), findsOneWidget);
+    expect(find.text('110%'), findsOneWidget);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
     await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
     await tester.pump();
-    expect(find.text('110%'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
   });
 
   testWidgets('top menus and global search expose contextual actions', (
@@ -74,6 +74,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('New workspace'), findsOneWidget);
     expect(find.text('Import module (soon)'), findsOneWidget);
+    await tester.tap(find.text('Preferences'));
+    await tester.pumpAndSettle();
+    expect(find.text('General'), findsWidgets);
+    expect(find.text('Back to app'), findsOneWidget);
+    await tester.tap(find.text('Back to app'));
+    await tester.pumpAndSettle();
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
@@ -81,7 +87,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is TextField &&
-            widget.decoration?.hintText == 'Search files, symbols...  (Ctrl+P)',
+            widget.key == const ValueKey<String>('global search field'),
       ),
     );
     await tester.pumpAndSettle();

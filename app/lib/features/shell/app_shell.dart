@@ -60,12 +60,18 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
-  double uiScale = 1.1;
+
+  /// User-facing scale. The shell deliberately renders at a 120% base density
+  /// while keeping this preference at the familiar 100% default.
+  double uiScale = 1.0;
   ShellLayoutConfig layout = const ShellLayoutConfig.defaults();
 
   static const double _minScale = 0.8;
   static const double _maxScale = 1.5;
+  static const double _baseScale = 1.2;
   static const double _scaleStep = 0.1;
+
+  double get _visualScale => uiScale * _baseScale;
 
   void _changeScale(double delta) {
     setState(() {
@@ -73,7 +79,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     });
   }
 
-  void _resetScale() => setState(() => uiScale = 1.1);
+  void _resetScale() => setState(() => uiScale = 1.0);
 
   Future<void> _openDebugConsole(BuildContext context) async {
     try {
@@ -111,14 +117,15 @@ class _AppShellState extends ConsumerState<AppShell> {
         autofocus: true,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth / uiScale;
-            final height = constraints.maxHeight / uiScale;
+            final visualScale = _visualScale;
+            final width = constraints.maxWidth / visualScale;
+            final height = constraints.maxHeight / visualScale;
             final mediaQuery = MediaQuery.of(context);
             final logicalMediaQuery = mediaQuery.copyWith(
               size: Size(width, height),
-              padding: mediaQuery.padding / uiScale,
-              viewPadding: mediaQuery.viewPadding / uiScale,
-              viewInsets: mediaQuery.viewInsets / uiScale,
+              padding: mediaQuery.padding / visualScale,
+              viewPadding: mediaQuery.viewPadding / visualScale,
+              viewInsets: mediaQuery.viewInsets / visualScale,
             );
             return ColoredBox(
               color: AppTheme.background,
@@ -129,7 +136,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   child: Align(
                     alignment: Alignment.center,
                     child: Transform.scale(
-                      scale: uiScale,
+                      scale: visualScale,
                       alignment: Alignment.center,
                       child: SizedBox(
                         width: width,
@@ -149,6 +156,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   scale: uiScale,
                                   onScaleChanged: (value) =>
                                       setState(() => uiScale = value),
+                                  onOpenPreferences: () => ref
+                                      .read(navSectionProvider.notifier)
+                                      .select(SectionId.settings),
                                 ),
                                 Expanded(
                                   child: Padding(
@@ -310,12 +320,14 @@ class _TitleBar extends StatelessWidget {
     required this.engine,
     required this.onRun,
     required this.onOpenDebugConsole,
+    required this.onOpenPreferences,
     required this.scale,
     required this.onScaleChanged,
   });
   final EngineState engine;
   final VoidCallback onRun;
   final VoidCallback onOpenDebugConsole;
+  final VoidCallback onOpenPreferences;
   final double scale;
   final ValueChanged<double> onScaleChanged;
 
@@ -323,6 +335,7 @@ class _TitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 1100;
+    final narrowHeader = MediaQuery.sizeOf(context).width < 1250;
     return Container(
       height: 36,
       decoration: const BoxDecoration(
@@ -356,29 +369,34 @@ class _TitleBar extends StatelessWidget {
               Container(width: 1, height: 20, color: AppTheme.border),
               const SizedBox(width: 6),
               if (!compact) ...[
-                _TopMenuItem(label: 'File'),
+                _TopMenuItem(label: 'File', onPreferences: onOpenPreferences),
                 _TopMenuItem(label: 'Edit'),
                 _TopMenuItem(label: 'View'),
                 _TopMenuItem(label: 'Build'),
                 const Spacer(),
-                const SizedBox(width: 320, height: 26, child: _GlobalSearch()),
-                const SizedBox(width: 4),
-                IconButton(
-                  onPressed: onOpenDebugConsole,
-                  tooltip: 'Открыть терминал отладки',
-                  icon: const Icon(Icons.bug_report_outlined, size: 17),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.panel,
-                    foregroundColor: AppTheme.text,
-                    minimumSize: const Size(28, 28),
-                    maximumSize: const Size(28, 28),
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: 210, maxWidth: 320),
+                    child: SizedBox(height: 26, child: _GlobalSearch()),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 4),
+                if (!narrowHeader)
+                  IconButton(
+                    onPressed: onOpenDebugConsole,
+                    tooltip: 'Открыть терминал отладки',
+                    icon: const Icon(Icons.bug_report_outlined, size: 17),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.panel,
+                      foregroundColor: AppTheme.text,
+                      minimumSize: const Size(28, 28),
+                      maximumSize: const Size(28, 28),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
               ] else
                 const Spacer(),
               _AnimatedContextMenuButton<double>(
@@ -533,9 +551,10 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
 }
 
 class _TopMenuItem extends StatelessWidget {
-  const _TopMenuItem({required this.label});
+  const _TopMenuItem({required this.label, this.onPreferences});
 
   final String label;
+  final VoidCallback? onPreferences;
 
   List<_MenuAction<String>> _items() {
     switch (label) {
@@ -547,6 +566,11 @@ class _TopMenuItem extends StatelessWidget {
             value: 'import',
             label: 'Import module (soon)',
             enabled: false,
+            dividerBefore: true,
+          ),
+          _MenuAction(
+            value: 'preferences',
+            label: 'Preferences',
             dividerBefore: true,
           ),
         ];
@@ -591,7 +615,9 @@ class _TopMenuItem extends StatelessWidget {
     key: ValueKey<String>('$label menu button'),
     tooltip: '$label menu',
     actions: _items(),
-    onSelected: (_) {},
+    onSelected: (value) {
+      if (value == 'preferences') onPreferences?.call();
+    },
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Text(
@@ -879,29 +905,40 @@ class _GlobalSearchState extends State<_GlobalSearch> {
   @override
   Widget build(BuildContext context) => CompositedTransformTarget(
     link: _layerLink,
-    child: TextField(
-      focusNode: _focusNode,
-      onTap: _showMenu,
-      decoration: InputDecoration(
-        hintText: 'Search files, symbols...  (Ctrl+P)',
-        prefixIcon: const Icon(Icons.search, size: 16),
-        filled: true,
-        fillColor: AppTheme.panel,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppTheme.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppTheme.text),
-        ),
-        contentPadding: EdgeInsets.zero,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
+    child: Container(
+      decoration: BoxDecoration(
+        color: AppTheme.panel,
+        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(18),
       ),
-      style: Theme.of(context).textTheme.bodySmall,
+      child: Row(
+        children: [
+          const SizedBox(width: 8),
+          const Icon(Icons.search, size: 16),
+          Expanded(
+            child: GestureDetector(
+              onTap: _showMenu,
+              child: const Text(
+                'Search files, symbols...  (Ctrl+P)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: AppTheme.mutedText, fontSize: 11),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 1,
+            height: 1,
+            child: TextField(
+              key: const ValueKey<String>('global search field'),
+              focusNode: _focusNode,
+              onTap: _showMenu,
+              decoration: const InputDecoration.collapsed(hintText: ''),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
     ),
   );
 }
@@ -942,14 +979,37 @@ class _SearchAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 6),
-    child: ListTile(
-      dense: true,
-      enabled: !disabled,
-      leading: Icon(icon, size: 17),
-      title: Text(label),
-      trailing: shortcut == null
-          ? null
-          : Text(shortcut!, style: const TextStyle(color: AppTheme.mutedText)),
+    child: SizedBox(
+      height: 36,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 17,
+              color: disabled ? AppTheme.mutedText : AppTheme.text,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: disabled ? AppTheme.mutedText : AppTheme.text,
+              ),
+            ),
+            if (shortcut != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                shortcut!,
+                style: const TextStyle(color: AppTheme.mutedText),
+              ),
+            ],
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -1109,7 +1169,7 @@ class _RailButton extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: active ? AppTheme.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(9),
           border: active ? Border.all(color: AppTheme.border) : null,
         ),
         child: Center(
@@ -1474,15 +1534,6 @@ class _EditorTabs extends StatelessWidget {
                   ],
                 ),
               ),
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 2,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: AppTheme.text),
-                ),
-              ),
             ],
           ),
         ),
@@ -1517,39 +1568,61 @@ class _TerminalPanel extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 32,
-          child: Row(
-            children: [
-              InkWell(
-                onTap: onToggle,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14),
-                  child: Text(
-                    'TERMINAL',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 380;
+            return SizedBox(
+              height: 32,
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: onToggle,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      child: Text(
+                        'TERMINAL',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  if (!compact)
+                    const Text(
+                      'OUTPUT',
+                      style: TextStyle(fontSize: 12, color: AppTheme.mutedText),
+                    ),
+                  const Spacer(),
+                  if (!compact)
+                    IconButton(
+                      onPressed: onOpenWindow,
+                      tooltip: 'Открыть отдельное окно',
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      constraints: const BoxConstraints.tightFor(
+                        width: 30,
+                        height: 30,
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                  IconButton(
+                    onPressed: onToggle,
+                    icon: Icon(
+                      open
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_up,
+                      size: 18,
+                    ),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 30,
+                      height: 30,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
               ),
-              const Text(
-                'OUTPUT',
-                style: TextStyle(fontSize: 12, color: AppTheme.mutedText),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: onOpenWindow,
-                tooltip: 'Открыть отдельное окно',
-                icon: const Icon(Icons.open_in_new, size: 16),
-              ),
-              IconButton(
-                onPressed: onToggle,
-                icon: Icon(
-                  open ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
         if (open)
           const Expanded(
@@ -1571,11 +1644,11 @@ class _TerminalPanel extends StatelessWidget {
   );
 }
 
-class _SectionBody extends StatelessWidget {
+class _SectionBody extends ConsumerWidget {
   const _SectionBody({required this.section});
   final SectionId section;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     switch (section) {
       case SectionId.dashboard:
         return const DashboardScreen();
@@ -1596,7 +1669,10 @@ class _SectionBody extends StatelessWidget {
       case SectionId.developer:
         return const DeveloperScreen();
       case SectionId.settings:
-        return const SettingsScreen();
+        return SettingsScreen(
+          onBack: () =>
+              ref.read(navSectionProvider.notifier).select(SectionId.dashboard),
+        );
     }
   }
 }

@@ -5,9 +5,11 @@ import '../../core/constants/app_info.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/engine_state.dart';
 
-/// Settings page intentionally follows the dense, desktop-first reference UI.
+/// Settings workspace styled as a dedicated, two-column preferences panel.
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -18,202 +20,433 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool fullAccess = true;
   bool keepAwake = false;
   bool bottomPanel = false;
+  String selectedItem = 'General';
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final version = ref.watch(versionLabelProvider);
-    return ScrollConfiguration(
-      behavior: const _NoGlow(),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 34, 34, 70),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Настройки',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 42),
-                _Group(
-                  title: 'Разрешения',
-                  children: [
-                    _SettingRow(
-                      title: 'Разрешения по умолчанию',
-                      description: 'По умолчанию NerveGears может читать и изменять файлы в рабочей области.',
-                      control: Switch(
-                        value: workspaceAccess,
-                        onChanged: (v) => setState(() => workspaceAccess = v),
-                      ),
-                    ),
-                    _SettingRow(
-                      title: 'Полный доступ',
-                      description: 'Разрешает движку изменять любые файлы и запускать команды без дополнительного запроса.',
-                      extra: RichText(
-                        text: TextSpan(
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white54,
-                          ),
-                          children: const [
-                            TextSpan(
-                              text: 'Риск зависит от источника задачи. ',
-                            ),
-                            TextSpan(
-                              text: 'Подробнее',
-                              style: TextStyle(color: AppTheme.text),
-                            ),
-                          ],
-                        ),
-                      ),
-                      control: Switch(
-                        value: fullAccess,
-                        onChanged: (v) => setState(() => fullAccess = v),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 42),
-                _Group(
-                  title: 'Основные',
-                  children: [
-                    _SettingRow(
-                      title: 'Папка задач вне проектов',
-                      description: 'Место, где хранятся данные задач, запущенных вне проектов.',
-                      trailing: _ActionButton(
-                        label: '/home/ayakiro/Documents/Projects',
-                        action: 'Изменить',
-                      ),
-                    ),
-                    _SettingRow(
-                      title: 'Назначение открытия файлов',
-                      description: 'Приложение, в котором по умолчанию открываются файлы и папки.',
-                      trailing: _DropButton(label: 'Системное'),
-                    ),
-                    _SettingRow(
-                      title: 'Язык',
-                      description: 'Язык интерфейса приложения',
-                      trailing: _DropButton(label: 'Русский'),
-                    ),
-                    _SettingRow(
-                      title: 'Нижняя панель',
-                      description: 'Показывать управление нижней панелью в заголовке приложения.',
-                      control: Switch(
-                        value: bottomPanel,
-                        onChanged: (v) => setState(() => bottomPanel = v),
-                      ),
-                    ),
-                    _SettingRow(
-                      title: 'Не выключать экран во время работы',
-                      description: 'Не переводить компьютер в спящий режим во время выполнения задачи.',
-                      control: Switch(
-                        value: keepAwake,
-                        onChanged: (v) => setState(() => keepAwake = v),
-                      ),
-                    ),
-                    _SettingRow(
-                      title: 'Версия приложения',
-                      description: 'Текущая сборка движка',
-                      trailing: Text(
-                        version,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white54,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 42),
-                _Group(
-                  title: 'О приложении',
-                  children: [
-                    _SettingRow(
-                      title: 'Лицензии и данные',
-                      description:
-                          '${AppInfo.appName} · локальный offline-first режим',
-                      trailing: _DropButton(label: 'Просмотреть'),
-                    ),
-                  ],
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 860;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: compact ? 210 : 280,
+              child: _PreferencesSidebar(
+                selected: selectedItem,
+                onSelected: (value) => setState(() => selectedItem = value),
+                onBack: widget.onBack,
+              ),
             ),
-          ),
-        ),
-      ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: _PreferencesContent(
+                version: version,
+                workspaceAccess: workspaceAccess,
+                fullAccess: fullAccess,
+                keepAwake: keepAwake,
+                bottomPanel: bottomPanel,
+                onWorkspaceAccessChanged: (value) =>
+                    setState(() => workspaceAccess = value),
+                onFullAccessChanged: (value) =>
+                    setState(() => fullAccess = value),
+                onKeepAwakeChanged: (value) =>
+                    setState(() => keepAwake = value),
+                onBottomPanelChanged: (value) =>
+                    setState(() => bottomPanel = value),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _Group extends StatelessWidget {
-  const _Group({required this.title, required this.children});
+class _PreferencesSidebar extends StatelessWidget {
+  const _PreferencesSidebar({
+    required this.selected,
+    required this.onSelected,
+    this.onBack,
+  });
+
+  final String selected;
+  final ValueChanged<String> onSelected;
+  final VoidCallback? onBack;
+
+  static const _personal = [
+    ('General', Icons.settings_outlined),
+    ('Import', Icons.download_outlined),
+    ('Appearance', Icons.wb_sunny_outlined),
+    ('Voice', Icons.mic_none_outlined),
+    ('Configuration', Icons.verified_user_outlined),
+    ('Personalization', Icons.history_outlined),
+    ('Pets', Icons.more_horiz),
+    ('Keyboard shortcuts', Icons.keyboard_alt_outlined),
+    ('Account', Icons.account_circle_outlined),
+  ];
+
+  static const _integrations = [
+    ('Computer use', Icons.near_me_outlined),
+    ('Plugins', Icons.extension_outlined),
+    ('Browser', Icons.web_asset_outlined),
+  ];
+
+  static const _coding = [
+    ('Hooks', Icons.anchor_outlined),
+    ('Connections', Icons.language_outlined),
+    ('Git', Icons.merge_type_outlined),
+    ('Environments', Icons.desktop_windows_outlined),
+    ('Worktrees', Icons.call_split_outlined),
+  ];
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: AppTheme.background,
+    child: ScrollConfiguration(
+      behavior: const _NoGlow(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 28),
+        children: [
+          _SidebarBackButton(onPressed: onBack),
+          const SizedBox(height: 14),
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.panel,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration.collapsed(
+                      hintText: 'Search',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _SidebarGroup(
+            title: 'Personal',
+            items: _personal,
+            selected: selected,
+            onSelected: onSelected,
+          ),
+          _SidebarGroup(
+            title: 'Integrations',
+            items: _integrations,
+            selected: selected,
+            onSelected: onSelected,
+          ),
+          _SidebarGroup(
+            title: 'Coding',
+            items: _coding,
+            selected: selected,
+            onSelected: onSelected,
+          ),
+          const SizedBox(height: 18),
+          const Text('Archived', style: TextStyle(color: AppTheme.mutedText)),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SidebarBackButton extends StatelessWidget {
+  const _SidebarBackButton({required this.onPressed});
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onPressed,
+    borderRadius: BorderRadius.circular(8),
+    child: const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.arrow_back, size: 18),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Back to app',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 15),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SidebarGroup extends StatelessWidget {
+  const _SidebarGroup({
+    required this.title,
+    required this.items,
+    required this.selected,
+    required this.onSelected,
+  });
+
   final String title;
-  final List<Widget> children;
+  final List<(String, IconData)> items;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium
-            ?.copyWith(fontWeight: FontWeight.w500),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
+        child: Text(title, style: const TextStyle(color: AppTheme.mutedText)),
       ),
-      const SizedBox(height: 12),
-      Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF242424),
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: const Color(0xFF383838)),
+      for (final item in items)
+        InkWell(
+          onTap: () => onSelected(item.$1),
+          borderRadius: BorderRadius.circular(9),
+          child: Container(
+            height: 39,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: selected == item.$1 ? AppTheme.panel : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(
+              children: [
+                Icon(item.$2, size: 18, color: AppTheme.text),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.$1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+                if (item.$1 == 'Account')
+                  const Icon(
+                    Icons.north_east,
+                    size: 15,
+                    color: AppTheme.mutedText,
+                  ),
+              ],
+            ),
+          ),
         ),
-        child: Column(children: children),
-      ),
     ],
   );
 }
 
-class _SettingRow extends StatelessWidget {
-  const _SettingRow({
-    required this.title,
-    required this.description,
-    this.control,
-    this.trailing,
-    this.extra,
+class _PreferencesContent extends StatelessWidget {
+  const _PreferencesContent({
+    required this.version,
+    required this.workspaceAccess,
+    required this.fullAccess,
+    required this.keepAwake,
+    required this.bottomPanel,
+    required this.onWorkspaceAccessChanged,
+    required this.onFullAccessChanged,
+    required this.onKeepAwakeChanged,
+    required this.onBottomPanelChanged,
   });
-  final String title, description;
-  final Widget? control, trailing, extra;
+
+  final String version;
+  final bool workspaceAccess;
+  final bool fullAccess;
+  final bool keepAwake;
+  final bool bottomPanel;
+  final ValueChanged<bool> onWorkspaceAccessChanged;
+  final ValueChanged<bool> onFullAccessChanged;
+  final ValueChanged<bool> onKeepAwakeChanged;
+  final ValueChanged<bool> onBottomPanelChanged;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
+  Widget build(BuildContext context) => ScrollConfiguration(
+    behavior: const _NoGlow(),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(48, 42, 48, 80),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 15)),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              const Text(
+                'General',
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w400),
               ),
-              if (extra != null) ...[const SizedBox(height: 3), extra!],
+              const SizedBox(height: 54),
+              const Text('Permissions', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 22),
+              _SettingsCard(
+                children: [
+                  _PreferenceRow(
+                    title: 'Default permissions',
+                    description: 'By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed',
+                    control: Switch(
+                      value: workspaceAccess,
+                      onChanged: onWorkspaceAccessChanged,
+                    ),
+                  ),
+                  _PreferenceRow(
+                    title: 'Full access',
+                    description: 'When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.',
+                    extra: const Text(
+                      'Learn more about elevated risks.',
+                      style: TextStyle(color: AppTheme.text),
+                    ),
+                    control: Switch(
+                      value: fullAccess,
+                      onChanged: onFullAccessChanged,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 66),
+              const Text('General', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 22),
+              _SettingsCard(
+                children: [
+                  _PreferenceRow(
+                    title: 'Projectless task folder',
+                    description: 'The location where tasks started outside of projects store their data by default.',
+                    control: _ActionButton(
+                      label: '/home/ayakiro...uments/Codex',
+                      action: 'Change',
+                    ),
+                  ),
+                  _PreferenceRow(
+                    title: 'Default file open destination',
+                    description: 'Where files and folders open by default',
+                    control: _DropButton(label: 'Zed'),
+                  ),
+                  _PreferenceRow(
+                    title: 'Language',
+                    description: 'Language for the app UI',
+                    control: _DropButton(label: 'Auto detect'),
+                  ),
+                  _PreferenceRow(
+                    title: 'Bottom panel',
+                    description:
+                        'Show the bottom panel control in the app header',
+                    control: Switch(
+                      value: bottomPanel,
+                      onChanged: onBottomPanelChanged,
+                    ),
+                  ),
+                  _PreferenceRow(
+                    title: 'Prevent sleep while running',
+                    description: 'Keep your computer awake while Ayakiro is running a task',
+                    control: Switch(
+                      value: keepAwake,
+                      onChanged: onKeepAwakeChanged,
+                    ),
+                  ),
+                  _PreferenceRow(
+                    title: 'Open source licenses',
+                    description:
+                        'Third-party software used by Ayakiro BCI Engine',
+                    control: _DropButton(label: 'View'),
+                  ),
+                  _PreferenceRow(
+                    title: 'Version',
+                    description: 'Current application build',
+                    control: Text(
+                      version,
+                      style: const TextStyle(color: AppTheme.mutedText),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 48),
+              Text(
+                '${AppInfo.appName} · local offline-first mode',
+                style: const TextStyle(color: AppTheme.mutedText),
+              ),
             ],
           ),
         ),
-        if (trailing != null) ...[const SizedBox(width: 16), trailing!],
-        if (control != null) ...[const SizedBox(width: 14), control!],
-      ],
+      ),
     ),
+  );
+}
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({required this.children});
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: AppTheme.panel,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: AppTheme.border),
+    ),
+    child: Column(children: children),
+  );
+}
+
+class _PreferenceRow extends StatelessWidget {
+  const _PreferenceRow({
+    required this.title,
+    required this.description,
+    required this.control,
+    this.extra,
+  });
+
+  final String title;
+  final String description;
+  final Widget control;
+  final Widget? extra;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final narrow = constraints.maxWidth < 620;
+      final details = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 15)),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(color: AppTheme.mutedText, fontSize: 13),
+          ),
+          if (extra != null) ...[const SizedBox(height: 3), extra!],
+        ],
+      );
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: narrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [details, const SizedBox(height: 12), control],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: details),
+                  const SizedBox(width: 16),
+                  control,
+                ],
+              ),
+      );
+    },
   );
 }
 
 class _DropButton extends StatelessWidget {
   const _DropButton({required this.label});
   final String label;
+
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: () {},
@@ -224,14 +457,23 @@ class _DropButton extends StatelessWidget {
 
 class _ActionButton extends StatelessWidget {
   const _ActionButton({required this.label, required this.action});
-  final String label, action;
+  final String label;
+  final String action;
+
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        label,
-        style: const TextStyle(color: Colors.white54, fontFamily: 'monospace'),
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 210),
+        child: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppTheme.mutedText,
+            fontFamily: 'monospace',
+          ),
+        ),
       ),
       const SizedBox(width: 12),
       OutlinedButton(onPressed: () {}, child: Text(action)),
@@ -241,6 +483,7 @@ class _ActionButton extends StatelessWidget {
 
 class _NoGlow extends ScrollBehavior {
   const _NoGlow();
+
   @override
   Widget buildOverscrollIndicator(
     BuildContext context,
