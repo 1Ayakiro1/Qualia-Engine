@@ -8,8 +8,6 @@ import '../../core/logging/log_window.dart';
 import '../../core/modules/module_registry.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/app_state.dart';
-import '../../state/engine_provider.dart';
-import '../../state/engine_state.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../datasets/datasets_screen.dart';
 import '../developer/developer_screen.dart';
@@ -97,7 +95,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final mode = ref.watch(appModeProvider);
     final section = ref.watch(navSectionProvider);
-    final engine = ref.watch(engineProvider);
     final sections = visibleSections(mode);
     final selected = sections.indexWhere((item) => item.id == section);
     final active = selected < 0 ? sections.first : sections[selected];
@@ -147,7 +144,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                             body: Column(
                               children: [
                                 _TitleBar(
-                                  engine: engine,
                                   onRun: () => ref
                                       .read(navSectionProvider.notifier)
                                       .select(SectionId.session),
@@ -343,14 +339,12 @@ class _AppShellState extends ConsumerState<AppShell> {
 
 class _TitleBar extends StatelessWidget {
   const _TitleBar({
-    required this.engine,
     required this.onRun,
     required this.onOpenDebugConsole,
     required this.onOpenPreferences,
     required this.scale,
     required this.onScaleChanged,
   });
-  final EngineState engine;
   final VoidCallback onRun;
   final VoidCallback onOpenDebugConsole;
   final VoidCallback onOpenPreferences;
@@ -399,84 +393,94 @@ class _TitleBar extends StatelessWidget {
                 _TopMenuItem(label: 'Edit'),
                 _TopMenuItem(label: 'View'),
                 _TopMenuItem(label: 'Build'),
-                const Spacer(),
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: 210, maxWidth: 320),
-                    child: SizedBox(height: 26, child: _GlobalSearch()),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                if (!narrowHeader)
-                  IconButton(
-                    onPressed: onOpenDebugConsole,
-                    tooltip: 'Открыть терминал отладки',
-                    icon: const Icon(Icons.bug_report_outlined, size: 17),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppTheme.panel,
-                      foregroundColor: AppTheme.text,
-                      minimumSize: const Size(28, 28),
-                      maximumSize: const Size(28, 28),
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
+              ],
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!compact)
+                        Flexible(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 170,
+                              maxWidth: 320,
+                            ),
+                            child: const SizedBox(
+                              height: 26,
+                              child: _GlobalSearch(),
+                            ),
+                          ),
+                        ),
+                      if (!compact) const SizedBox(width: 4),
+                      if (!narrowHeader && !compact)
+                        IconButton(
+                          onPressed: onOpenDebugConsole,
+                          tooltip: 'Открыть терминал отладки',
+                          icon: const Icon(Icons.bug_report_outlined, size: 17),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppTheme.panel,
+                            foregroundColor: AppTheme.text,
+                            minimumSize: const Size(28, 28),
+                            maximumSize: const Size(28, 28),
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      _AnimatedContextMenuButton<double>(
+                        tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
+                        menuWidth: 150,
+                        onSelected: onScaleChanged,
+                        actions: [
+                          for (final value in <double>[
+                            0.8,
+                            0.9,
+                            1.0,
+                            1.1,
+                            1.2,
+                            1.3,
+                            1.5,
+                          ])
+                            _MenuAction<double>(
+                              value: value,
+                              label: '${(value * 100).round()}%',
+                            ),
+                        ],
+                        child: Container(
+                          height: 26,
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppTheme.panel,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${(scale * 100).round()}%',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppTheme.text,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ] else
-                const Spacer(),
-              _AnimatedContextMenuButton<double>(
-                tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
-                menuWidth: 150,
-                onSelected: onScaleChanged,
-                actions: [
-                  for (final value in <double>[
-                    0.8,
-                    0.9,
-                    1.0,
-                    1.1,
-                    1.2,
-                    1.3,
-                    1.5,
-                  ])
-                    _MenuAction<double>(
-                      value: value,
-                      label: '${(value * 100).round()}%',
-                    ),
-                ],
-                child: Container(
-                  height: 26,
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppTheme.panel,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${(scale * 100).round()}%',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: AppTheme.text,
-                    ),
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        onPressed: onRun,
+                        icon: const Icon(Icons.play_arrow, size: 16),
+                        label: const Text('Run'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.text,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const _WindowControls(),
+                      const SizedBox(width: 4),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.circle, size: 8, color: AppTheme.mutedText),
-              const SizedBox(width: 7),
-              Text(
-                engine.isOnline ? 'Engine online' : 'Engine offline',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: onRun,
-                icon: const Icon(Icons.play_arrow, size: 16),
-                label: const Text('Run'),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.text),
-              ),
-              const SizedBox(width: 8),
-              const _WindowControls(),
-              const SizedBox(width: 4),
             ],
           ),
         ],
@@ -905,7 +909,7 @@ class _GlobalSearchState extends State<_GlobalSearch> {
                   ),
                 ],
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _SearchSectionTitle('QUICK ACTIONS'),
@@ -933,8 +937,8 @@ class _GlobalSearchState extends State<_GlobalSearch> {
                   ),
                   _SearchAction(
                     icon: Icons.tune,
-                    label: 'Customize shortcuts (soon)',
-                    disabled: true,
+                    label: 'Shortcuts',
+                    onTap: _openShortcuts,
                   ),
                 ],
               ),
@@ -949,6 +953,15 @@ class _GlobalSearchState extends State<_GlobalSearch> {
   void _removeMenu() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  void _openShortcuts() {
+    _removeMenu();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => const _ShortcutDialog(),
+    );
   }
 
   @override
@@ -1017,47 +1030,290 @@ class _SearchAction extends StatelessWidget {
     required this.icon,
     required this.label,
     this.shortcut,
-    this.disabled = false,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String? shortcut;
-  final bool disabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => _HoverSearchAction(
+    icon: icon,
+    label: label,
+    shortcut: shortcut,
+    onTap: onTap,
+  );
+}
+
+class _HoverSearchAction extends StatefulWidget {
+  const _HoverSearchAction({
+    required this.icon,
+    required this.label,
+    this.shortcut,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? shortcut;
+  final VoidCallback? onTap;
+
+  @override
+  State<_HoverSearchAction> createState() => _HoverSearchActionState();
+}
+
+class _HoverSearchActionState extends State<_HoverSearchAction> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 6),
-    child: SizedBox(
-      height: 36,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 17,
-              color: disabled ? AppTheme.mutedText : AppTheme.text,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                color: disabled ? AppTheme.mutedText : AppTheme.text,
+    child: MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: _hovered ? AppTheme.border : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 17, color: AppTheme.text),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppTheme.text),
+                ),
               ),
-            ),
-            if (shortcut != null) ...[
-              const SizedBox(width: 8),
-              Text(
-                shortcut!,
-                style: const TextStyle(color: AppTheme.mutedText),
-              ),
+              if (widget.shortcut != null)
+                Text(
+                  widget.shortcut!,
+                  style: const TextStyle(color: AppTheme.mutedText),
+                ),
             ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ShortcutDialog extends StatefulWidget {
+  const _ShortcutDialog();
+
+  @override
+  State<_ShortcutDialog> createState() => _ShortcutDialogState();
+}
+
+class _ShortcutDialogState extends State<_ShortcutDialog> {
+  bool _editing = false;
+  final Map<String, String> _shortcuts = {
+    'Open project': 'Ctrl+O',
+    'Find module': 'Ctrl+Shift+M',
+    'Increase interface scale': 'Ctrl++',
+    'Decrease interface scale': 'Ctrl+-',
+    'Reset interface scale': 'Ctrl+0',
+  };
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    backgroundColor: AppTheme.panel,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: const BorderSide(color: AppTheme.border),
+    ),
+    child: SizedBox(
+      width: 430,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.keyboard_alt_outlined, size: 18),
+                const SizedBox(width: 9),
+                const Expanded(
+                  child: Text(
+                    'Keyboard shortcuts',
+                    style: TextStyle(
+                      color: AppTheme.text,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, size: 17),
+                  color: AppTheme.mutedText,
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final entry in _shortcuts.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: _ShortcutRow(
+                  label: entry.key,
+                  shortcut: entry.value,
+                  editing: _editing,
+                  onChanged: (value) =>
+                      setState(() => _shortcuts[entry.key] = value),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _editing = !_editing),
+                icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
+                label: Text(_editing ? 'Done' : 'Edit shortcuts'),
+              ),
+            ),
           ],
         ),
+      ),
+    ),
+  );
+}
+
+class _ShortcutRow extends StatelessWidget {
+  const _ShortcutRow({
+    required this.label,
+    required this.shortcut,
+    required this.editing,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String shortcut;
+  final bool editing;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(label, style: const TextStyle(color: AppTheme.text)),
+      ),
+      const SizedBox(width: 14),
+      _ShortcutCapture(value: shortcut, editing: editing, onChanged: onChanged),
+    ],
+  );
+}
+
+class _ShortcutCapture extends StatefulWidget {
+  const _ShortcutCapture({
+    required this.value,
+    required this.editing,
+    required this.onChanged,
+  });
+
+  final String value;
+  final bool editing;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_ShortcutCapture> createState() => _ShortcutCaptureState();
+}
+
+class _ShortcutCaptureState extends State<_ShortcutCapture> {
+  late final FocusNode _focusNode;
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ShortcutCapture oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && _controller.text != widget.value) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _formatKey(KeyEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final parts = <String>[];
+    if (keyboard.isControlPressed) parts.add('Ctrl');
+    if (keyboard.isAltPressed) parts.add('Alt');
+    if (keyboard.isShiftPressed) parts.add('Shift');
+    if (keyboard.isMetaPressed) parts.add('Meta');
+    final key = event.logicalKey.keyLabel;
+    final isModifier = <LogicalKeyboardKey>{
+      LogicalKeyboardKey.control,
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.controlRight,
+      LogicalKeyboardKey.alt,
+      LogicalKeyboardKey.altLeft,
+      LogicalKeyboardKey.altRight,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.shiftLeft,
+      LogicalKeyboardKey.shiftRight,
+      LogicalKeyboardKey.meta,
+      LogicalKeyboardKey.metaLeft,
+      LogicalKeyboardKey.metaRight,
+    }.contains(event.logicalKey);
+    if (key.isNotEmpty && !isModifier) parts.add(key);
+    return parts.join('+');
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 132,
+    height: 32,
+    child: Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (node, event) {
+        if (!widget.editing || event is! KeyDownEvent) {
+          return KeyEventResult.ignored;
+        }
+        final value = _formatKey(event);
+        if (value.isNotEmpty) widget.onChanged(value);
+        return KeyEventResult.handled;
+      },
+      child: TextField(
+        controller: _controller,
+        readOnly: true,
+        enabled: widget.editing,
+        onTap: widget.editing ? _focusNode.requestFocus : null,
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(
+          hintText: widget.editing ? 'Press keys' : null,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+          filled: true,
+          fillColor: AppTheme.background,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: AppTheme.border),
+          ),
+        ),
+        style: const TextStyle(color: AppTheme.text, fontSize: 12),
       ),
     ),
   );
@@ -1161,7 +1417,10 @@ class _ActivityRail extends StatelessWidget {
           for (final item in railItems)
             _RailButton(
               item: item,
-              active: item.id == sections[selected].id,
+              active:
+                  !modeSwitcherOpen &&
+                  item.label != 'User profile button' &&
+                  item.id == sections[selected].id,
               enabled: true,
               onTap: () => onNavigate(item.id),
             ),
@@ -1185,7 +1444,9 @@ class _ActivityRail extends StatelessWidget {
               icon: Icons.settings_outlined,
               modes: {},
             ),
-            active: sections[selected].id == SectionId.settings,
+            active:
+                !modeSwitcherOpen &&
+                sections[selected].id == SectionId.settings,
             enabled: true,
             onTap: () => onNavigate(SectionId.settings),
           ),
@@ -1286,6 +1547,7 @@ class _Explorer extends StatefulWidget {
 }
 
 class _ExplorerState extends State<_Explorer> {
+  final ScrollController _moduleScrollController = ScrollController();
   final TextEditingController _activeModuleController = TextEditingController();
   final TextEditingController _catalogModuleController =
       TextEditingController();
@@ -1312,6 +1574,7 @@ class _ExplorerState extends State<_Explorer> {
 
   @override
   void dispose() {
+    _moduleScrollController.dispose();
     _activeModuleController.dispose();
     _catalogModuleController.dispose();
     super.dispose();
@@ -1351,69 +1614,85 @@ class _ExplorerState extends State<_Explorer> {
             ),
             const Divider(height: 1),
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _ExplorerHeading(
-                      title: 'ACTIVE MODULES',
-                      icon: Icons.expand_more,
-                    ),
-                    _ModuleSearchField(
-                      controller: _activeModuleController,
-                      hintText: 'Search active modules...',
-                      query: _activeModuleQuery,
-                      onChanged: (value) =>
-                          setState(() => _activeModuleQuery = value),
-                      onClear: () {
-                        _activeModuleController.clear();
-                        setState(() => _activeModuleQuery = '');
-                      },
-                    ),
-                    if (_activeModules.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                        child: Text(
-                          'No active modules found',
-                          style: TextStyle(
-                            color: AppTheme.mutedText,
-                            fontSize: 12,
-                          ),
+              child: ScrollbarTheme(
+                data: ScrollbarThemeData(
+                  thumbColor: const WidgetStatePropertyAll(AppTheme.mutedText),
+                  thickness: const WidgetStatePropertyAll(4),
+                  radius: const Radius.circular(4),
+                ),
+                child: Scrollbar(
+                  controller: _moduleScrollController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _moduleScrollController,
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _ExplorerHeading(
+                          title: 'ACTIVE MODULES',
+                          icon: Icons.expand_more,
                         ),
-                      ),
-                    for (final module in _activeModules)
-                      _ModuleItem(module: module),
-                    const SizedBox(height: 12),
-                    _ExplorerHeading(
-                      title: 'MODULE CATALOG',
-                      icon: Icons.search,
-                    ),
-                    _ModuleSearchField(
-                      controller: _catalogModuleController,
-                      hintText: 'Search modules...',
-                      query: _catalogModuleQuery,
-                      onChanged: (value) =>
-                          setState(() => _catalogModuleQuery = value),
-                      onClear: () {
-                        _catalogModuleController.clear();
-                        setState(() => _catalogModuleQuery = '');
-                      },
-                    ),
-                    if (_catalogModules.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                        child: Text(
-                          'No modules found',
-                          style: TextStyle(
-                            color: AppTheme.mutedText,
-                            fontSize: 12,
-                          ),
+                        _ModuleSearchField(
+                          controller: _activeModuleController,
+                          hintText: 'Search active modules...',
+                          query: _activeModuleQuery,
+                          onChanged: (value) =>
+                              setState(() => _activeModuleQuery = value),
+                          onClear: () {
+                            _activeModuleController.clear();
+                            setState(() => _activeModuleQuery = '');
+                          },
                         ),
-                      ),
-                    for (final module in _catalogModules)
-                      _ModuleItem(module: module, catalog: true),
-                  ],
+                        if (_activeModules.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                            child: Text(
+                              'No active modules found',
+                              style: TextStyle(
+                                color: AppTheme.mutedText,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        for (final module in _activeModules)
+                          _ModuleItem(module: module),
+                        const SizedBox(height: 12),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Divider(height: 1),
+                        ),
+                        _ExplorerHeading(
+                          title: 'MODULE CATALOG',
+                          icon: Icons.search,
+                        ),
+                        _ModuleSearchField(
+                          controller: _catalogModuleController,
+                          hintText: 'Search modules...',
+                          query: _catalogModuleQuery,
+                          onChanged: (value) =>
+                              setState(() => _catalogModuleQuery = value),
+                          onClear: () {
+                            _catalogModuleController.clear();
+                            setState(() => _catalogModuleQuery = '');
+                          },
+                        ),
+                        if (_catalogModules.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                            child: Text(
+                              'No modules found',
+                              style: TextStyle(
+                                color: AppTheme.mutedText,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        for (final module in _catalogModules)
+                          _ModuleItem(module: module, catalog: true),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -95,7 +95,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('QUICK ACTIONS'), findsOneWidget);
     expect(find.text('KEYBOARD SHORTCUTS'), findsOneWidget);
-    expect(find.text('Customize shortcuts (soon)'), findsOneWidget);
+    expect(find.text('Shortcuts'), findsOneWidget);
+    await tester.tap(find.text('Shortcuts'));
+    await tester.pumpAndSettle();
+    expect(find.text('Keyboard shortcuts'), findsOneWidget);
+    expect(find.text('Edit shortcuts'), findsOneWidget);
+    await tester.tap(find.text('Edit shortcuts'));
+    await tester.pump();
+    expect(find.text('Done'), findsOneWidget);
 
     addTearDown(() {
       tester.view.resetPhysicalSize();
