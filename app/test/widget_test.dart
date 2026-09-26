@@ -117,6 +117,25 @@ void main() {
     expect(find.byTooltip('Modules'), findsOneWidget);
   });
 
+  testWidgets(
+    'rail swaps projects and configs positions and uses fast tooltips',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const ProviderScope(child: BciApp()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final railTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
+      final projects = railTooltips.firstWhere(
+        (tooltip) => tooltip.message == 'projects',
+      );
+      expect(projects.waitDuration, const Duration(milliseconds: 1333));
+
+      expect(find.byTooltip('projects'), findsOneWidget);
+      await tester.tap(find.byTooltip('projects'));
+      await tester.pumpAndSettle();
+      expect(find.text('Обзор'), findsWidgets);
+    },
+  );
+
   testWidgets('preferences replace the shell sidebars from the rail', (
     WidgetTester tester,
   ) async {

@@ -812,31 +812,47 @@ class _AnimatedContextMenuButtonState<T>
   );
 }
 
-class _AnimatedMenuAction<T> extends StatelessWidget {
+class _AnimatedMenuAction<T> extends StatefulWidget {
   const _AnimatedMenuAction({required this.action, required this.onSelected});
 
   final _MenuAction<T> action;
   final VoidCallback onSelected;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: action.enabled ? onSelected : null,
-    hoverColor: action.enabled ? AppTheme.border : Colors.transparent,
-    highlightColor: AppTheme.border,
-    mouseCursor: action.enabled
+  State<_AnimatedMenuAction<T>> createState() => _AnimatedMenuActionState<T>();
+}
+
+class _AnimatedMenuActionState<T> extends State<_AnimatedMenuAction<T>> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    cursor: widget.action.enabled
         ? SystemMouseCursors.click
         : SystemMouseCursors.basic,
-    child: SizedBox(
-      height: 32,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            action.label,
-            style: TextStyle(
-              color: action.enabled ? AppTheme.text : AppTheme.mutedText,
-              fontSize: 13,
+    child: GestureDetector(
+      onTap: widget.action.enabled ? widget.onSelected : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        height: 32,
+        color: _hovered && widget.action.enabled
+            ? AppTheme.border
+            : Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              widget.action.label,
+              style: TextStyle(
+                color: widget.action.enabled
+                    ? AppTheme.text
+                    : AppTheme.mutedText,
+                fontSize: 13,
+              ),
             ),
           ),
         ),
@@ -1111,9 +1127,9 @@ class _ActivityRail extends StatelessWidget {
         modes: {},
       ),
       NavSection(
-        id: SectionId.settings,
-        label: 'configs',
-        icon: Icons.settings_outlined,
+        id: SectionId.dashboard,
+        label: 'projects',
+        icon: Icons.folder_open_outlined,
         modes: {},
       ),
       NavSection(
@@ -1164,14 +1180,14 @@ class _ActivityRail extends StatelessWidget {
           const SizedBox(height: 2),
           _RailButton(
             item: const NavSection(
-              id: SectionId.dashboard,
-              label: 'projects',
-              icon: Icons.folder_open_outlined,
+              id: SectionId.settings,
+              label: 'configs',
+              icon: Icons.settings_outlined,
               modes: {},
             ),
-            active: sections[selected].id == SectionId.dashboard,
+            active: sections[selected].id == SectionId.settings,
             enabled: true,
-            onTap: () => onNavigate(SectionId.dashboard),
+            onTap: () => onNavigate(SectionId.settings),
           ),
           const SizedBox(height: 8),
         ],
@@ -1180,7 +1196,7 @@ class _ActivityRail extends StatelessWidget {
   }
 }
 
-class _RailButton extends StatelessWidget {
+class _RailButton extends StatefulWidget {
   const _RailButton({
     required this.item,
     required this.active,
@@ -1193,9 +1209,16 @@ class _RailButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_RailButton> createState() => _RailButtonState();
+}
+
+class _RailButtonState extends State<_RailButton> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) => Tooltip(
-    message: item.label,
-    waitDuration: const Duration(seconds: 2),
+    message: widget.item.label,
+    waitDuration: const Duration(milliseconds: 1333),
     showDuration: const Duration(seconds: 4),
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
@@ -1207,29 +1230,38 @@ class _RailButton extends StatelessWidget {
       ],
     ),
     textStyle: const TextStyle(color: AppTheme.text, fontSize: 12),
-    child: InkWell(
-      onTap: enabled ? onTap : null,
-      hoverColor: AppTheme.border,
-      mouseCursor: enabled
+    child: MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: widget.enabled
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: Container(
-        height: 40,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        decoration: BoxDecoration(
-          color: active ? AppTheme.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
-          border: active ? Border.all(color: AppTheme.border) : null,
-        ),
-        child: Center(
-          child: Icon(
-            item.icon,
-            size: 20,
-            color: active
-                ? AppTheme.text
-                : enabled
-                ? AppTheme.mutedText
-                : AppTheme.mutedText.withAlpha(110),
+      child: GestureDetector(
+        onTap: widget.enabled ? widget.onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          height: 40,
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: _hovered && widget.enabled
+                ? AppTheme.border
+                : widget.active
+                ? AppTheme.panel
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            border: widget.active ? Border.all(color: AppTheme.border) : null,
+          ),
+          child: Center(
+            child: Icon(
+              widget.item.icon,
+              size: 20,
+              color: widget.active
+                  ? AppTheme.text
+                  : widget.enabled
+                  ? AppTheme.mutedText
+                  : AppTheme.mutedText.withAlpha(110),
+            ),
           ),
         ),
       ),
@@ -1553,8 +1585,8 @@ class _ModeSwitcherPanel extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 96,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        width: 74,
+        padding: const EdgeInsets.symmetric(vertical: 5),
         decoration: BoxDecoration(
           color: AppTheme.background,
           border: Border.all(color: AppTheme.border),
@@ -1579,15 +1611,15 @@ class _ModeSwitcherPanel extends StatelessWidget {
             ),
             for (final mode in AppMode.values)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Tooltip(
                   message: '${mode.label}: ${mode.hint}',
                   child: InkWell(
                     onTap: () => onSelected(mode),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      width: 76,
-                      height: 76,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         color: current == mode
                             ? AppTheme.panel
@@ -1603,7 +1635,7 @@ class _ModeSwitcherPanel extends StatelessWidget {
                           AppMode.researcher => Icons.science_outlined,
                           AppMode.developer => Icons.code_outlined,
                         },
-                        size: 27,
+                        size: 24,
                         color: current == mode
                             ? AppTheme.text
                             : AppTheme.mutedText,
