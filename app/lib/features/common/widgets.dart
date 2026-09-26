@@ -18,10 +18,7 @@ class StatusChip extends StatelessWidget {
     return Chip(
       avatar: icon != null
           ? Icon(icon, size: 16, color: color)
-          : CircleAvatar(
-              radius: 5,
-              backgroundColor: color,
-            ),
+          : CircleAvatar(radius: 5, backgroundColor: color),
       label: Text(label),
       visualDensity: VisualDensity.compact,
     );
@@ -52,20 +49,40 @@ class InfoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                if (headerIcon != null) ...[
-                  Icon(headerIcon, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium,
-                ),
-                const Spacer(),
-                ?trailing,
-              ],
-            ),
+            if (trailing == null)
+              _InfoCardTitle(title: title, headerIcon: headerIcon, theme: theme)
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 460) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _InfoCardTitle(
+                          title: title,
+                          headerIcon: headerIcon,
+                          theme: theme,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 4, children: [trailing!]),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _InfoCardTitle(
+                          title: title,
+                          headerIcon: headerIcon,
+                          theme: theme,
+                        ),
+                      ),
+                      trailing!,
+                    ],
+                  );
+                },
+              ),
             const SizedBox(height: 12),
             ...children,
           ],
@@ -73,6 +90,30 @@ class InfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InfoCardTitle extends StatelessWidget {
+  const _InfoCardTitle({
+    required this.title,
+    required this.headerIcon,
+    required this.theme,
+  });
+
+  final String title;
+  final IconData? headerIcon;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (headerIcon != null) ...[
+        Icon(headerIcon, size: 18, color: theme.colorScheme.primary),
+        const SizedBox(width: 8),
+      ],
+      Flexible(child: Text(title, style: theme.textTheme.titleMedium)),
+    ],
+  );
 }
 
 /// Key-value line used inside InfoCard.
@@ -94,8 +135,9 @@ class KeyValue extends StatelessWidget {
             width: 168,
             child: Text(
               keyLabel,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(
@@ -155,10 +197,7 @@ class EmptyState extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: 16),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 16), action!],
           ],
         ),
       ),
@@ -187,8 +226,9 @@ class MetricTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 2),
           Text(value, style: theme.textTheme.titleMedium),

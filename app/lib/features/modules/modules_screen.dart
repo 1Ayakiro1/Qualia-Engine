@@ -10,14 +10,16 @@ class ModulesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final int activeCount =
-        kSystemModules.where((SystemModule m) => m.active).length;
+    final int activeCount = kSystemModules
+        .where((SystemModule m) => m.active)
+        .length;
 
     return ListView(
       children: [
         ScreenHeader(
           title: 'Модули',
-          subtitle: 'Системные: $activeCount реализовано · '
+          subtitle:
+              'Системные: $activeCount реализовано · '
               '${kSystemModules.length - activeCount} запланировано',
         ),
         for (final SystemModule m in kSystemModules)
@@ -27,28 +29,46 @@ class ModulesScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          m.name,
-                          style: theme.textTheme.titleMedium,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final status = [
+                        StatusChip(
+                          label: m.active ? 'активен' : 'запланирован',
+                          color: m.active
+                              ? Colors.greenAccent
+                              : theme.colorScheme.outline,
+                          icon: m.active ? Icons.check : Icons.schedule,
                         ),
-                      ),
-                      StatusChip(
-                        label: m.active ? 'активен' : 'запланирован',
-                        color: m.active
-                            ? Colors.greenAccent
-                            : theme.colorScheme.outline,
-                        icon: m.active ? Icons.check : Icons.schedule,
-                      ),
-                      const SizedBox(width: 8),
-                      StatusChip(
-                        label: m.category,
-                        color: theme.colorScheme.secondary,
-                        icon: Icons.category_outlined,
-                      ),
-                    ],
+                        StatusChip(
+                          label: m.category,
+                          color: theme.colorScheme.secondary,
+                          icon: Icons.category_outlined,
+                        ),
+                      ];
+
+                      if (constraints.maxWidth < 520) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(m.name, style: theme.textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            Wrap(spacing: 8, runSpacing: 4, children: status),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              m.name,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ),
+                          ...status,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 6),
                   Text(

@@ -94,4 +94,38 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
   });
+
+  testWidgets('rail buttons navigate to sections outside the current mode', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('Modules'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Исследователь'), findsNothing);
+    expect(find.text('MODULE CATALOG'), findsOneWidget);
+    expect(find.byTooltip('Modules'), findsOneWidget);
+  });
+
+  testWidgets('Edit menu uses the themed contextual surface', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const ValueKey<String>('Edit menu button')));
+    await tester.pump(const Duration(milliseconds: 80));
+
+    expect(find.text('Undo'), findsOneWidget);
+    expect(find.text('Preferences (soon)'), findsOneWidget);
+    expect(find.byType(PopupMenuItem), findsNothing);
+  });
 }

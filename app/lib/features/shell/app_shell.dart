@@ -166,16 +166,36 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     : selected,
                                                 modeSwitcherOpen:
                                                     modeSwitcherOpen,
-                                                onSelected: (index) => ref
-                                                    .read(
-                                                      navSectionProvider
-                                                          .notifier,
-                                                    )
-                                                    .select(sections[index].id),
                                                 onModeSwitcher: () => setState(
                                                   () => modeSwitcherOpen =
                                                       !modeSwitcherOpen,
                                                 ),
+                                                onNavigate: (id) {
+                                                  final target = kNavSections
+                                                      .firstWhere(
+                                                        (item) => item.id == id,
+                                                      );
+                                                  if (!target.visibleIn(mode)) {
+                                                    final nextMode =
+                                                        target.modes.contains(
+                                                          AppMode.researcher,
+                                                        )
+                                                        ? AppMode.researcher
+                                                        : AppMode.developer;
+                                                    ref
+                                                        .read(
+                                                          appModeProvider
+                                                              .notifier,
+                                                        )
+                                                        .setMode(nextMode);
+                                                  }
+                                                  ref
+                                                      .read(
+                                                        navSectionProvider
+                                                            .notifier,
+                                                      )
+                                                      .select(id);
+                                                },
                                               ),
                                             ),
                                             _LayoutDivider(
@@ -360,10 +380,11 @@ class _TitleBar extends StatelessWidget {
                 const Spacer(),
               ] else
                 const Spacer(),
-              PopupMenuButton<double>(
+              _AnimatedContextMenuButton<double>(
                 tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
+                menuWidth: 150,
                 onSelected: onScaleChanged,
-                itemBuilder: (context) => [
+                actions: [
                   for (final value in <double>[
                     0.8,
                     0.9,
@@ -373,9 +394,9 @@ class _TitleBar extends StatelessWidget {
                     1.3,
                     1.5,
                   ])
-                    PopupMenuItem<double>(
+                    _MenuAction<double>(
                       value: value,
-                      child: Text('${(value * 100).round()}%'),
+                      label: '${(value * 100).round()}%',
                     ),
                 ],
                 child: Container(
@@ -519,68 +540,250 @@ class _TopMenuItem extends StatelessWidget {
 
   final String label;
 
-  List<PopupMenuEntry<String>> _items() {
+  List<_MenuAction<String>> _items() {
     switch (label) {
       case 'File':
         return const [
-          PopupMenuItem(value: 'new', child: Text('New workspace')),
-          PopupMenuItem(value: 'open', child: Text('Open project')),
-          PopupMenuDivider(),
-          PopupMenuItem(
+          _MenuAction(value: 'new', label: 'New workspace'),
+          _MenuAction(value: 'open', label: 'Open project'),
+          _MenuAction(
             value: 'import',
+            label: 'Import module (soon)',
             enabled: false,
-            child: Text('Import module (soon)'),
+            dividerBefore: true,
           ),
         ];
       case 'Edit':
         return const [
-          PopupMenuItem(value: 'undo', child: Text('Undo')),
-          PopupMenuItem(value: 'redo', enabled: false, child: Text('Redo')),
-          PopupMenuDivider(),
-          PopupMenuItem(
+          _MenuAction(value: 'undo', label: 'Undo'),
+          _MenuAction(value: 'redo', label: 'Redo', enabled: false),
+          _MenuAction(
             value: 'preferences',
+            label: 'Preferences (soon)',
             enabled: false,
-            child: Text('Preferences (soon)'),
+            dividerBefore: true,
           ),
         ];
       case 'View':
         return const [
-          PopupMenuItem(value: 'explorer', child: Text('Explorer')),
-          PopupMenuItem(value: 'terminal', child: Text('Terminal')),
-          PopupMenuDivider(),
-          PopupMenuItem(
+          _MenuAction(value: 'explorer', label: 'Explorer'),
+          _MenuAction(value: 'terminal', label: 'Terminal'),
+          _MenuAction(
             value: 'layout',
+            label: 'Customize layout (soon)',
             enabled: false,
-            child: Text('Customize layout (soon)'),
+            dividerBefore: true,
           ),
         ];
       default:
         return const [
-          PopupMenuItem(value: 'build', child: Text('Build project')),
-          PopupMenuItem(value: 'run', child: Text('Run session')),
-          PopupMenuDivider(),
-          PopupMenuItem(
+          _MenuAction(value: 'build', label: 'Build project'),
+          _MenuAction(value: 'run', label: 'Run session'),
+          _MenuAction(
             value: 'tasks',
+            label: 'Build tasks (soon)',
             enabled: false,
-            child: Text('Build tasks (soon)'),
+            dividerBefore: true,
           ),
         ];
     }
   }
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
+  Widget build(BuildContext context) => _AnimatedContextMenuButton<String>(
     key: ValueKey<String>('$label menu button'),
     tooltip: '$label menu',
+    actions: _items(),
     onSelected: (_) {},
-    itemBuilder: (_) => _items(),
-    padding: EdgeInsets.zero,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: Colors.white60),
+      ),
+    ),
+  );
+}
+
+class _MenuAction<T> {
+  const _MenuAction({
+    required this.value,
+    required this.label,
+    this.enabled = true,
+    this.dividerBefore = false,
+  });
+
+  final T value;
+  final String label;
+  final bool enabled;
+  final bool dividerBefore;
+}
+
+class _AnimatedContextMenuButton<T> extends StatefulWidget {
+  const _AnimatedContextMenuButton({
+    super.key,
+    required this.tooltip,
+    required this.actions,
+    required this.onSelected,
+    required this.child,
+    this.menuWidth = 220,
+  });
+
+  final String tooltip;
+  final List<_MenuAction<T>> actions;
+  final ValueChanged<T> onSelected;
+  final Widget child;
+  final double menuWidth;
+
+  @override
+  State<_AnimatedContextMenuButton<T>> createState() =>
+      _AnimatedContextMenuButtonState<T>();
+}
+
+class _AnimatedContextMenuButtonState<T>
+    extends State<_AnimatedContextMenuButton<T>>
+    with SingleTickerProviderStateMixin {
+  final LayerLink _layerLink = LayerLink();
+  late final AnimationController _animationController;
+  OverlayEntry? _overlayEntry;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+      reverseDuration: const Duration(milliseconds: 120),
+    );
+  }
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    if (_overlayEntry != null) {
+      _closeMenu();
+    } else {
+      _openMenu();
+    }
+  }
+
+  void _openMenu() {
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (overlayContext) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _closeMenu,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: const Offset(0, 32),
+            child: FadeTransition(
+              opacity: CurvedAnimation(
+                parent: _animationController,
+                curve: Curves.easeOut,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: widget.menuWidth,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF252526),
+                    border: Border.all(color: const Color(0xFF4A4A4A)),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 16,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final action in widget.actions) ...[
+                        if (action.dividerBefore)
+                          const Divider(height: 8, indent: 8, endIndent: 8),
+                        _AnimatedMenuAction(
+                          action: action,
+                          onSelected: () {
+                            widget.onSelected(action.value);
+                            _closeMenu();
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    overlay.insert(_overlayEntry!);
+    _animationController.forward(from: 0);
+  }
+
+  void _closeMenu() {
+    final entry = _overlayEntry;
+    if (entry == null) return;
+    _overlayEntry = null;
+    _animationController.reverse().whenCompleteOrCancel(() {
+      entry.remove();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => CompositedTransformTarget(
+    link: _layerLink,
+    child: Tooltip(
+      message: widget.tooltip,
+      child: InkWell(
+        onTap: _toggleMenu,
+        borderRadius: BorderRadius.circular(6),
+        child: widget.child,
+      ),
+    ),
+  );
+}
+
+class _AnimatedMenuAction<T> extends StatelessWidget {
+  const _AnimatedMenuAction({required this.action, required this.onSelected});
+
+  final _MenuAction<T> action;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: action.enabled ? onSelected : null,
+    child: SizedBox(
+      height: 32,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            action.label,
+            style: TextStyle(
+              color: action.enabled ? Colors.white70 : Colors.white30,
+              fontSize: 13,
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -799,14 +1002,14 @@ class _ActivityRail extends StatelessWidget {
     required this.sections,
     required this.selected,
     required this.modeSwitcherOpen,
-    required this.onSelected,
     required this.onModeSwitcher,
+    required this.onNavigate,
   });
   final List<NavSection> sections;
   final int selected;
   final bool modeSwitcherOpen;
-  final ValueChanged<int> onSelected;
   final VoidCallback onModeSwitcher;
+  final ValueChanged<SectionId> onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -843,11 +1046,6 @@ class _ActivityRail extends StatelessWidget {
       ),
     ];
 
-    void select(SectionId id) {
-      final index = sections.indexWhere((item) => item.id == id);
-      if (index >= 0) onSelected(index);
-    }
-
     return Container(
       width: 48,
       color: const Color(0xFF202020),
@@ -858,8 +1056,8 @@ class _ActivityRail extends StatelessWidget {
             _RailButton(
               item: item,
               active: item.id == sections[selected].id,
-              enabled: sections.any((section) => section.id == item.id),
-              onTap: () => select(item.id),
+              enabled: true,
+              onTap: () => onNavigate(item.id),
             ),
           const Spacer(),
           _RailButton(
@@ -883,7 +1081,7 @@ class _ActivityRail extends StatelessWidget {
             ),
             active: sections[selected].id == SectionId.dashboard,
             enabled: true,
-            onTap: () => select(SectionId.dashboard),
+            onTap: () => onNavigate(SectionId.dashboard),
           ),
           const SizedBox(height: 8),
         ],
@@ -1246,23 +1444,45 @@ class _EditorTabs extends StatelessWidget {
       children: [
         Container(
           width: 205,
+          height: 35,
+          margin: const EdgeInsets.only(top: 3),
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: const BoxDecoration(
-            color: Color(0xFF292929),
-            border: Border(top: BorderSide(color: Color(0xFF61B5FF))),
+          decoration: BoxDecoration(
+            color: const Color(0xFF292929),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            border: Border.all(color: const Color(0xFF3D3D3D)),
           ),
-          child: Row(
+          child: Stack(
             children: [
-              Icon(
-                _phosphorFor(active.id),
-                size: 15,
-                color: const Color(0xFF8ABEFF),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _phosphorFor(active.id),
+                      size: 15,
+                      color: const Color(0xFF8ABEFF),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        active.label,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.close, size: 14, color: Colors.white38),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(active.label, overflow: TextOverflow.ellipsis),
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Color(0xFF61B5FF)),
+                ),
               ),
-              const Icon(Icons.close, size: 14, color: Colors.white38),
             ],
           ),
         ),
