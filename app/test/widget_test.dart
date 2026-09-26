@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('app shell renders top bar and dashboard',
-      (WidgetTester tester) async {
+  testWidgets('app shell renders top bar and dashboard', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -15,18 +16,23 @@ void main() {
     expect(find.text('Обзор'), findsWidgets);
   });
 
-  testWidgets('mode switch reveals researcher sections',
-      (WidgetTester tester) async {
+  testWidgets('mode switch panel reveals researcher mode', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Open the mode menu and pick "Исследователь".
-    await tester.tap(find.text('Потребитель'));
+    // Open the rail mode switcher and pick "Исследователь".
+    await tester.tap(find.byTooltip('Режим пользователя'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Исследователь').last);
+    expect(find.text('change mode'), findsOneWidget);
+    await tester.tap(
+      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Спектрограмма'), findsOneWidget);
-    expect(find.text('Конвейер'), findsOneWidget);
+    expect(find.text('Исследователь'), findsOneWidget);
+    expect(find.byTooltip('Конвейер'), findsOneWidget);
+    expect(find.text('ACTIVE MODULES'), findsOneWidget);
   });
 }

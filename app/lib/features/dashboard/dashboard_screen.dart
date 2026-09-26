@@ -19,10 +19,52 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 34, 34, 70),
       children: [
         const ScreenHeader(
           title: 'Обзор',
           subtitle: 'Состояние движка и быстрый старт',
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF242424),
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: const Color(0xFF383838)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withAlpha(35),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('NerveGears Engine', style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text('Интерфейс обновлён · рабочая область готова',
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54)),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => ref.read(navSectionProvider.notifier).select(SectionId.settings),
+                  icon: const Icon(Icons.settings_outlined, size: 17),
+                  label: const Text('Настроить'),
+                ),
+              ],
+            ),
+          ),
         ),
         InfoCard(
           title: 'Ядро (C++ / FFI)',

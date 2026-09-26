@@ -7,7 +7,7 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/CMakeLists.txt"
+  "/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/CMakeLists.txt"
   "CMakeFiles/4.3.0/CMakeCXXCompiler.cmake"
   "CMakeFiles/4.3.0/CMakeSystem.cmake"
   "/usr/share/cmake/Modules/CMakeCXXInformation.cmake"

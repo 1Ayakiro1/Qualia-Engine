@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_info.dart';
 import '../../../core/logging/log_window.dart';
 import '../../../state/app_state.dart';
 import '../../../state/engine_state.dart';
@@ -21,8 +20,30 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return AppBar(
-      titleSpacing: 16,
-      title: Text(AppInfo.appName, style: theme.textTheme.titleLarge),
+      titleSpacing: 20,
+      title: Row(
+        children: [
+          Text(
+            'File',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
+          ),
+          const SizedBox(width: 25),
+          Text(
+            'Edit',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
+          ),
+          const SizedBox(width: 25),
+          Text(
+            'View',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
+          ),
+          const SizedBox(width: 25),
+          Text(
+            'Help',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
+          ),
+        ],
+      ),
       actions: [
         IconButton(
           tooltip: 'Консоль логов (отдельное окно)',
@@ -44,19 +65,19 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
           child: StatusChip(
             label: engine.isOnline
                 ? (engine.runState == EngineRunState.running
-                    ? 'Ядро: активна сессия'
-                    : 'Ядро: онлайн')
+                      ? 'Ядро: активна сессия'
+                      : 'Ядро: онлайн')
                 : 'Ядро: офлайн',
             color: !engine.isOnline
                 ? theme.colorScheme.outline
                 : engine.runState == EngineRunState.running
-                    ? Colors.greenAccent
-                    : theme.colorScheme.primary,
+                ? Colors.greenAccent
+                : theme.colorScheme.primary,
             icon: !engine.isOnline
                 ? Icons.power_off
                 : engine.runState == EngineRunState.running
-                    ? Icons.bolt
-                    : Icons.check_circle,
+                ? Icons.bolt
+                : Icons.check_circle,
           ),
         ),
         Padding(

@@ -1,5 +1,5 @@
 CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o: \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/tests/test_core.cpp \
+ /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/tests/test_core.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/16/chrono \
  /usr/include/c++/16/bits/version.h \
  /usr/include/c++/16/x86_64-redhat-linux/bits/c++config.h \
@@ -154,7 +154,7 @@ CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o: \
  /usr/include/c++/16/bits/stl_vector.h \
  /usr/include/c++/16/bits/stl_bvector.h \
  /usr/include/c++/16/bits/vector.tcc \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/build/thirdparty/catch2-v2.13.10/catch.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/thirdparty/catch2-v2.13.10/catch.hpp \
  /usr/include/c++/16/cassert /usr/include/assert.h \
  /usr/include/c++/16/ostream /usr/include/c++/16/bits/ostream.h \
  /usr/include/c++/16/ios /usr/include/c++/16/exception \
@@ -259,7 +259,7 @@ CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o: \
  /usr/include/c++/16/bits/regex_executor.h \
  /usr/include/c++/16/bits/regex_executor.tcc /usr/include/c++/16/iterator \
  /usr/include/c++/16/bits/stream_iterator.h /usr/include/c++/16/iostream \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/c_api.h \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/core.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include/bci_engine/c_api.h \
+ /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include/bci_engine/core.hpp \
  /usr/include/c++/16/atomic \
- /home/ayakiro/Documents/Проекты/BCI/BCI\ Engine/NerveGears_Engine/core/include/bci_engine/version.h
+ /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include/bci_engine/version.h

@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DBCI_BUILD_CORE_DLL=1 -DBCI_HAVE_RWQ=1 -Dbci_engine_core_EXPORTS
 
-CXX_INCLUDES = -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/include" -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/src" -I"/home/ayakiro/Documents/Проекты/BCI/BCI Engine/NerveGears_Engine/core/build/thirdparty/readerwriterqueue-1.0.6"
+CXX_INCLUDES = -I/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include -I/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src -I/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/thirdparty/readerwriterqueue-1.0.6
 
 CXX_FLAGS = -O3 -DNDEBUG -std=c++17 -fPIC -fvisibility=hidden -Wall -Wextra -Wpedantic -Werror -O2
 
