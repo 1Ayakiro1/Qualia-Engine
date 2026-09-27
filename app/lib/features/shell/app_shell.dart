@@ -14,6 +14,8 @@ import '../dashboard/dashboard_screen.dart';
 import '../datasets/datasets_screen.dart';
 import '../developer/developer_screen.dart';
 import '../devices/devices_screen.dart';
+import '../bug_report/bug_report_screen.dart';
+import '../extensions/extensions_screen.dart';
 import '../models/models_screen.dart';
 import '../modules/modules_screen.dart';
 import '../pipeline/pipeline_screen.dart';
@@ -44,6 +46,10 @@ IconData _phosphorFor(SectionId id) {
       return Icons.psychology_outlined;
     case SectionId.developer:
       return Icons.terminal;
+    case SectionId.extensions:
+      return Icons.extension_outlined;
+    case SectionId.bugReport:
+      return Icons.bug_report_outlined;
     case SectionId.profile:
       return Icons.account_circle_outlined;
     case SectionId.settings:
@@ -114,6 +120,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         modes: {},
       );
     }
+    if (id == SectionId.bugReport) {
+      return const NavSection(
+        id: SectionId.bugReport,
+        label: 'Bug report',
+        icon: Icons.bug_report_outlined,
+        modes: {},
+      );
+    }
     return kNavSections.firstWhere((item) => item.id == id);
   }
 
@@ -148,6 +162,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _selectSection(SectionId id, AppMode mode) {
     if (id == SectionId.settings) settingsItem = 'General';
     if (id == SectionId.profile) {
+      ref.read(navSectionProvider.notifier).select(id);
+      _openTab(id);
+      return;
+    }
+    if (id == SectionId.bugReport) {
       ref.read(navSectionProvider.notifier).select(id);
       _openTab(id);
       return;
@@ -220,6 +239,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     setState(() => _debugConsoleVisible = true);
   }
 
+  Widget _buildActivityRail({
+    required List<NavSection> sections,
+    required AppMode mode,
+    required SectionId section,
+  }) {
+    return _ShellSurface(
+      width: layout.railWidth,
+      radius: layout.radius,
+      child: _ActivityRail(
+        sections: sections,
+        selectedSection: section,
+        modeSwitcherOpen: modeSwitcherOpen,
+        onModeSwitcher: () =>
+            setState(() => modeSwitcherOpen = !modeSwitcherOpen),
+        onNavigate: (id) => _selectSection(id, mode),
+        onProfile: () => _selectSection(SectionId.profile, mode),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mode = ref.watch(appModeProvider);
@@ -279,7 +318,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                             body: Column(
                               children: [
                                 _TitleBar(
-                                  compact: width < 1050,
+                                  compact: width < 760,
                                   onOpenDebugConsole: _openDebugConsole,
                                   scale: uiScale,
                                   onScaleChanged: (value) =>
@@ -296,8 +335,80 @@ class _AppShellState extends ConsumerState<AppShell> {
                                     children: [
                                       Positioned.fill(
                                         child: section == SectionId.profile
-                                            ? ProfileScreen(
-                                                onBack: _returnToApp,
+                                            ? Padding(
+                                                padding: EdgeInsets.all(
+                                                  layout.gap,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    _buildActivityRail(
+                                                      sections: sections,
+                                                      mode: mode,
+                                                      section: section,
+                                                    ),
+                                                    _LayoutDivider(
+                                                      onDrag: (_) {},
+                                                    ),
+                                                    Expanded(
+                                                      child: _ShellSurface(
+                                                        radius: layout.radius,
+                                                        child: ProfileScreen(
+                                                          onBack: _returnToApp,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              )
+                                            : section == SectionId.bugReport
+                                            ? Padding(
+                                                padding: EdgeInsets.all(
+                                                  layout.gap,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    _buildActivityRail(
+                                                      sections: sections,
+                                                      mode: mode,
+                                                      section: section,
+                                                    ),
+                                                    _LayoutDivider(
+                                                      onDrag: (_) {},
+                                                    ),
+                                                    Expanded(
+                                                      child: _ShellSurface(
+                                                        radius: layout.radius,
+                                                        child:
+                                                            const BugReportScreen(),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              )
+                                            : section == SectionId.extensions
+                                            ? Padding(
+                                                padding: EdgeInsets.all(
+                                                  layout.gap,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    _buildActivityRail(
+                                                      sections: sections,
+                                                      mode: mode,
+                                                      section: section,
+                                                    ),
+                                                    _LayoutDivider(
+                                                      onDrag: (_) {},
+                                                    ),
+                                                    Expanded(
+                                                      child: _ShellSurface(
+                                                        radius: layout.radius,
+                                                        child:
+                                                            const ExtensionsScreen(),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               )
                                             : section == SectionId.settings
                                             ? SettingsScreen(
@@ -312,35 +423,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                   children: [
                                                     Row(
                                                       children: [
-                                                        _ShellSurface(
-                                                          width:
-                                                              layout.railWidth,
-                                                          radius: layout.radius,
-                                                          child: _ActivityRail(
-                                                            sections: sections,
-                                                            selected:
-                                                                selected < 0
-                                                                ? 0
-                                                                : selected,
-                                                            modeSwitcherOpen:
-                                                                modeSwitcherOpen,
-                                                            onModeSwitcher:
-                                                                () => setState(
-                                                                  () => modeSwitcherOpen =
-                                                                      !modeSwitcherOpen,
-                                                                ),
-                                                            onNavigate: (id) =>
-                                                                _selectSection(
-                                                                  id,
-                                                                  mode,
-                                                                ),
-                                                            onProfile: () =>
-                                                                _selectSection(
-                                                                  SectionId
-                                                                      .profile,
-                                                                  mode,
-                                                                ),
-                                                          ),
+                                                        _buildActivityRail(
+                                                          sections: sections,
+                                                          mode: mode,
+                                                          section: section,
                                                         ),
                                                         _LayoutDivider(
                                                           onDrag: (delta) => setState(() {
@@ -756,7 +842,7 @@ class _TitleBar extends StatelessWidget {
                     // Keep the target mounted while the window is restored.
                     // This preserves an already-open search menu instead of
                     // disposing its OverlayEntry at the compact breakpoint.
-                    opacity: compact ? 0 : 1,
+                    opacity: 1,
                     child: SizedBox(
                       width: compact ? 180 : 320,
                       height: 26,
@@ -1935,14 +2021,14 @@ class _LayoutDividerState extends State<_LayoutDivider> {
 class _ActivityRail extends StatelessWidget {
   const _ActivityRail({
     required this.sections,
-    required this.selected,
+    required this.selectedSection,
     required this.modeSwitcherOpen,
     required this.onModeSwitcher,
     required this.onNavigate,
     required this.onProfile,
   });
   final List<NavSection> sections;
-  final int selected;
+  final SectionId selectedSection;
   final bool modeSwitcherOpen;
   final VoidCallback onModeSwitcher;
   final ValueChanged<SectionId> onNavigate;
@@ -1952,21 +2038,15 @@ class _ActivityRail extends StatelessWidget {
   Widget build(BuildContext context) {
     const railItems = <NavSection>[
       NavSection(
-        id: SectionId.dashboard,
+        id: SectionId.profile,
         label: 'User profile button',
         icon: Icons.account_circle_outlined,
         modes: {},
       ),
       NavSection(
-        id: SectionId.dashboard,
-        label: 'projects',
-        icon: Icons.folder_open_outlined,
-        modes: {},
-      ),
-      NavSection(
-        id: SectionId.modules,
-        label: 'marketplace',
-        icon: Icons.storefront_outlined,
+        id: SectionId.extensions,
+        label: 'extensions',
+        icon: Icons.extension_outlined,
         modes: {},
       ),
       NavSection(
@@ -1976,7 +2056,7 @@ class _ActivityRail extends StatelessWidget {
         modes: {},
       ),
       NavSection(
-        id: SectionId.developer,
+        id: SectionId.bugReport,
         label: 'bug report',
         icon: Icons.bug_report_outlined,
         modes: {},
@@ -1992,10 +2072,7 @@ class _ActivityRail extends StatelessWidget {
           for (final item in railItems)
             _RailButton(
               item: item,
-              active:
-                  !modeSwitcherOpen &&
-                  item.label != 'User profile button' &&
-                  item.id == sections[selected].id,
+              active: !modeSwitcherOpen && item.id == selectedSection,
               enabled: true,
               onTap: item.label == 'User profile button'
                   ? onProfile
@@ -2021,9 +2098,7 @@ class _ActivityRail extends StatelessWidget {
               icon: Icons.settings_outlined,
               modes: {},
             ),
-            active:
-                !modeSwitcherOpen &&
-                sections[selected].id == SectionId.settings,
+            active: !modeSwitcherOpen && selectedSection == SectionId.settings,
             enabled: true,
             onTap: () => onNavigate(SectionId.settings),
           ),
@@ -3042,6 +3117,10 @@ class _SectionBody extends ConsumerWidget {
         return const ModelsScreen();
       case SectionId.developer:
         return const DeveloperScreen();
+      case SectionId.extensions:
+        return const ExtensionsScreen();
+      case SectionId.bugReport:
+        return const BugReportScreen();
       case SectionId.profile:
         return ProfileScreen(
           onBack: () =>

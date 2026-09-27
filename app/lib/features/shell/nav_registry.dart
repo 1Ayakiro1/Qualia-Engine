@@ -86,6 +86,20 @@ const List<NavSection> kNavSections = <NavSection>[
     modes: {AppMode.developer},
   ),
   NavSection(
+    id: SectionId.extensions,
+    label: 'Extensions',
+    icon: Icons.extension_outlined,
+    subtitle: 'Пользовательские расширения',
+    modes: {AppMode.consumer, AppMode.researcher, AppMode.developer},
+  ),
+  NavSection(
+    id: SectionId.bugReport,
+    label: 'Bug report',
+    icon: Icons.bug_report_outlined,
+    subtitle: 'Сообщить о проблеме',
+    modes: {AppMode.consumer, AppMode.researcher, AppMode.developer},
+  ),
+  NavSection(
     id: SectionId.settings,
     label: 'Настройки',
     icon: Icons.settings_outlined,

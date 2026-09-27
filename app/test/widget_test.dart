@@ -199,24 +199,62 @@ void main() {
     expect(find.byTooltip('Modules'), findsOneWidget);
   });
 
-  testWidgets(
-    'rail swaps projects and configs positions and uses fast tooltips',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const ProviderScope(child: BciApp()));
-      await tester.pump(const Duration(milliseconds: 100));
+  testWidgets('rail exposes extensions and configs with fast tooltips', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
 
-      final railTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
-      final projects = railTooltips.firstWhere(
-        (tooltip) => tooltip.message == 'projects',
-      );
-      expect(projects.waitDuration, const Duration(seconds: 1));
+    final railTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
+    final extensions = railTooltips.firstWhere(
+      (tooltip) => tooltip.message == 'extensions',
+    );
+    expect(extensions.waitDuration, const Duration(seconds: 1));
 
-      expect(find.byTooltip('projects'), findsOneWidget);
-      await tester.tap(find.byTooltip('projects'));
-      await tester.pumpAndSettle();
-      expect(find.text('Обзор'), findsWidgets);
-    },
-  );
+    expect(find.byTooltip('extensions'), findsOneWidget);
+    await tester.tap(find.byTooltip('extensions'));
+    await tester.pumpAndSettle();
+    expect(find.text('EXTENSIONS'), findsOneWidget);
+    expect(find.text('Signal Tools'), findsOneWidget);
+  });
+
+  testWidgets('bug report opens as an empty rail workspace', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('bug report'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('bug report'), findsOneWidget);
+    expect(find.text('EXPLORER'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Signal Tools'), findsNothing);
+  });
+
+  testWidgets('extensions filter and tab controls are interactive', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('extensions'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Active'));
+    await tester.pumpAndSettle();
+    expect(find.text('Signal Tools'), findsWidgets);
+    expect(find.text('Session Notes'), findsNothing);
+
+    await tester.tap(find.text('Signal Tools').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Extension details'), findsOneWidget);
+    expect(find.byTooltip('Close tab'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close tab'));
+    await tester.pumpAndSettle();
+    expect(find.text('Select an extension'), findsOneWidget);
+  });
 
   testWidgets('preferences replace the shell sidebars from the rail', (
     WidgetTester tester,
@@ -242,6 +280,8 @@ void main() {
     await tester.tap(find.byTooltip('User profile button'));
     await tester.pumpAndSettle();
     expect(find.text('Account 1'), findsOneWidget);
+    expect(find.byTooltip('User profile button'), findsOneWidget);
+    expect(find.text('EXPLORER'), findsNothing);
     await tester.tap(find.text('Back to app'));
     await tester.pumpAndSettle();
 

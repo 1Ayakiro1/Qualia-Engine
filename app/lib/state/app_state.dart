@@ -63,6 +63,8 @@ enum SectionId {
   datasets,
   models,
   developer,
+  extensions,
+  bugReport,
   profile,
   settings,
 }
