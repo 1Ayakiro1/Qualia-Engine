@@ -2,7 +2,7 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: v0.3.8 — extensions workspace и rail workspaces.** Каркас-оболочка собран,
+**Статус: v0.3.9 — standalone debug terminal.** Каркас-оболочка собран,
 сборка и запуск проверяются на каждую версию (бинарник + AppImage + portable
 tar.gz; Windows/macOS — в CI). Готовые сборки — в папке [`builds/`](builds/README.md).
 
@@ -14,7 +14,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 | Исследователь | + Конвейер, Спектрограмма, Модули, Датасеты, Модели |
 | Разработчик | + FFI-консоль ядра |
 
-## Что уже работает (v0.3.8)
+## Что уже работает (v0.3.9)
 
 - **Логгер сессии** (`AppLogger`): с момента запуска и до завершения пишет
   форматированные логи ядра и UI в `~/.local/share/bci_engine/logs/`
@@ -41,8 +41,28 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Ayakiro_BCI_Engine-0.3.8-x86_64.AppImage
+./builds/Ayakiro_BCI_Engine-0.3.9-x86_64.AppImage
 ```
+
+### Отдельный debug terminal
+
+Debug terminal работает как отдельный процесс и native window. Его можно открыть
+из header или запустить вместе с приложением:
+
+```bash
+# Из release bundle
+./scripts/run_with_debug_terminal.sh
+
+# Напрямую через бинарник
+./app/build/linux/x64/release/bundle/bci_engine --with-debug-terminal
+
+# Только окно терминала, если основное приложение уже запущено
+./app/build/linux/x64/release/bundle/bci_engine --debug-terminal
+```
+
+Одновременно открывается не более одного terminal window. Lock освобождается
+при обычном закрытии, а после аварийного завершения автоматически отпускается
+операционной системой.
 
 Требования: Flutter SDK (Linux desktop toolchain), CMake ≥ 3.21, GCC/Clang, Ninja.
 

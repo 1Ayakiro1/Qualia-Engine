@@ -7,7 +7,9 @@ import 'state/app_state.dart';
 
 /// Root widget of the Ayakiro BCI Engine application.
 class BciApp extends ConsumerWidget {
-  const BciApp({super.key});
+  const BciApp({super.key, this.onOpenDebugTerminal});
+
+  final VoidCallback? onOpenDebugTerminal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,7 +20,7 @@ class BciApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      home: const AppShell(),
+      home: AppShell(onOpenDebugTerminal: onOpenDebugTerminal),
     );
   }
 }

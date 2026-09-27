@@ -267,6 +267,7 @@ void main() {
 
     expect(find.text('Back to app'), findsOneWidget);
     expect(find.text('General'), findsWidgets);
+    expect(find.text('Pets'), findsNothing);
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
   });
@@ -330,7 +331,7 @@ void main() {
     expect(find.text('QUICK ACTIONS'), findsNothing);
   });
 
-  testWidgets('debug terminal stays in the shell and can be moved', (
+  testWidgets('debug terminal requests an independent native window', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 800);
@@ -340,19 +341,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    bool launched = false;
+    await tester.pumpWidget(
+      ProviderScope(child: BciApp(onOpenDebugTerminal: () => launched = true)),
+    );
     await tester.pump(const Duration(milliseconds: 100));
 
     await tester.tap(find.byTooltip('Открыть терминал отладки'));
     await tester.pumpAndSettle();
-    expect(find.text('Debug terminal'), findsOneWidget);
-    expect(find.byTooltip('Открыть отдельное окно'), findsNothing);
-
-    final title = find.text('Debug terminal');
-    final before = tester.getTopLeft(title);
-    await tester.drag(title, const Offset(-100, -60));
-    await tester.pumpAndSettle();
-    expect(tester.getTopLeft(title).dx, lessThan(before.dx));
+    expect(launched, isTrue);
+    expect(find.text('Debug terminal'), findsNothing);
   });
 
   testWidgets('active and catalog module searches are separate', (

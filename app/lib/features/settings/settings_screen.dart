@@ -92,7 +92,6 @@ class _PreferencesSidebar extends StatelessWidget {
     ('Voice', Icons.mic_none_outlined),
     ('Configuration', Icons.verified_user_outlined),
     ('Personalization', Icons.history_outlined),
-    ('Pets', Icons.more_horiz),
     ('Keyboard shortcuts', Icons.keyboard_alt_outlined),
     ('Account', Icons.account_circle_outlined),
   ];

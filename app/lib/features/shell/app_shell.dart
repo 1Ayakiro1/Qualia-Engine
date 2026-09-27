@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/constants/app_info.dart';
-import '../../core/logging/log_window.dart';
+import '../../core/logging/debug_terminal_launcher.dart';
 import '../../core/modules/module_registry.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/app_state.dart';
@@ -64,7 +65,9 @@ final Object _globalSearchTapRegionGroup = Object();
 /// Desktop IDE-like shell. Navigation is deliberately split into a compact
 /// activity rail and an Explorer pane so the work area stays uncluttered.
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.onOpenDebugTerminal});
+
+  final VoidCallback? onOpenDebugTerminal;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -75,8 +78,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool modeSwitcherOpen = false;
   bool _explorerVisible = true;
   String settingsItem = 'General';
-  bool _debugConsoleVisible = false;
-  Offset _debugConsolePosition = const Offset(-1, -1);
   SystemModule? _selectedModule;
   final List<NavSection> _openTabs = <NavSection>[];
   SectionId? _activeTab;
@@ -235,8 +236,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _resetScale() => setState(() => uiScale = 1.0);
 
   void _openDebugConsole() {
-    if (!mounted) return;
-    setState(() => _debugConsoleVisible = true);
+    if (widget.onOpenDebugTerminal != null) {
+      widget.onOpenDebugTerminal!();
+      return;
+    }
+    unawaited(DebugTerminalLauncher.launch());
   }
 
   Widget _buildActivityRail({
@@ -612,84 +616,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                 ),
                                               ),
                                       ),
-                                      if (_debugConsoleVisible)
-                                        Builder(
-                                          builder: (context) {
-                                            final panelWidth = math.min(
-                                              900.0,
-                                              math.max(1.0, width - 24),
-                                            );
-                                            final panelHeight = math.min(
-                                              620.0,
-                                              math.max(1.0, height - 24),
-                                            );
-                                            final defaultLeft = math.max(
-                                              layout.gap,
-                                              width - panelWidth - layout.gap,
-                                            );
-                                            final defaultTop = math.max(
-                                              layout.gap,
-                                              height - panelHeight - layout.gap,
-                                            );
-                                            final left =
-                                                _debugConsolePosition.dx < 0
-                                                ? defaultLeft
-                                                : _debugConsolePosition.dx
-                                                      .clamp(
-                                                        0.0,
-                                                        math.max(
-                                                          0.0,
-                                                          width - panelWidth,
-                                                        ),
-                                                      )
-                                                      .toDouble();
-                                            final top =
-                                                _debugConsolePosition.dy < 0
-                                                ? defaultTop
-                                                : _debugConsolePosition.dy
-                                                      .clamp(
-                                                        0.0,
-                                                        math.max(
-                                                          0.0,
-                                                          height - panelHeight,
-                                                        ),
-                                                      )
-                                                      .toDouble();
-                                            return Positioned(
-                                              left: left,
-                                              top: top,
-                                              width: panelWidth,
-                                              height: panelHeight,
-                                              child: Material(
-                                                color: AppTheme.background,
-                                                elevation: 20,
-                                                clipBehavior: Clip.antiAlias,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  side: const BorderSide(
-                                                    color: AppTheme.border,
-                                                  ),
-                                                ),
-                                                child: LogConsoleScreen(
-                                                  onClose: () => setState(
-                                                    () => _debugConsoleVisible =
-                                                        false,
-                                                  ),
-                                                  onDrag: (delta) =>
-                                                      setState(() {
-                                                        final current = Offset(
-                                                          left,
-                                                          top,
-                                                        );
-                                                        _debugConsolePosition =
-                                                            current + delta;
-                                                      }),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
                                     ],
                                   ),
                                 ),

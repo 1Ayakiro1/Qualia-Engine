@@ -39,6 +39,11 @@ class LogLocations {
     '${sessionLogDir(override: override).path}${Platform.pathSeparator}latest.log',
   );
 
+  /// Process lock held by the standalone debug terminal window.
+  static File debugTerminalLockFile({Directory? override}) => File(
+    '${(override ?? appDataDir()).path}${Platform.pathSeparator}debug-terminal.lock',
+  );
+
   static String sessionFileName(DateTime time) {
     String two(int v) => v.toString().padLeft(2, '0');
     return 'session-${time.year}${two(time.month)}${two(time.day)}-'

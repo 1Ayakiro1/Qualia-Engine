@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.9] — Standalone debug terminal
+
+- Debug terminal вынесен в отдельный процесс и native window с независимым
+  Flutter engine; основное приложение больше не зависит от его event loop.
+- Добавлен режим `--debug-terminal` с lock-файлом для защиты от дубликатов,
+  безопасным tail-ингом `latest.log` и восстановлением после временной ошибки
+  доступа к файлу.
+- Кнопка debug terminal запускает это отдельное окно, а
+  `--with-debug-terminal` запускает приложение сразу вместе с терминалом.
+- Добавлен helper `scripts/run_with_debug_terminal.sh` для запуска release bundle.
+- Раздел `Pets` удалён из Preferences.
+
 ## [0.3.8] — Extensions workspace and rail workspaces
 
 - Профиль теперь открывается в рабочей области с сохранённой rail-панелью и без

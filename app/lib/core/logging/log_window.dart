@@ -12,10 +12,16 @@ import 'log_entry.dart';
 /// In-app debug terminal with the same compact, neutral visual language as the
 /// main application.
 class LogConsoleScreen extends ConsumerStatefulWidget {
-  const LogConsoleScreen({super.key, required this.onClose, this.onDrag});
+  const LogConsoleScreen({
+    super.key,
+    required this.onClose,
+    this.onDrag,
+    this.onDragStart,
+  });
 
   final VoidCallback onClose;
   final ValueChanged<Offset>? onDrag;
+  final VoidCallback? onDragStart;
 
   @override
   ConsumerState<LogConsoleScreen> createState() => _LogConsoleScreenState();
@@ -27,6 +33,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
   final TextEditingController _search = TextEditingController();
   Timer? _poller;
   RandomAccessFile? _tail;
+  bool _openingTail = false;
   int _fileOffset = 0;
   String _tailBuffer = '';
 
@@ -47,23 +54,32 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
   }
 
   Future<void> _openTail() async {
+    if (_openingTail || !mounted) return;
+    _openingTail = true;
     try {
       final File file = LogLocations.latestFile();
       if (!await file.exists()) {
-        setState(() => _fileMissing = true);
+        if (mounted) setState(() => _fileMissing = true);
         return;
       }
+      await _tail?.close();
       _tail = await file.open(mode: FileMode.read);
       _fileOffset = 0;
       setState(() => _fileMissing = false);
       _poll();
     } catch (_) {
-      setState(() => _fileMissing = true);
+      if (mounted) setState(() => _fileMissing = true);
+    } finally {
+      _openingTail = false;
     }
   }
 
   Future<void> _poll() async {
-    if (_paused || _tail == null || !mounted) {
+    if (!mounted || _paused) {
+      return;
+    }
+    if (_tail == null) {
+      await _openTail();
       return;
     }
     try {
@@ -111,6 +127,9 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       }
     } catch (_) {
       // Tailing must never crash the console.
+      await _tail?.close();
+      _tail = null;
+      if (mounted) setState(() => _fileMissing = true);
     }
   }
 
@@ -199,6 +218,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
               onClear: () => setState(_entries.clear),
               onClose: widget.onClose,
               onDrag: widget.onDrag,
+              onDragStart: widget.onDragStart,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -336,6 +356,7 @@ class _LogHeader extends StatelessWidget {
     required this.onClear,
     required this.onClose,
     required this.onDrag,
+    required this.onDragStart,
   });
 
   final bool paused;
@@ -346,6 +367,7 @@ class _LogHeader extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onClose;
   final ValueChanged<Offset>? onDrag;
+  final VoidCallback? onDragStart;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -362,6 +384,7 @@ class _LogHeader extends StatelessWidget {
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                onPanStart: onDragStart == null ? null : (_) => onDragStart!(),
                 onPanUpdate: onDrag == null
                     ? null
                     : (details) => onDrag!(details.delta),
