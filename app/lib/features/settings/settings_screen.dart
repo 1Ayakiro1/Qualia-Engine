@@ -375,8 +375,10 @@ class _PreferenceNavButtonState extends State<_PreferenceNavButton> {
         height: 39,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: _hovered || widget.selected
+          color: widget.selected
               ? AppTheme.border
+              : _hovered
+              ? const Color(0xFF202020)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(9),
         ),

@@ -81,7 +81,11 @@ class LogConsoleApp extends StatelessWidget {
 /// Detached log console with the same compact, neutral visual language as the
 /// main application.
 class LogConsoleScreen extends ConsumerStatefulWidget {
-  const LogConsoleScreen({super.key});
+  const LogConsoleScreen({super.key, this.onClose});
+
+  /// Used by the in-app terminal panel. Detached-window callers leave this
+  /// null and use the native window close action instead.
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<LogConsoleScreen> createState() => _LogConsoleScreenState();
@@ -263,31 +267,32 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
               onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
               onSave: _saveAs,
               onClear: () => setState(_entries.clear),
-              onClose: () async {
-                try {
-                  await windowManager.close();
-                } catch (_) {}
-              },
+              onClose: widget.onClose ?? () => windowManager.close(),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: TextField(
                 controller: _search,
                 decoration: const InputDecoration(
                   hintText: 'Поиск по источнику и тексту…',
-                  prefixIcon: Icon(Icons.search, size: 18),
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                 ),
+                style: const TextStyle(fontSize: 14),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
                 children: [
                   const Text(
                     'LEVELS',
                     style: TextStyle(
                       color: AppTheme.mutedText,
-                      fontSize: 10,
+                      fontSize: 11,
                       letterSpacing: 1,
                       fontWeight: FontWeight.w600,
                     ),
@@ -295,7 +300,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                   const SizedBox(width: 10),
                   for (final level in LogLevel.values)
                     Padding(
-                      padding: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.only(right: 8),
                       child: _LogLevelButton(
                         level: level,
                         selected: _enabledLevels.contains(level),
@@ -335,7 +340,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
-                            vertical: 6,
+                            vertical: 9,
                           ),
                           color: _paused
                               ? Colors.amber.withAlpha(40)
@@ -347,7 +352,10 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                                       '(${_entries.length})'
                                 : 'Строк: ${visible.length} / ${_entries.length} · '
                                       'файл: latest.log (обновление 0.4 с)',
-                            style: theme.textTheme.bodySmall,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.mutedText,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                         Expanded(
@@ -358,13 +366,15 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                               final LogEntry e = visible[index];
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 1,
+                                  horizontal: 16,
+                                  vertical: 3,
                                 ),
                                 child: SelectableText(
                                   e.formatted,
-                                  style: theme.textTheme.bodySmall?.copyWith(
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     fontFamily: 'monospace',
+                                    fontSize: 13,
+                                    height: 1.35,
                                     color: _levelColor(
                                       e.level,
                                       theme.colorScheme,
@@ -406,7 +416,7 @@ class _LogHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 42,
+    height: 50,
     decoration: const BoxDecoration(
       color: AppTheme.background,
       border: Border(bottom: BorderSide(color: AppTheme.border)),
@@ -416,14 +426,14 @@ class _LogHeader extends StatelessWidget {
         Positioned.fill(child: DragToMoveArea(child: const SizedBox.expand())),
         Row(
           children: [
-            const SizedBox(width: 14),
-            const Icon(Icons.terminal, size: 16, color: AppTheme.text),
-            const SizedBox(width: 8),
+            const SizedBox(width: 16),
+            const Icon(Icons.terminal, size: 19, color: AppTheme.text),
+            const SizedBox(width: 10),
             const Text(
               'Debug terminal',
               style: TextStyle(
                 color: AppTheme.text,
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -495,8 +505,8 @@ class _LogIconButtonState extends State<_LogIconButton> {
         onTap: widget.onPressed,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          width: 30,
-          height: 30,
+          width: 36,
+          height: 36,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: _hovered || widget.active
@@ -506,7 +516,7 @@ class _LogIconButtonState extends State<_LogIconButton> {
           ),
           child: Icon(
             widget.icon,
-            size: 16,
+            size: 19,
             color: widget.active || _hovered
                 ? AppTheme.text
                 : AppTheme.mutedText,
@@ -559,8 +569,8 @@ class _LogLevelButtonState extends State<_LogLevelButton> {
         onTap: widget.onPressed,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: 26,
-          padding: const EdgeInsets.symmetric(horizontal: 9),
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
           decoration: BoxDecoration(
             color: widget.selected || _hovered
                 ? AppTheme.border
@@ -575,7 +585,7 @@ class _LogLevelButtonState extends State<_LogLevelButton> {
               _shortLabel,
               style: TextStyle(
                 color: widget.selected ? AppTheme.text : AppTheme.mutedText,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: .3,
               ),

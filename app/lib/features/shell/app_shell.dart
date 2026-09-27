@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +18,7 @@ import '../models/models_screen.dart';
 import '../modules/modules_screen.dart';
 import '../pipeline/pipeline_screen.dart';
 import '../session/session_screen.dart';
+import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../spectrogram/spectrogram_screen.dart';
 import 'layout_model.dart';
@@ -45,6 +44,8 @@ IconData _phosphorFor(SectionId id) {
       return Icons.psychology_outlined;
     case SectionId.developer:
       return Icons.terminal;
+    case SectionId.profile:
+      return Icons.account_circle_outlined;
     case SectionId.settings:
       return Icons.settings_outlined;
   }
@@ -63,8 +64,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
   String settingsItem = 'General';
-  StreamSubscription<void>? _windowsChangedSubscription;
-  bool _debugConsoleOpen = false;
+  bool _debugConsoleVisible = false;
 
   /// User-facing scale. The shell deliberately renders at a 120% base density
   /// while keeping this preference at the familiar 100% default.
@@ -80,30 +80,6 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   double get _visualScale => uiScale * _baseScale;
 
-  @override
-  void initState() {
-    super.initState();
-    _windowsChangedSubscription = onWindowsChanged.listen((_) async {
-      if (!_debugConsoleOpen) return;
-      final windows = await WindowController.getAll();
-      final consoleOpen = windows.any(
-        (window) => window.arguments == 'log_console',
-      );
-      if (!consoleOpen && mounted) {
-        _debugConsoleOpen = false;
-        try {
-          await windowManager.focus();
-        } catch (_) {}
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _windowsChangedSubscription?.cancel();
-    super.dispose();
-  }
-
   void _changeScale(double delta) {
     setState(() {
       uiScale = (uiScale + delta).clamp(_minScale, _maxScale).toDouble();
@@ -113,18 +89,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _resetScale() => setState(() => uiScale = 1.0);
 
   Future<void> _openDebugConsole(BuildContext context) async {
-    if (_debugConsoleOpen) return;
-    _debugConsoleOpen = true;
-    try {
-      await openLogConsole();
-    } catch (error) {
-      _debugConsoleOpen = false;
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось открыть консоль: $error')),
-        );
-      }
-    }
+    if (!mounted) return;
+    setState(() => _debugConsoleVisible = true);
   }
 
   @override
@@ -198,188 +164,254 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   }),
                                 ),
                                 Expanded(
-                                  child: section == SectionId.settings
-                                      ? SettingsScreen(
-                                          initialItem: settingsItem,
-                                          onBack: () => ref
-                                              .read(navSectionProvider.notifier)
-                                              .select(SectionId.dashboard),
-                                        )
-                                      : Padding(
-                                          padding: EdgeInsets.all(layout.gap),
-                                          child: Stack(
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  _ShellSurface(
-                                                    width: layout.railWidth,
-                                                    radius: layout.radius,
-                                                    child: _ActivityRail(
-                                                      sections: sections,
-                                                      selected: selected < 0
-                                                          ? 0
-                                                          : selected,
-                                                      modeSwitcherOpen:
-                                                          modeSwitcherOpen,
-                                                      onModeSwitcher: () => setState(
-                                                        () => modeSwitcherOpen =
-                                                            !modeSwitcherOpen,
-                                                      ),
-                                                      onNavigate: (id) {
-                                                        if (id ==
-                                                            SectionId
-                                                                .settings) {
-                                                          settingsItem =
-                                                              'General';
-                                                        }
-                                                        final target =
-                                                            kNavSections
-                                                                .firstWhere(
-                                                                  (item) =>
-                                                                      item.id ==
-                                                                      id,
-                                                                );
-                                                        if (!target.visibleIn(
-                                                          mode,
-                                                        )) {
-                                                          final nextMode =
-                                                              target.modes.contains(
-                                                                AppMode
-                                                                    .researcher,
-                                                              )
-                                                              ? AppMode
-                                                                    .researcher
-                                                              : AppMode
-                                                                    .developer;
-                                                          ref
-                                                              .read(
-                                                                appModeProvider
-                                                                    .notifier,
-                                                              )
-                                                              .setMode(
-                                                                nextMode,
-                                                              );
-                                                        }
-                                                        ref
-                                                            .read(
-                                                              navSectionProvider
-                                                                  .notifier,
-                                                            )
-                                                            .select(id);
-                                                      },
-                                                      onProfile: () => setState(() {
-                                                        settingsItem =
-                                                            'Account';
-                                                        ref
-                                                            .read(
-                                                              navSectionProvider
-                                                                  .notifier,
-                                                            )
-                                                            .select(
-                                                              SectionId
-                                                                  .settings,
-                                                            );
-                                                      }),
+                                  child: Stack(
+                                    children: [
+                                      Positioned.fill(
+                                        child: section == SectionId.profile
+                                            ? ProfileScreen(
+                                                onBack: () => ref
+                                                    .read(
+                                                      navSectionProvider
+                                                          .notifier,
+                                                    )
+                                                    .select(
+                                                      SectionId.dashboard,
                                                     ),
-                                                  ),
-                                                  _LayoutDivider(
-                                                    onDrag: (delta) => setState(() {
-                                                      layout = layout.copyWith(
-                                                        railWidth:
-                                                            (layout.railWidth +
-                                                                    delta)
-                                                                .clamp(40, 96)
-                                                                .toDouble(),
-                                                      );
-                                                    }),
-                                                  ),
-                                                  _ShellSurface(
-                                                    width:
-                                                        effectiveExplorerWidth,
-                                                    radius: layout.radius,
-                                                    child: _Explorer(
-                                                      width:
-                                                          effectiveExplorerWidth,
-                                                      sections: sections,
-                                                      selected: selected < 0
-                                                          ? 0
-                                                          : selected,
-                                                      onSelected: (index) => ref
-                                                          .read(
-                                                            navSectionProvider
-                                                                .notifier,
-                                                          )
-                                                          .select(
-                                                            sections[index].id,
-                                                          ),
+                                              )
+                                            : section == SectionId.settings
+                                            ? SettingsScreen(
+                                                initialItem: settingsItem,
+                                                onBack: () => ref
+                                                    .read(
+                                                      navSectionProvider
+                                                          .notifier,
+                                                    )
+                                                    .select(
+                                                      SectionId.dashboard,
                                                     ),
-                                                  ),
-                                                  _LayoutDivider(
-                                                    key: const ValueKey<String>(
-                                                      'explorer resize handle',
-                                                    ),
-                                                    onDrag: (delta) =>
-                                                        _resizeExplorer(
-                                                          delta,
-                                                          width,
-                                                        ),
-                                                  ),
-                                                  Expanded(
-                                                    child: _ShellSurface(
-                                                      radius: layout.radius,
-                                                      child: Column(
-                                                        children: [
-                                                          _EditorTabs(
-                                                            active: active,
-                                                          ),
-                                                          Expanded(
-                                                            child: _SectionBody(
-                                                              section:
-                                                                  active.id,
-                                                            ),
-                                                          ),
-                                                          _TerminalPanel(
-                                                            open: terminalOpen,
-                                                            onToggle: () => setState(
-                                                              () => terminalOpen =
-                                                                  !terminalOpen,
-                                                            ),
-                                                            onOpenWindow: () =>
-                                                                _openDebugConsole(
-                                                                  context,
+                                              )
+                                            : Padding(
+                                                padding: EdgeInsets.all(
+                                                  layout.gap,
+                                                ),
+                                                child: Stack(
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        _ShellSurface(
+                                                          width:
+                                                              layout.railWidth,
+                                                          radius: layout.radius,
+                                                          child: _ActivityRail(
+                                                            sections: sections,
+                                                            selected:
+                                                                selected < 0
+                                                                ? 0
+                                                                : selected,
+                                                            modeSwitcherOpen:
+                                                                modeSwitcherOpen,
+                                                            onModeSwitcher:
+                                                                () => setState(
+                                                                  () => modeSwitcherOpen =
+                                                                      !modeSwitcherOpen,
+                                                                ),
+                                                            onNavigate: (id) {
+                                                              if (id ==
+                                                                  SectionId
+                                                                      .settings) {
+                                                                settingsItem =
+                                                                    'General';
+                                                              }
+                                                              final target =
+                                                                  kNavSections
+                                                                      .firstWhere(
+                                                                        (
+                                                                          item,
+                                                                        ) =>
+                                                                            item.id ==
+                                                                            id,
+                                                                      );
+                                                              if (!target
+                                                                  .visibleIn(
+                                                                    mode,
+                                                                  )) {
+                                                                final nextMode =
+                                                                    target.modes
+                                                                        .contains(
+                                                                          AppMode
+                                                                              .researcher,
+                                                                        )
+                                                                    ? AppMode
+                                                                          .researcher
+                                                                    : AppMode
+                                                                          .developer;
+                                                                ref
+                                                                    .read(
+                                                                      appModeProvider
+                                                                          .notifier,
+                                                                    )
+                                                                    .setMode(
+                                                                      nextMode,
+                                                                    );
+                                                              }
+                                                              ref
+                                                                  .read(
+                                                                    navSectionProvider
+                                                                        .notifier,
+                                                                  )
+                                                                  .select(id);
+                                                            },
+                                                            onProfile: () => ref
+                                                                .read(
+                                                                  navSectionProvider
+                                                                      .notifier,
+                                                                )
+                                                                .select(
+                                                                  SectionId
+                                                                      .profile,
                                                                 ),
                                                           ),
-                                                        ],
-                                                      ),
+                                                        ),
+                                                        _LayoutDivider(
+                                                          onDrag: (delta) => setState(() {
+                                                            layout = layout.copyWith(
+                                                              railWidth:
+                                                                  (layout.railWidth +
+                                                                          delta)
+                                                                      .clamp(
+                                                                        40,
+                                                                        96,
+                                                                      )
+                                                                      .toDouble(),
+                                                            );
+                                                          }),
+                                                        ),
+                                                        _ShellSurface(
+                                                          width:
+                                                              effectiveExplorerWidth,
+                                                          radius: layout.radius,
+                                                          child: _Explorer(
+                                                            width:
+                                                                effectiveExplorerWidth,
+                                                            sections: sections,
+                                                            selected:
+                                                                selected < 0
+                                                                ? 0
+                                                                : selected,
+                                                            onSelected: (index) => ref
+                                                                .read(
+                                                                  navSectionProvider
+                                                                      .notifier,
+                                                                )
+                                                                .select(
+                                                                  sections[index]
+                                                                      .id,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        _LayoutDivider(
+                                                          key:
+                                                              const ValueKey<
+                                                                String
+                                                              >(
+                                                                'explorer resize handle',
+                                                              ),
+                                                          onDrag: (delta) =>
+                                                              _resizeExplorer(
+                                                                delta,
+                                                                width,
+                                                              ),
+                                                        ),
+                                                        Expanded(
+                                                          child: _ShellSurface(
+                                                            radius:
+                                                                layout.radius,
+                                                            child: Column(
+                                                              children: [
+                                                                _EditorTabs(
+                                                                  active:
+                                                                      active,
+                                                                ),
+                                                                Expanded(
+                                                                  child: _SectionBody(
+                                                                    section:
+                                                                        active
+                                                                            .id,
+                                                                  ),
+                                                                ),
+                                                                _TerminalPanel(
+                                                                  open:
+                                                                      terminalOpen,
+                                                                  onToggle: () =>
+                                                                      setState(
+                                                                        () => terminalOpen =
+                                                                            !terminalOpen,
+                                                                      ),
+                                                                  onOpenWindow: () =>
+                                                                      _openDebugConsole(
+                                                                        context,
+                                                                      ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (modeSwitcherOpen)
-                                                Positioned(
-                                                  left:
-                                                      layout.railWidth +
-                                                      layout.gap,
-                                                  bottom: 54,
-                                                  child: _ModeSwitcherPanel(
-                                                    current: mode,
-                                                    onSelected: (value) {
-                                                      ref
-                                                          .read(
-                                                            appModeProvider
-                                                                .notifier,
-                                                          )
-                                                          .setMode(value);
-                                                      setState(
-                                                        () => modeSwitcherOpen =
-                                                            false,
-                                                      );
-                                                    },
-                                                  ),
+                                                    if (modeSwitcherOpen)
+                                                      Positioned(
+                                                        left:
+                                                            layout.railWidth +
+                                                            layout.gap,
+                                                        bottom: 54,
+                                                        child: _ModeSwitcherPanel(
+                                                          current: mode,
+                                                          onSelected: (value) {
+                                                            ref
+                                                                .read(
+                                                                  appModeProvider
+                                                                      .notifier,
+                                                                )
+                                                                .setMode(value);
+                                                            setState(
+                                                              () =>
+                                                                  modeSwitcherOpen =
+                                                                      false,
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
-                                            ],
+                                              ),
+                                      ),
+                                      if (_debugConsoleVisible)
+                                        Positioned(
+                                          right: layout.gap,
+                                          bottom: layout.gap,
+                                          width: math.min(900, width - 24),
+                                          height: math.min(620, height - 24),
+                                          child: Material(
+                                            color: AppTheme.background,
+                                            elevation: 20,
+                                            clipBehavior: Clip.antiAlias,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              side: const BorderSide(
+                                                color: AppTheme.border,
+                                              ),
+                                            ),
+                                            child: LogConsoleScreen(
+                                              onClose: () => setState(
+                                                () => _debugConsoleVisible =
+                                                    false,
+                                              ),
+                                            ),
                                           ),
                                         ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -1300,8 +1332,8 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: 560,
-      height: 600,
+      width: math.min(660, MediaQuery.sizeOf(context).width - 48),
+      height: math.min(700, MediaQuery.sizeOf(context).height - 48),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
         child: Column(
@@ -1409,15 +1441,60 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                     style: TextStyle(color: AppTheme.mutedText, fontSize: 12),
                   ),
                 ),
-                OutlinedButton.icon(
+                _ShortcutEditButton(
+                  editing: _editing,
                   onPressed: () => setState(() => _editing = !_editing),
-                  icon: Icon(
-                    _editing ? Icons.check : Icons.edit_outlined,
-                    size: 16,
-                  ),
-                  label: Text(_editing ? 'Done' : 'Edit shortcuts'),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ShortcutEditButton extends StatefulWidget {
+  const _ShortcutEditButton({required this.editing, required this.onPressed});
+
+  final bool editing;
+  final VoidCallback onPressed;
+
+  @override
+  State<_ShortcutEditButton> createState() => _ShortcutEditButtonState();
+}
+
+class _ShortcutEditButtonState extends State<_ShortcutEditButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    child: GestureDetector(
+      onTap: widget.onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: _hovered ? AppTheme.border : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.mutedText),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              widget.editing ? Icons.check : Icons.edit_outlined,
+              size: 16,
+              color: AppTheme.text,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              widget.editing ? 'Done' : 'Edit shortcuts',
+              style: const TextStyle(color: AppTheme.text, fontSize: 13),
             ),
           ],
         ),
@@ -1441,10 +1518,10 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 52,
+    height: 62,
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color: AppTheme.background,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       border: Border.all(color: AppTheme.border),
     ),
@@ -1536,8 +1613,8 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 150,
-    height: 36,
+    width: 158,
+    height: 38,
     child: Focus(
       focusNode: _focusNode,
       onKeyEvent: (node, event) {
@@ -1558,19 +1635,10 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
           hintText: widget.editing ? 'Press keys' : null,
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           filled: true,
-          fillColor: widget.editing ? AppTheme.panel : AppTheme.background,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.text),
-          ),
+          fillColor: widget.editing ? AppTheme.panel : Colors.transparent,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
         ),
         style: const TextStyle(color: AppTheme.text, fontSize: 13),
       ),
@@ -2421,6 +2489,11 @@ class _SectionBody extends ConsumerWidget {
         return const ModelsScreen();
       case SectionId.developer:
         return const DeveloperScreen();
+      case SectionId.profile:
+        return ProfileScreen(
+          onBack: () =>
+              ref.read(navSectionProvider.notifier).select(SectionId.dashboard),
+        );
       case SectionId.settings:
         return SettingsScreen(
           onBack: () =>

@@ -63,6 +63,7 @@ enum SectionId {
   datasets,
   models,
   developer,
+  profile,
   settings,
 }
 
@@ -74,7 +75,8 @@ class NavSectionController extends Notifier<SectionId> {
 
   /// Falls back to the first visible section when the mode changes.
   void resetForMode(AppMode mode) {
-    final bool visible = visibleSections(mode).any((NavSection s) => s.id == state);
+    final bool visible = visibleSections(mode)
+        .any((NavSection s) => s.id == state);
     if (!visible) {
       state = SectionId.dashboard;
     }

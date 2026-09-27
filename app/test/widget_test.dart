@@ -242,8 +242,11 @@ void main() {
     await tester.tap(find.byTooltip('User profile button'));
     await tester.pumpAndSettle();
     expect(find.text('Account 1'), findsOneWidget);
-    expect(find.text('Back to app'), findsOneWidget);
+    await tester.tap(find.text('Back to app'));
+    await tester.pumpAndSettle();
 
+    await tester.tap(find.byTooltip('configs'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Import'));
     await tester.pumpAndSettle();
     expect(find.text('Import 1'), findsOneWidget);
