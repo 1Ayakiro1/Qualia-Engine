@@ -51,6 +51,10 @@ IconData _phosphorFor(SectionId id) {
   }
 }
 
+/// Search remains part of the same tap region as the window controls, so
+/// maximizing/restoring the native window does not count as an outside click.
+final Object _globalSearchTapRegionGroup = Object();
+
 /// Desktop IDE-like shell. Navigation is deliberately split into a compact
 /// activity rail and an Explorer pane so the work area stays uncluttered.
 class AppShell extends ConsumerStatefulWidget {
@@ -63,8 +67,13 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
+  bool _explorerVisible = true;
   String settingsItem = 'General';
   bool _debugConsoleVisible = false;
+  SystemModule? _selectedModule;
+  final List<NavSection> _openTabs = <NavSection>[];
+  SectionId? _activeTab;
+  List<SystemModule> _workspaceModules = List<SystemModule>.of(kSystemModules);
 
   /// User-facing scale. The shell deliberately renders at a 120% base density
   /// while keeping this preference at the familiar 100% default.
@@ -79,6 +88,123 @@ class _AppShellState extends ConsumerState<AppShell> {
   static const double _maxExplorerWidth = 520;
 
   double get _visualScale => uiScale * _baseScale;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = kNavSections.first;
+    _openTabs.add(initial);
+    _activeTab = initial.id;
+  }
+
+  NavSection? get _activeTabSection {
+    for (final tab in _openTabs) {
+      if (tab.id == _activeTab) return tab;
+    }
+    return null;
+  }
+
+  NavSection _tabDescriptor(SectionId id) {
+    if (id == SectionId.profile) {
+      return const NavSection(
+        id: SectionId.profile,
+        label: 'Profile',
+        icon: Icons.account_circle_outlined,
+        modes: {},
+      );
+    }
+    return kNavSections.firstWhere((item) => item.id == id);
+  }
+
+  void _openTab(SectionId id) {
+    final target = _tabDescriptor(id);
+    setState(() {
+      if (!_openTabs.any((tab) => tab.id == id)) _openTabs.add(target);
+      _activeTab = id;
+    });
+  }
+
+  void _closeTab(SectionId id) {
+    setState(() {
+      final index = _openTabs.indexWhere((tab) => tab.id == id);
+      if (index < 0) return;
+      _openTabs.removeAt(index);
+      if (_activeTab == id) {
+        _activeTab = _openTabs.isEmpty
+            ? null
+            : _openTabs[math.min(index, _openTabs.length - 1)].id;
+      }
+    });
+    final next = _activeTab;
+    ref.read(navSectionProvider.notifier).select(next ?? SectionId.dashboard);
+  }
+
+  void _returnToApp() {
+    ref.read(navSectionProvider.notifier).select(SectionId.dashboard);
+    _openTab(SectionId.dashboard);
+  }
+
+  void _selectSection(SectionId id, AppMode mode) {
+    if (id == SectionId.settings) settingsItem = 'General';
+    if (id == SectionId.profile) {
+      ref.read(navSectionProvider.notifier).select(id);
+      _openTab(id);
+      return;
+    }
+    final target = _tabDescriptor(id);
+    if (!target.visibleIn(mode)) {
+      final nextMode = target.modes.contains(AppMode.researcher)
+          ? AppMode.researcher
+          : AppMode.developer;
+      ref.read(appModeProvider.notifier).setMode(nextMode);
+    }
+    ref.read(navSectionProvider.notifier).select(id);
+    _openTab(id);
+  }
+
+  Future<void> _showTabPicker(AppMode mode) async {
+    final id = await showDialog<SectionId>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('New tab'),
+        children: [
+          for (final item in visibleSections(mode))
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(item.id),
+              child: Text(item.label),
+            ),
+        ],
+      ),
+    );
+    if (id != null && mounted) _selectSection(id, mode);
+  }
+
+  Future<void> _showModuleEditor([SystemModule? existing]) async {
+    final result = await showDialog<SystemModule>(
+      context: context,
+      builder: (context) => _ModuleEditorDialog(existing: existing),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      final index = _workspaceModules.indexWhere(
+        (module) => module.id == result.id,
+      );
+      if (index < 0) {
+        _workspaceModules = [..._workspaceModules, result];
+      } else {
+        final updated = [..._workspaceModules]..[index] = result;
+        _workspaceModules = updated;
+      }
+    });
+  }
+
+  void _removeModule(SystemModule module) {
+    setState(() {
+      _workspaceModules = _workspaceModules
+          .where((item) => item.id != module.id)
+          .toList();
+    });
+  }
 
   void _changeScale(double delta) {
     setState(() {
@@ -99,7 +225,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     final section = ref.watch(navSectionProvider);
     final sections = visibleSections(mode);
     final selected = sections.indexWhere((item) => item.id == section);
-    final active = selected < 0 ? sections.first : sections[selected];
+    final active =
+        _activeTabSection ??
+        (selected < 0 ? sections.first : sections[selected]);
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
@@ -169,26 +297,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                       Positioned.fill(
                                         child: section == SectionId.profile
                                             ? ProfileScreen(
-                                                onBack: () => ref
-                                                    .read(
-                                                      navSectionProvider
-                                                          .notifier,
-                                                    )
-                                                    .select(
-                                                      SectionId.dashboard,
-                                                    ),
+                                                onBack: _returnToApp,
                                               )
                                             : section == SectionId.settings
                                             ? SettingsScreen(
                                                 initialItem: settingsItem,
-                                                onBack: () => ref
-                                                    .read(
-                                                      navSectionProvider
-                                                          .notifier,
-                                                    )
-                                                    .select(
-                                                      SectionId.dashboard,
-                                                    ),
+                                                onBack: _returnToApp,
                                               )
                                             : Padding(
                                                 padding: EdgeInsets.all(
@@ -215,60 +329,16 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                                   () => modeSwitcherOpen =
                                                                       !modeSwitcherOpen,
                                                                 ),
-                                                            onNavigate: (id) {
-                                                              if (id ==
-                                                                  SectionId
-                                                                      .settings) {
-                                                                settingsItem =
-                                                                    'General';
-                                                              }
-                                                              final target =
-                                                                  kNavSections
-                                                                      .firstWhere(
-                                                                        (
-                                                                          item,
-                                                                        ) =>
-                                                                            item.id ==
-                                                                            id,
-                                                                      );
-                                                              if (!target
-                                                                  .visibleIn(
-                                                                    mode,
-                                                                  )) {
-                                                                final nextMode =
-                                                                    target.modes
-                                                                        .contains(
-                                                                          AppMode
-                                                                              .researcher,
-                                                                        )
-                                                                    ? AppMode
-                                                                          .researcher
-                                                                    : AppMode
-                                                                          .developer;
-                                                                ref
-                                                                    .read(
-                                                                      appModeProvider
-                                                                          .notifier,
-                                                                    )
-                                                                    .setMode(
-                                                                      nextMode,
-                                                                    );
-                                                              }
-                                                              ref
-                                                                  .read(
-                                                                    navSectionProvider
-                                                                        .notifier,
-                                                                  )
-                                                                  .select(id);
-                                                            },
-                                                            onProfile: () => ref
-                                                                .read(
-                                                                  navSectionProvider
-                                                                      .notifier,
-                                                                )
-                                                                .select(
+                                                            onNavigate: (id) =>
+                                                                _selectSection(
+                                                                  id,
+                                                                  mode,
+                                                                ),
+                                                            onProfile: () =>
+                                                                _selectSection(
                                                                   SectionId
                                                                       .profile,
+                                                                  mode,
                                                                 ),
                                                           ),
                                                         ),
@@ -286,42 +356,64 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                             );
                                                           }),
                                                         ),
-                                                        _ShellSurface(
-                                                          width:
-                                                              effectiveExplorerWidth,
-                                                          radius: layout.radius,
-                                                          child: _Explorer(
+                                                        if (_explorerVisible) ...[
+                                                          _ShellSurface(
                                                             width:
                                                                 effectiveExplorerWidth,
-                                                            sections: sections,
-                                                            selected:
-                                                                selected < 0
-                                                                ? 0
-                                                                : selected,
-                                                            onSelected: (index) => ref
-                                                                .read(
-                                                                  navSectionProvider
-                                                                      .notifier,
-                                                                )
-                                                                .select(
-                                                                  sections[index]
-                                                                      .id,
+                                                            radius:
+                                                                layout.radius,
+                                                            child: _Explorer(
+                                                              width:
+                                                                  effectiveExplorerWidth,
+                                                              sections:
+                                                                  sections,
+                                                              selected:
+                                                                  selected < 0
+                                                                  ? 0
+                                                                  : selected,
+                                                              showModuleActions:
+                                                                  active.id ==
+                                                                  SectionId
+                                                                      .modules,
+                                                              modules:
+                                                                  _workspaceModules,
+                                                              onSelected: (index) =>
+                                                                  _selectSection(
+                                                                    sections[index]
+                                                                        .id,
+                                                                    mode,
+                                                                  ),
+                                                              onAddModule:
+                                                                  _showModuleEditor,
+                                                              onRemoveModule:
+                                                                  _removeModule,
+                                                              onEditModule:
+                                                                  _showModuleEditor,
+                                                              selectedModule:
+                                                                  _selectedModule,
+                                                              onModuleSelected:
+                                                                  (
+                                                                    module,
+                                                                  ) => setState(
+                                                                    () => _selectedModule =
+                                                                        module,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                          _LayoutDivider(
+                                                            key:
+                                                                const ValueKey<
+                                                                  String
+                                                                >(
+                                                                  'explorer resize handle',
+                                                                ),
+                                                            onDrag: (delta) =>
+                                                                _resizeExplorer(
+                                                                  delta,
+                                                                  width,
                                                                 ),
                                                           ),
-                                                        ),
-                                                        _LayoutDivider(
-                                                          key:
-                                                              const ValueKey<
-                                                                String
-                                                              >(
-                                                                'explorer resize handle',
-                                                              ),
-                                                          onDrag: (delta) =>
-                                                              _resizeExplorer(
-                                                                delta,
-                                                                width,
-                                                              ),
-                                                        ),
+                                                        ],
                                                         Expanded(
                                                           child: _ShellSurface(
                                                             radius:
@@ -329,15 +421,55 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                             child: Column(
                                                               children: [
                                                                 _EditorTabs(
+                                                                  tabs:
+                                                                      _openTabs,
                                                                   active:
-                                                                      active,
+                                                                      _activeTab,
+                                                                  onCreate: () =>
+                                                                      _showTabPicker(
+                                                                        mode,
+                                                                      ),
+                                                                  onSelect: (id) =>
+                                                                      _selectSection(
+                                                                        id,
+                                                                        mode,
+                                                                      ),
+                                                                  onClose:
+                                                                      _closeTab,
+                                                                  explorerVisible:
+                                                                      _explorerVisible,
+                                                                  onToggleExplorer:
+                                                                      () => setState(
+                                                                        () => _explorerVisible =
+                                                                            !_explorerVisible,
+                                                                      ),
+                                                                  showExplorerToggle:
+                                                                      active
+                                                                          .id ==
+                                                                      SectionId
+                                                                          .modules,
                                                                 ),
                                                                 Expanded(
-                                                                  child: _SectionBody(
-                                                                    section:
-                                                                        active
-                                                                            .id,
-                                                                  ),
+                                                                  child:
+                                                                      _activeTabSection ==
+                                                                          null
+                                                                      ? _EmptyEditor(
+                                                                          onCreate: () => _showTabPicker(
+                                                                            mode,
+                                                                          ),
+                                                                        )
+                                                                      : _SectionBody(
+                                                                          section:
+                                                                              active.id,
+                                                                          modules:
+                                                                              _workspaceModules,
+                                                                          onAddModule:
+                                                                              _showModuleEditor,
+                                                                          onEditModule:
+                                                                              _showModuleEditor,
+                                                                          onRemoveModule:
+                                                                              _removeModule,
+                                                                        ),
                                                                 ),
                                                                 _TerminalPanel(
                                                                   open:
@@ -373,6 +505,19 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                                       .notifier,
                                                                 )
                                                                 .setMode(value);
+                                                            _openTab(
+                                                              SectionId
+                                                                  .dashboard,
+                                                            );
+                                                            ref
+                                                                .read(
+                                                                  navSectionProvider
+                                                                      .notifier,
+                                                                )
+                                                                .select(
+                                                                  SectionId
+                                                                      .dashboard,
+                                                                );
                                                             setState(
                                                               () =>
                                                                   modeSwitcherOpen =
@@ -552,24 +697,31 @@ class _TitleBar extends StatelessWidget {
               ),
             ],
           ),
-          if (!compact)
-            Positioned.fill(
-              child: Align(
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 320,
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Opacity(
+                    // Keep the target mounted while the window is restored.
+                    // This preserves an already-open search menu instead of
+                    // disposing its OverlayEntry at the compact breakpoint.
+                    opacity: compact ? 0 : 1,
+                    child: SizedBox(
+                      width: compact ? 180 : 320,
                       height: 26,
-                      child: _GlobalSearch(),
+                      child: const _GlobalSearch(),
                     ),
+                  ),
+                  if (!compact) ...[
                     const SizedBox(width: 6),
                     _DebugConsoleButton(onPressed: onOpenDebugConsole),
                   ],
-                ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );
@@ -656,15 +808,32 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
     required String tooltip,
     required IconData icon,
     required VoidCallback onPressed,
-  }) => IconButton(
-    tooltip: tooltip,
-    onPressed: onPressed,
-    icon: Icon(icon, size: 15),
-    color: AppTheme.mutedText,
-    hoverColor: AppTheme.border,
-    splashRadius: 16,
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+  }) => Tooltip(
+    message: tooltip,
+    waitDuration: const Duration(seconds: 1),
+    showDuration: const Duration(seconds: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(
+      color: AppTheme.panel,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppTheme.border),
+      boxShadow: const [
+        BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
+      ],
+    ),
+    textStyle: const TextStyle(color: AppTheme.text, fontSize: 14),
+    child: TapRegion(
+      groupId: _globalSearchTapRegionGroup,
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 15),
+        color: AppTheme.mutedText,
+        hoverColor: AppTheme.border,
+        splashRadius: 16,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+      ),
+    ),
   );
 
   @override
@@ -1030,19 +1199,24 @@ class _GlobalSearch extends StatefulWidget {
   State<_GlobalSearch> createState() => _GlobalSearchState();
 }
 
-class _GlobalSearchState extends State<_GlobalSearch> {
+class _GlobalSearchState extends State<_GlobalSearch>
+    with WidgetsBindingObserver {
   final TextEditingController _controller = TextEditingController();
   final LayerLink _layerLink = LayerLink();
   final FocusNode _focusNode = FocusNode();
-  final Object _tapRegionGroup = Object();
+  final Object _tapRegionGroup = _globalSearchTapRegionGroup;
   OverlayEntry? _overlayEntry;
   bool _disposing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _focusNode.addListener(_onFocusChanged);
   }
+
+  @override
+  void didChangeMetrics() => _overlayEntry?.markNeedsBuild();
 
   void _onFocusChanged() {
     if (mounted && !_disposing) setState(() {});
@@ -1051,6 +1225,7 @@ class _GlobalSearchState extends State<_GlobalSearch> {
   @override
   void dispose() {
     _disposing = true;
+    WidgetsBinding.instance.removeObserver(this);
     _focusNode.removeListener(_onFocusChanged);
     _removeMenu();
     _focusNode.dispose();
@@ -1746,9 +1921,9 @@ class _ActivityRail extends StatelessWidget {
         modes: {},
       ),
       NavSection(
-        id: SectionId.pipeline,
+        id: SectionId.modules,
         label: 'Modules',
-        icon: Icons.account_tree_outlined,
+        icon: Icons.extension_outlined,
         modes: {},
       ),
       NavSection(
@@ -1889,11 +2064,25 @@ class _Explorer extends StatefulWidget {
     required this.sections,
     required this.selected,
     required this.onSelected,
+    required this.showModuleActions,
+    required this.modules,
+    required this.selectedModule,
+    required this.onModuleSelected,
+    this.onAddModule,
+    this.onRemoveModule,
+    this.onEditModule,
   });
   final double width;
   final List<NavSection> sections;
   final int selected;
   final ValueChanged<int> onSelected;
+  final bool showModuleActions;
+  final List<SystemModule> modules;
+  final SystemModule? selectedModule;
+  final ValueChanged<SystemModule> onModuleSelected;
+  final VoidCallback? onAddModule;
+  final ValueChanged<SystemModule>? onRemoveModule;
+  final ValueChanged<SystemModule>? onEditModule;
 
   @override
   State<_Explorer> createState() => _ExplorerState();
@@ -1909,8 +2098,8 @@ class _ExplorerState extends State<_Explorer> {
 
   List<SystemModule> _filterModules(String query) {
     final normalized = query.trim().toLowerCase();
-    if (normalized.isEmpty) return kSystemModules;
-    return kSystemModules.where((module) {
+    if (normalized.isEmpty) return widget.modules;
+    return widget.modules.where((module) {
       return module.name.toLowerCase().contains(normalized) ||
           module.id.toLowerCase().contains(normalized) ||
           module.category.toLowerCase().contains(normalized) ||
@@ -1955,13 +2144,41 @@ class _ExplorerState extends State<_Explorer> {
                     ),
                   ),
                   const Spacer(),
-                  const Icon(Icons.add, size: 17),
-                  const SizedBox(width: 7),
-                  const Icon(Icons.create_new_folder_outlined, size: 17),
-                  const SizedBox(width: 7),
-                  const Icon(Icons.refresh, size: 16),
-                  const SizedBox(width: 7),
-                  const Icon(Icons.more_horiz, size: 18),
+                  if (widget.showModuleActions) ...[
+                    _ExplorerActionButton(
+                      icon: Icons.add,
+                      tooltip: 'Add module',
+                      onPressed: widget.onAddModule,
+                    ),
+                    _ExplorerActionButton(
+                      icon: Icons.remove,
+                      tooltip: 'Remove module',
+                      onPressed: () {
+                        final module =
+                            widget.selectedModule ??
+                            (_activeModules.isEmpty
+                                ? null
+                                : _activeModules.first);
+                        if (module != null) {
+                          widget.onRemoveModule?.call(module);
+                        }
+                      },
+                    ),
+                    _ExplorerActionButton(
+                      icon: Icons.edit_outlined,
+                      tooltip: 'Edit module',
+                      onPressed: () {
+                        final module =
+                            widget.selectedModule ??
+                            (_activeModules.isEmpty
+                                ? null
+                                : _activeModules.first);
+                        if (module != null) {
+                          widget.onEditModule?.call(module);
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1995,67 +2212,89 @@ class _ExplorerState extends State<_Explorer> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _ExplorerHeading(
-                          title: 'ACTIVE MODULES',
-                          icon: Icons.expand_more,
-                        ),
-                        _ModuleSearchField(
-                          controller: _activeModuleController,
-                          hintText: 'Search active modules...',
-                          query: _activeModuleQuery,
-                          onChanged: (value) =>
-                              setState(() => _activeModuleQuery = value),
-                          onClear: () {
-                            _activeModuleController.clear();
-                            setState(() => _activeModuleQuery = '');
-                          },
-                        ),
-                        if (_activeModules.isEmpty)
+                        if (widget.showModuleActions) ...[
+                          _ExplorerHeading(
+                            title: 'ACTIVE MODULES',
+                            icon: Icons.expand_more,
+                          ),
+                          _ModuleSearchField(
+                            controller: _activeModuleController,
+                            hintText: 'Search active modules...',
+                            query: _activeModuleQuery,
+                            onChanged: (value) =>
+                                setState(() => _activeModuleQuery = value),
+                            onClear: () {
+                              _activeModuleController.clear();
+                              setState(() => _activeModuleQuery = '');
+                            },
+                          ),
+                          if (_activeModules.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                              child: Text(
+                                'No active modules found',
+                                style: TextStyle(
+                                  color: AppTheme.mutedText,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          for (final module in _activeModules)
+                            _ModuleItem(
+                              module: module,
+                              selected: widget.selectedModule?.id == module.id,
+                              onTap: () => widget.onModuleSelected(module),
+                            ),
+                          const SizedBox(height: 12),
                           const Padding(
-                            padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                            padding: EdgeInsets.symmetric(horizontal: 10),
+                            child: Divider(height: 1),
+                          ),
+                          _ExplorerHeading(
+                            title: 'MODULE CATALOG',
+                            icon: Icons.search,
+                          ),
+                          _ModuleSearchField(
+                            controller: _catalogModuleController,
+                            hintText: 'Search modules...',
+                            query: _catalogModuleQuery,
+                            onChanged: (value) =>
+                                setState(() => _catalogModuleQuery = value),
+                            onClear: () {
+                              _catalogModuleController.clear();
+                              setState(() => _catalogModuleQuery = '');
+                            },
+                          ),
+                          if (_catalogModules.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                              child: Text(
+                                'No modules found',
+                                style: TextStyle(
+                                  color: AppTheme.mutedText,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          for (final module in _catalogModules)
+                            _ModuleItem(
+                              module: module,
+                              catalog: true,
+                              selected: widget.selectedModule?.id == module.id,
+                              onTap: () => widget.onModuleSelected(module),
+                            ),
+                        ] else ...[
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(14, 28, 14, 14),
                             child: Text(
-                              'No active modules found',
+                              'No active workspace items',
                               style: TextStyle(
                                 color: AppTheme.mutedText,
                                 fontSize: 12,
                               ),
                             ),
                           ),
-                        for (final module in _activeModules)
-                          _ModuleItem(module: module),
-                        const SizedBox(height: 12),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Divider(height: 1),
-                        ),
-                        _ExplorerHeading(
-                          title: 'MODULE CATALOG',
-                          icon: Icons.search,
-                        ),
-                        _ModuleSearchField(
-                          controller: _catalogModuleController,
-                          hintText: 'Search modules...',
-                          query: _catalogModuleQuery,
-                          onChanged: (value) =>
-                              setState(() => _catalogModuleQuery = value),
-                          onClear: () {
-                            _catalogModuleController.clear();
-                            setState(() => _catalogModuleQuery = '');
-                          },
-                        ),
-                        if (_catalogModules.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                            child: Text(
-                              'No modules found',
-                              style: TextStyle(
-                                color: AppTheme.mutedText,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        for (final module in _catalogModules)
-                          _ModuleItem(module: module, catalog: true),
+                        ],
                       ],
                     ),
                   ),
@@ -2154,10 +2393,43 @@ class _ModuleSearchField extends StatelessWidget {
   );
 }
 
+class _ExplorerActionButton extends StatelessWidget {
+  const _ExplorerActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 17),
+      color: AppTheme.mutedText,
+      hoverColor: AppTheme.border,
+      splashRadius: 16,
+      constraints: const BoxConstraints.tightFor(width: 27, height: 27),
+      padding: EdgeInsets.zero,
+    ),
+  );
+}
+
 class _ModuleItem extends StatefulWidget {
-  const _ModuleItem({required this.module, this.catalog = false});
+  const _ModuleItem({
+    required this.module,
+    required this.onTap,
+    this.catalog = false,
+    this.selected = false,
+  });
   final SystemModule module;
+  final VoidCallback onTap;
   final bool catalog;
+  final bool selected;
 
   @override
   State<_ModuleItem> createState() => _ModuleItemState();
@@ -2183,36 +2455,43 @@ class _ModuleItemState extends State<_ModuleItem> {
     child: MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        decoration: BoxDecoration(
-          color: _hovered ? AppTheme.border : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              _icon,
-              size: 17,
-              color: widget.catalog ? AppTheme.mutedText : AppTheme.text,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.module.name,
-                style: const TextStyle(color: AppTheme.text, fontSize: 12),
-                overflow: TextOverflow.ellipsis,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          decoration: BoxDecoration(
+            color: widget.selected || _hovered
+                ? AppTheme.border
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _icon,
+                size: 17,
+                color: widget.catalog ? AppTheme.mutedText : AppTheme.text,
               ),
-            ),
-            Icon(
-              Icons.circle,
-              size: 6,
-              color: widget.module.active ? AppTheme.text : AppTheme.mutedText,
-            ),
-          ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.module.name,
+                  style: const TextStyle(color: AppTheme.text, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(
+                Icons.circle,
+                size: 6,
+                color: widget.module.active
+                    ? AppTheme.text
+                    : AppTheme.mutedText,
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -2290,12 +2569,6 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
                               ? AppTheme.border
                               : AppTheme.background,
                           borderRadius: BorderRadius.circular(11),
-                          border: Border.all(
-                            color: widget.current == mode
-                                ? AppTheme.text
-                                : AppTheme.border,
-                            width: widget.current == mode ? 1.2 : 1,
-                          ),
                         ),
                         child: Icon(
                           switch (mode) {
@@ -2321,54 +2594,286 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
 }
 
 class _EditorTabs extends StatelessWidget {
-  const _EditorTabs({required this.active});
-  final NavSection active;
+  const _EditorTabs({
+    required this.tabs,
+    required this.active,
+    required this.onCreate,
+    required this.onSelect,
+    required this.onClose,
+    required this.explorerVisible,
+    required this.onToggleExplorer,
+    required this.showExplorerToggle,
+  });
+
+  final List<NavSection> tabs;
+  final SectionId? active;
+  final VoidCallback onCreate;
+  final ValueChanged<SectionId> onSelect;
+  final ValueChanged<SectionId> onClose;
+  final bool explorerVisible;
+  final VoidCallback onToggleExplorer;
+  final bool showExplorerToggle;
+
   @override
   Widget build(BuildContext context) => Container(
     height: 35,
     color: AppTheme.background,
     child: Row(
       children: [
-        Container(
-          width: 205,
-          height: 35,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.panel,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        Expanded(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
             children: [
-              Icon(_phosphorFor(active.id), size: 15, color: AppTheme.text),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    active.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              for (final tab in tabs)
+                _EditorTab(
+                  tab: tab,
+                  selected: active == tab.id,
+                  onSelect: () => onSelect(tab.id),
+                  onClose: () => onClose(tab.id),
                 ),
+              _EditorTabAction(
+                icon: Icons.add,
+                tooltip: 'Create new tab',
+                onPressed: onCreate,
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.close, size: 14, color: AppTheme.mutedText),
             ],
           ),
         ),
-        const Spacer(),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Icon(
-            Icons.view_sidebar_outlined,
-            size: 17,
-            color: AppTheme.mutedText,
+        if (showExplorerToggle)
+          _EditorTabAction(
+            icon: explorerVisible
+                ? Icons.view_sidebar_outlined
+                : Icons.view_sidebar,
+            tooltip: explorerVisible ? 'Hide Explorer' : 'Show Explorer',
+            onPressed: onToggleExplorer,
           ),
-        ),
+        const SizedBox(width: 8),
       ],
     ),
+  );
+}
+
+class _EditorTab extends StatefulWidget {
+  const _EditorTab({
+    required this.tab,
+    required this.selected,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final NavSection tab;
+  final bool selected;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
+
+  @override
+  State<_EditorTab> createState() => _EditorTabState();
+}
+
+class _EditorTabState extends State<_EditorTab> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    child: GestureDetector(
+      onTap: widget.onSelect,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 205,
+        height: 35,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: widget.selected
+              ? AppTheme.panel
+              : _hovered
+              ? AppTheme.border
+              : AppTheme.background,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+        ),
+        child: Row(
+          children: [
+            Icon(_phosphorFor(widget.tab.id), size: 15),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.tab.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Tooltip(
+              message: 'Close tab',
+              child: InkWell(
+                onTap: widget.onClose,
+                borderRadius: BorderRadius.circular(5),
+                child: const Padding(
+                  padding: EdgeInsets.all(3),
+                  child: Icon(Icons.close, size: 14, color: AppTheme.mutedText),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _EditorTabAction extends StatelessWidget {
+  const _EditorTabAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: IconButton(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 17),
+      color: AppTheme.mutedText,
+      hoverColor: AppTheme.border,
+      constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+      padding: EdgeInsets.zero,
+    ),
+  );
+}
+
+class _EmptyEditor extends StatelessWidget {
+  const _EmptyEditor({required this.onCreate});
+
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: AppTheme.background,
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.tab_unselected, size: 42, color: AppTheme.mutedText),
+          const SizedBox(height: 12),
+          const Text('No open tabs', style: TextStyle(color: AppTheme.text)),
+          const SizedBox(height: 5),
+          const Text(
+            'Create a new tab to continue',
+            style: TextStyle(color: AppTheme.mutedText),
+          ),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add),
+            label: const Text('Create new tab'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ModuleEditorDialog extends StatefulWidget {
+  const _ModuleEditorDialog({this.existing});
+
+  final SystemModule? existing;
+
+  @override
+  State<_ModuleEditorDialog> createState() => _ModuleEditorDialogState();
+}
+
+class _ModuleEditorDialogState extends State<_ModuleEditorDialog> {
+  late final TextEditingController _id;
+  late final TextEditingController _name;
+  late final TextEditingController _category;
+  late final TextEditingController _description;
+
+  @override
+  void initState() {
+    super.initState();
+    final module = widget.existing;
+    _id = TextEditingController(text: module?.id ?? 'custom.module');
+    _name = TextEditingController(text: module?.name ?? 'New module');
+    _category = TextEditingController(text: module?.category ?? 'utility');
+    _description = TextEditingController(
+      text: module?.description ?? 'Custom module description.',
+    );
+  }
+
+  @override
+  void dispose() {
+    _id.dispose();
+    _name.dispose();
+    _category.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.existing == null ? 'Add module' : 'Edit module'),
+    content: SizedBox(
+      width: 420,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _id,
+              decoration: const InputDecoration(labelText: 'ID'),
+            ),
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: _category,
+              decoration: const InputDecoration(labelText: 'Category'),
+            ),
+            TextField(
+              controller: _description,
+              minLines: 3,
+              maxLines: 5,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          final old = widget.existing;
+          Navigator.pop(
+            context,
+            SystemModule(
+              id: _id.text.trim().isEmpty ? 'custom.module' : _id.text.trim(),
+              name: _name.text.trim().isEmpty
+                  ? 'New module'
+                  : _name.text.trim(),
+              category: _category.text.trim().isEmpty
+                  ? 'utility'
+                  : _category.text.trim(),
+              description: _description.text.trim(),
+              version: old?.version ?? '0.1.0',
+              active: old?.active ?? true,
+              stage: old?.stage ?? 'Custom',
+            ),
+          );
+        },
+        child: const Text('Save'),
+      ),
+    ],
   );
 }
 
@@ -2466,8 +2971,18 @@ class _TerminalPanel extends StatelessWidget {
 }
 
 class _SectionBody extends ConsumerWidget {
-  const _SectionBody({required this.section});
+  const _SectionBody({
+    required this.section,
+    required this.modules,
+    required this.onAddModule,
+    required this.onEditModule,
+    required this.onRemoveModule,
+  });
   final SectionId section;
+  final List<SystemModule> modules;
+  final VoidCallback onAddModule;
+  final ValueChanged<SystemModule> onEditModule;
+  final ValueChanged<SystemModule> onRemoveModule;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     switch (section) {
@@ -2482,7 +2997,12 @@ class _SectionBody extends ConsumerWidget {
       case SectionId.spectrogram:
         return const SpectrogramScreen();
       case SectionId.modules:
-        return const ModulesScreen();
+        return ModulesScreen(
+          modules: modules,
+          onAdd: onAddModule,
+          onEdit: onEditModule,
+          onRemove: onRemoveModule,
+        );
       case SectionId.datasets:
         return const DatasetsScreen();
       case SectionId.models:

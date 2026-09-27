@@ -36,9 +36,9 @@ void main() {
 
     expect(find.text('Исследователь'), findsNothing);
     expect(find.byTooltip('Modules'), findsOneWidget);
-    expect(find.text('ACTIVE MODULES'), findsOneWidget);
-    expect(find.text('MODULE CATALOG'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Search modules...'), findsOneWidget);
+    expect(find.text('No active workspace items'), findsOneWidget);
+    expect(find.text('ACTIVE MODULES'), findsNothing);
+    expect(find.text('MODULE CATALOG'), findsNothing);
   });
 
   testWidgets('interface scale starts at 100% with a denser 120% visual base', (
@@ -311,6 +311,28 @@ void main() {
     await tester.pump();
     expect(find.text('No active modules found'), findsOneWidget);
     expect(find.text('No modules found'), findsNothing);
+  });
+
+  testWidgets('editor tabs can be created, selected, and closed', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byTooltip('Create new tab'), findsOneWidget);
+    await tester.tap(find.byTooltip('Create new tab'));
+    await tester.pumpAndSettle();
+    expect(find.text('New tab'), findsOneWidget);
+
+    await tester.tap(find.text('Устройства'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close tab'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Close tab').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close tab').first);
+    await tester.pumpAndSettle();
+    expect(find.text('No open tabs'), findsOneWidget);
   });
 
   testWidgets('Edit menu uses the themed contextual surface', (

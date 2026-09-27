@@ -23,17 +23,18 @@ class ProfileScreen extends StatelessWidget {
                 label: 'Back to app',
                 onTap: onBack,
               ),
-              const Spacer(),
-              const Text(
-                'Profile',
-                style: TextStyle(
-                  color: AppTheme.text,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Profile',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: AppTheme.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const Spacer(),
-              const SizedBox(width: 116),
             ],
           ),
         ),
@@ -56,52 +57,68 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppTheme.panel,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              color: AppTheme.border,
-                              borderRadius: BorderRadius.circular(36),
-                            ),
-                            child: const Icon(
-                              Icons.account_circle_outlined,
-                              size: 42,
-                              color: AppTheme.text,
-                            ),
-                          ),
-                          const SizedBox(width: 18),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ayakiro',
-                                style: TextStyle(
-                                  color: AppTheme.text,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 330;
+                        final identity = const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ayakiro',
+                              style: TextStyle(
+                                color: AppTheme.text,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
                               ),
-                              SizedBox(height: 5),
-                              Text(
-                                'Local offline profile',
-                                style: TextStyle(
-                                  color: AppTheme.mutedText,
-                                  fontSize: 13,
-                                ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Local offline profile',
+                              style: TextStyle(
+                                color: AppTheme.mutedText,
+                                fontSize: 13,
                               ),
-                            ],
+                            ),
+                          ],
+                        );
+                        final avatar = Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: AppTheme.border,
+                            borderRadius: BorderRadius.circular(36),
                           ),
-                        ],
-                      ),
+                          child: const Icon(
+                            Icons.account_circle_outlined,
+                            size: 42,
+                            color: AppTheme.text,
+                          ),
+                        );
+                        return Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: AppTheme.panel,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: compact
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    avatar,
+                                    const SizedBox(height: 14),
+                                    identity,
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    avatar,
+                                    const SizedBox(width: 18),
+                                    identity,
+                                  ],
+                                ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     const Text(
