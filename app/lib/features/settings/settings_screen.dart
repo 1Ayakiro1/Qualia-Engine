@@ -7,9 +7,10 @@ import '../../state/engine_state.dart';
 
 /// Settings workspace styled as a dedicated, two-column preferences panel.
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key, this.onBack});
+  const SettingsScreen({super.key, this.onBack, this.initialItem = 'General'});
 
   final VoidCallback? onBack;
+  final String initialItem;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -20,7 +21,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool fullAccess = true;
   bool keepAwake = false;
   bool bottomPanel = false;
-  String selectedItem = 'General';
+  late String selectedItem = widget.initialItem;
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialItem != widget.initialItem) {
+      selectedItem = widget.initialItem;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Expanded(
               child: _PreferencesContent(
                 version: version,
+                selectedItem: selectedItem,
                 workspaceAccess: workspaceAccess,
                 fullAccess: fullAccess,
                 keepAwake: keepAwake,
@@ -139,26 +149,10 @@ class _SidebarBackButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => _PreferenceNavButton(
+    label: 'Back to app',
+    icon: Icons.arrow_back,
     onTap: onPressed,
-    borderRadius: BorderRadius.circular(8),
-    child: const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          Icon(Icons.arrow_back, size: 18),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Back to app',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 15),
-            ),
-          ),
-        ],
-      ),
-    ),
   );
 }
 
@@ -184,36 +178,18 @@ class _SidebarGroup extends StatelessWidget {
         child: Text(title, style: const TextStyle(color: AppTheme.mutedText)),
       ),
       for (final item in items)
-        InkWell(
+        _PreferenceNavButton(
+          label: item.$1,
+          icon: item.$2,
+          selected: selected == item.$1,
+          trailing: item.$1 == 'Account'
+              ? const Icon(
+                  Icons.north_east,
+                  size: 15,
+                  color: AppTheme.mutedText,
+                )
+              : null,
           onTap: () => onSelected(item.$1),
-          borderRadius: BorderRadius.circular(9),
-          child: Container(
-            height: 39,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: selected == item.$1 ? AppTheme.panel : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Row(
-              children: [
-                Icon(item.$2, size: 18, color: AppTheme.text),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.$1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                if (item.$1 == 'Account')
-                  const Icon(
-                    Icons.north_east,
-                    size: 15,
-                    color: AppTheme.mutedText,
-                  ),
-              ],
-            ),
-          ),
         ),
     ],
   );
@@ -222,6 +198,7 @@ class _SidebarGroup extends StatelessWidget {
 class _PreferencesContent extends StatelessWidget {
   const _PreferencesContent({
     required this.version,
+    required this.selectedItem,
     required this.workspaceAccess,
     required this.fullAccess,
     required this.keepAwake,
@@ -233,6 +210,7 @@ class _PreferencesContent extends StatelessWidget {
   });
 
   final String version;
+  final String selectedItem;
   final bool workspaceAccess;
   final bool fullAccess;
   final bool keepAwake;
@@ -243,110 +221,178 @@ class _PreferencesContent extends StatelessWidget {
   final ValueChanged<bool> onBottomPanelChanged;
 
   @override
-  Widget build(BuildContext context) => ScrollConfiguration(
-    behavior: const _NoGlow(),
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(48, 42, 48, 80),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'General',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w400),
-              ),
-              const SizedBox(height: 54),
-              const Text('Permissions', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 22),
-              _SettingsCard(
-                children: [
-                  _PreferenceRow(
-                    title: 'Default permissions',
-                    description: 'By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed',
-                    control: Switch(
-                      value: workspaceAccess,
-                      onChanged: onWorkspaceAccessChanged,
+  Widget build(BuildContext context) {
+    if (selectedItem != 'General') {
+      return Center(
+        child: Text(
+          '$selectedItem 1',
+          style: const TextStyle(fontSize: 30, color: AppTheme.text),
+        ),
+      );
+    }
+    return ScrollConfiguration(
+      behavior: const _NoGlow(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(48, 42, 48, 80),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'General',
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w400),
+                ),
+                const SizedBox(height: 54),
+                const Text('Permissions', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 22),
+                _SettingsCard(
+                  children: [
+                    _PreferenceRow(
+                      title: 'Default permissions',
+                      description: 'By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed',
+                      control: Switch(
+                        value: workspaceAccess,
+                        onChanged: onWorkspaceAccessChanged,
+                      ),
                     ),
-                  ),
-                  _PreferenceRow(
-                    title: 'Full access',
-                    description: 'When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.',
-                    extra: const Text(
-                      'Learn more about elevated risks.',
-                      style: TextStyle(color: AppTheme.text),
+                    _PreferenceRow(
+                      title: 'Full access',
+                      description: 'When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.',
+                      extra: const Text(
+                        'Learn more about elevated risks.',
+                        style: TextStyle(color: AppTheme.text),
+                      ),
+                      control: Switch(
+                        value: fullAccess,
+                        onChanged: onFullAccessChanged,
+                      ),
                     ),
-                    control: Switch(
-                      value: fullAccess,
-                      onChanged: onFullAccessChanged,
+                  ],
+                ),
+                const SizedBox(height: 66),
+                const Text('General', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 22),
+                _SettingsCard(
+                  children: [
+                    _PreferenceRow(
+                      title: 'Projectless task folder',
+                      description: 'The location where tasks started outside of projects store their data by default.',
+                      control: _ActionButton(
+                        label: '/home/ayakiro...uments/Codex',
+                        action: 'Change',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 66),
-              const Text('General', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 22),
-              _SettingsCard(
-                children: [
-                  _PreferenceRow(
-                    title: 'Projectless task folder',
-                    description: 'The location where tasks started outside of projects store their data by default.',
-                    control: _ActionButton(
-                      label: '/home/ayakiro...uments/Codex',
-                      action: 'Change',
+                    _PreferenceRow(
+                      title: 'Default file open destination',
+                      description: 'Where files and folders open by default',
+                      control: _DropButton(label: 'Zed'),
                     ),
-                  ),
-                  _PreferenceRow(
-                    title: 'Default file open destination',
-                    description: 'Where files and folders open by default',
-                    control: _DropButton(label: 'Zed'),
-                  ),
-                  _PreferenceRow(
-                    title: 'Language',
-                    description: 'Language for the app UI',
-                    control: _DropButton(label: 'Auto detect'),
-                  ),
-                  _PreferenceRow(
-                    title: 'Bottom panel',
-                    description:
-                        'Show the bottom panel control in the app header',
-                    control: Switch(
-                      value: bottomPanel,
-                      onChanged: onBottomPanelChanged,
+                    _PreferenceRow(
+                      title: 'Language',
+                      description: 'Language for the app UI',
+                      control: _DropButton(label: 'Auto detect'),
                     ),
-                  ),
-                  _PreferenceRow(
-                    title: 'Prevent sleep while running',
-                    description: 'Keep your computer awake while Ayakiro is running a task',
-                    control: Switch(
-                      value: keepAwake,
-                      onChanged: onKeepAwakeChanged,
+                    _PreferenceRow(
+                      title: 'Bottom panel',
+                      description:
+                          'Show the bottom panel control in the app header',
+                      control: Switch(
+                        value: bottomPanel,
+                        onChanged: onBottomPanelChanged,
+                      ),
                     ),
-                  ),
-                  _PreferenceRow(
-                    title: 'Open source licenses',
-                    description:
-                        'Third-party software used by Ayakiro BCI Engine',
-                    control: _DropButton(label: 'View'),
-                  ),
-                  _PreferenceRow(
-                    title: 'Version',
-                    description: 'Current application build',
-                    control: Text(
-                      version,
-                      style: const TextStyle(color: AppTheme.mutedText),
+                    _PreferenceRow(
+                      title: 'Prevent sleep while running',
+                      description: 'Keep your computer awake while Ayakiro is running a task',
+                      control: Switch(
+                        value: keepAwake,
+                        onChanged: onKeepAwakeChanged,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 48),
-              Text(
-                '${AppInfo.appName} · local offline-first mode',
-                style: const TextStyle(color: AppTheme.mutedText),
-              ),
-            ],
+                    _PreferenceRow(
+                      title: 'Open source licenses',
+                      description:
+                          'Third-party software used by Ayakiro BCI Engine',
+                      control: _DropButton(label: 'View'),
+                    ),
+                    _PreferenceRow(
+                      title: 'Version',
+                      description: 'Current application build',
+                      control: Text(
+                        version,
+                        style: const TextStyle(color: AppTheme.mutedText),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 48),
+                Text(
+                  '${AppInfo.appName} · local offline-first mode',
+                  style: const TextStyle(color: AppTheme.mutedText),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreferenceNavButton extends StatefulWidget {
+  const _PreferenceNavButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.selected = false,
+    this.trailing,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool selected;
+  final Widget? trailing;
+
+  @override
+  State<_PreferenceNavButton> createState() => _PreferenceNavButtonState();
+}
+
+class _PreferenceNavButtonState extends State<_PreferenceNavButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    cursor: SystemMouseCursors.click,
+    child: GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        height: 39,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: _hovered || widget.selected
+              ? AppTheme.border
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          children: [
+            Icon(widget.icon, size: 18, color: AppTheme.text),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            if (widget.trailing != null) widget.trailing!,
+          ],
         ),
       ),
     ),

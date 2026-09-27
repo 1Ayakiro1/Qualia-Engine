@@ -1,2 +1,2 @@
-bci_core_tests 23 0.000265968
+bci_core_tests 24 0.000300209
 ---

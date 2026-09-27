@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.4] — Preferences navigation and debug console polish
+
+- Preferences получил рабочую навигацию по разделам: активная страница меняется
+  по клику и показывает временный контент вида `Import 1`, `Account 1` и т. п.;
+  все пункты и `Back to app` подсвечиваются при наведении.
+- Исправлено разделение действий rail: `User profile button` открывает `Account`,
+  а `projects` продолжает открывать обзор проектов.
+- `Change mode` стал компактной панелью из квадратных icon-only кнопок с
+  tooltip и отдельными hover/active-состояниями.
+- Keyboard shortcuts разделены на функциональные группы `WORKSPACE` и
+  `INTERFACE`, а строки и keycap-поля оформлены в том же скруглённом стиле,
+  что и контекстные меню.
+- Debug terminal получил кастомную верхнюю панель без GNOME header bar,
+  переключатели уровней `DEBUG/INFO/WARN/ERROR`, поиск, паузу, автопрокрутку,
+  сохранение и очистку. Окно открывается отдельно, не остаётся always-on-top,
+  предотвращает повторное открытие и возвращает фокус основному приложению.
+
 ## [0.3.3] — Adaptive shell layout and scrollbar polish
 
 - Scrollbar Explorer стал тоньше (`3px`), менее контрастным и с коротким thumb;

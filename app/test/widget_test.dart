@@ -28,7 +28,7 @@ void main() {
     // Open the rail mode switcher and pick "Исследователь".
     await tester.tap(find.byTooltip('user&dev switcher'));
     await tester.pumpAndSettle();
-    expect(find.text('Change mode'), findsOneWidget);
+    expect(find.text('Change mode'), findsNothing);
     await tester.tap(
       find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
     );
@@ -172,6 +172,8 @@ void main() {
     await tester.tap(find.text('Shortcuts'));
     await tester.pumpAndSettle();
     expect(find.text('Keyboard shortcuts'), findsOneWidget);
+    expect(find.text('WORKSPACE'), findsOneWidget);
+    expect(find.text('INTERFACE'), findsOneWidget);
     expect(find.text('Edit shortcuts'), findsOneWidget);
     await tester.tap(find.text('Edit shortcuts'));
     await tester.pump();
@@ -229,6 +231,26 @@ void main() {
     expect(find.text('General'), findsWidgets);
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
+  });
+
+  testWidgets('profile and preference pages open from their own buttons', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('User profile button'));
+    await tester.pumpAndSettle();
+    expect(find.text('Account 1'), findsOneWidget);
+    expect(find.text('Back to app'), findsOneWidget);
+
+    await tester.tap(find.text('Import'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import 1'), findsOneWidget);
+
+    await tester.tap(find.text('Back to app'));
+    await tester.pumpAndSettle();
+    expect(find.text('Обзор'), findsWidgets);
   });
 
   testWidgets('global search focuses, toggles its menu, and closes outside', (

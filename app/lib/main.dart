@@ -39,6 +39,12 @@ void main(List<String> args) async {
   if (windowArgs == 'log_console') {
     try {
       await windowManager.setTitle('BCI Engine — Консоль логов');
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      await windowManager.setMinimumSize(const Size(620, 380));
+      await windowManager.setSize(const Size(780, 520));
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.center();
+      await windowManager.show();
     } catch (_) {}
     runApp(const LogConsoleApp());
     return;

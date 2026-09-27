@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,6 +62,9 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
+  String settingsItem = 'General';
+  StreamSubscription<void>? _windowsChangedSubscription;
+  bool _debugConsoleOpen = false;
 
   /// User-facing scale. The shell deliberately renders at a 120% base density
   /// while keeping this preference at the familiar 100% default.
@@ -75,6 +80,30 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   double get _visualScale => uiScale * _baseScale;
 
+  @override
+  void initState() {
+    super.initState();
+    _windowsChangedSubscription = onWindowsChanged.listen((_) async {
+      if (!_debugConsoleOpen) return;
+      final windows = await WindowController.getAll();
+      final consoleOpen = windows.any(
+        (window) => window.arguments == 'log_console',
+      );
+      if (!consoleOpen && mounted) {
+        _debugConsoleOpen = false;
+        try {
+          await windowManager.focus();
+        } catch (_) {}
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _windowsChangedSubscription?.cancel();
+    super.dispose();
+  }
+
   void _changeScale(double delta) {
     setState(() {
       uiScale = (uiScale + delta).clamp(_minScale, _maxScale).toDouble();
@@ -84,9 +113,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _resetScale() => setState(() => uiScale = 1.0);
 
   Future<void> _openDebugConsole(BuildContext context) async {
+    if (_debugConsoleOpen) return;
+    _debugConsoleOpen = true;
     try {
       await openLogConsole();
     } catch (error) {
+      _debugConsoleOpen = false;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Не удалось открыть консоль: $error')),
@@ -158,13 +190,17 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   scale: uiScale,
                                   onScaleChanged: (value) =>
                                       setState(() => uiScale = value),
-                                  onOpenPreferences: () => ref
-                                      .read(navSectionProvider.notifier)
-                                      .select(SectionId.settings),
+                                  onOpenPreferences: () => setState(() {
+                                    settingsItem = 'General';
+                                    ref
+                                        .read(navSectionProvider.notifier)
+                                        .select(SectionId.settings);
+                                  }),
                                 ),
                                 Expanded(
                                   child: section == SectionId.settings
                                       ? SettingsScreen(
+                                          initialItem: settingsItem,
                                           onBack: () => ref
                                               .read(navSectionProvider.notifier)
                                               .select(SectionId.dashboard),
@@ -190,6 +226,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                             !modeSwitcherOpen,
                                                       ),
                                                       onNavigate: (id) {
+                                                        if (id ==
+                                                            SectionId
+                                                                .settings) {
+                                                          settingsItem =
+                                                              'General';
+                                                        }
                                                         final target =
                                                             kNavSections
                                                                 .firstWhere(
@@ -225,6 +267,19 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                             )
                                                             .select(id);
                                                       },
+                                                      onProfile: () => setState(() {
+                                                        settingsItem =
+                                                            'Account';
+                                                        ref
+                                                            .read(
+                                                              navSectionProvider
+                                                                  .notifier,
+                                                            )
+                                                            .select(
+                                                              SectionId
+                                                                  .settings,
+                                                            );
+                                                      }),
                                                     ),
                                                   ),
                                                   _LayoutDivider(
@@ -1228,6 +1283,15 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
     'Reset interface scale': 'Ctrl+0',
   };
 
+  static const _shortcutGroups = <String, List<String>>{
+    'WORKSPACE': ['Open project', 'Find module'],
+    'INTERFACE': [
+      'Increase interface scale',
+      'Decrease interface scale',
+      'Reset interface scale',
+    ],
+  };
+
   @override
   Widget build(BuildContext context) => Dialog(
     backgroundColor: AppTheme.panel,
@@ -1236,26 +1300,26 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: 680,
-      height: 620,
+      width: 560,
+      height: 600,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 26, 30, 24),
+        padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: AppTheme.background,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(color: AppTheme.border),
                   ),
-                  child: const Icon(Icons.keyboard_alt_outlined, size: 23),
+                  child: const Icon(Icons.keyboard_alt_outlined, size: 21),
                 ),
-                const SizedBox(width: 9),
+                const SizedBox(width: 12),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1264,7 +1328,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                         'Keyboard shortcuts',
                         style: TextStyle(
                           color: AppTheme.text,
-                          fontSize: 21,
+                          fontSize: 19,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1273,7 +1337,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                         'Configure the commands you use most often',
                         style: TextStyle(
                           color: AppTheme.mutedText,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -1287,32 +1351,49 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 24),
             const Text(
-              'AVAILABLE SHORTCUTS',
+              'KEYBOARD SHORTCUTS',
               style: TextStyle(
                 color: AppTheme.mutedText,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    for (final entry in _shortcuts.entries)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ShortcutRow(
-                          label: entry.key,
-                          shortcut: entry.value,
-                          editing: _editing,
-                          onChanged: (value) =>
-                              setState(() => _shortcuts[entry.key] = value),
+                    for (final group in _shortcutGroups.entries) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
+                          child: Text(
+                            group.key,
+                            style: const TextStyle(
+                              color: AppTheme.mutedText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: .8,
+                            ),
+                          ),
                         ),
                       ),
+                      for (final label in group.value)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 5),
+                          child: _ShortcutRow(
+                            label: label,
+                            shortcut: _shortcuts[label]!,
+                            editing: _editing,
+                            onChanged: (value) =>
+                                setState(() => _shortcuts[label] = value),
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -1325,7 +1406,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                 const Expanded(
                   child: Text(
                     'Click a key field and press a new combination.',
-                    style: TextStyle(color: AppTheme.mutedText, fontSize: 13),
+                    style: TextStyle(color: AppTheme.mutedText, fontSize: 12),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -1360,11 +1441,11 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 62,
-    padding: const EdgeInsets.symmetric(horizontal: 18),
+    height: 52,
+    padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
       color: AppTheme.background,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       border: Border.all(color: AppTheme.border),
     ),
     child: Row(
@@ -1372,7 +1453,7 @@ class _ShortcutRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: AppTheme.text, fontSize: 15),
+            style: const TextStyle(color: AppTheme.text, fontSize: 14),
           ),
         ),
         const SizedBox(width: 14),
@@ -1455,8 +1536,8 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 178,
-    height: 42,
+    width: 150,
+    height: 36,
     child: Focus(
       focusNode: _focusNode,
       onKeyEvent: (node, event) {
@@ -1479,19 +1560,19 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
           filled: true,
           fillColor: widget.editing ? AppTheme.panel : AppTheme.background,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppTheme.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppTheme.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppTheme.text),
           ),
         ),
-        style: const TextStyle(color: AppTheme.text, fontSize: 14),
+        style: const TextStyle(color: AppTheme.text, fontSize: 13),
       ),
     ),
   );
@@ -1566,12 +1647,14 @@ class _ActivityRail extends StatelessWidget {
     required this.modeSwitcherOpen,
     required this.onModeSwitcher,
     required this.onNavigate,
+    required this.onProfile,
   });
   final List<NavSection> sections;
   final int selected;
   final bool modeSwitcherOpen;
   final VoidCallback onModeSwitcher;
   final ValueChanged<SectionId> onNavigate;
+  final VoidCallback onProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -1622,7 +1705,9 @@ class _ActivityRail extends StatelessWidget {
                   item.label != 'User profile button' &&
                   item.id == sections[selected].id,
               enabled: true,
-              onTap: () => onNavigate(item.id),
+              onTap: item.label == 'User profile button'
+                  ? onProfile
+                  : () => onNavigate(item.id),
             ),
           const Spacer(),
           _RailButton(
@@ -2084,8 +2169,8 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 164,
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 9),
+        width: 62,
+        padding: const EdgeInsets.symmetric(vertical: 7),
         decoration: BoxDecoration(
           color: AppTheme.panel,
           border: Border.all(color: AppTheme.border),
@@ -2101,32 +2186,26 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(2, 0, 2, 9),
-              child: Row(
-                children: [
-                  Icon(Icons.swap_vert, size: 15, color: AppTheme.mutedText),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Change mode',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.text,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             for (final mode in AppMode.values)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Tooltip(
                   message: '${mode.label}: ${mode.hint}',
+                  waitDuration: const Duration(seconds: 1),
+                  showDuration: const Duration(seconds: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.panel,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  textStyle: const TextStyle(
+                    color: AppTheme.text,
+                    fontSize: 14,
+                  ),
                   child: MouseRegion(
                     onEnter: (_) => setState(() => _hoveredMode = mode),
                     onExit: (_) => setState(() => _hoveredMode = null),
@@ -2136,8 +2215,8 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 140),
                         curve: Curves.easeOut,
-                        width: 140,
-                        height: 76,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: _hoveredMode == mode || widget.current == mode
                               ? AppTheme.border
@@ -2150,33 +2229,16 @@ class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
                             width: widget.current == mode ? 1.2 : 1,
                           ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              switch (mode) {
-                                AppMode.consumer => Icons.person_outline,
-                                AppMode.researcher => Icons.science_outlined,
-                                AppMode.developer => Icons.code_outlined,
-                              },
-                              size: 25,
-                              color: widget.current == mode
-                                  ? AppTheme.text
-                                  : AppTheme.mutedText,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              mode.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: widget.current == mode
-                                    ? AppTheme.text
-                                    : AppTheme.mutedText,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
+                        child: Icon(
+                          switch (mode) {
+                            AppMode.consumer => Icons.person_outline,
+                            AppMode.researcher => Icons.science_outlined,
+                            AppMode.developer => Icons.code_outlined,
+                          },
+                          size: 20,
+                          color: widget.current == mode
+                              ? AppTheme.text
+                              : AppTheme.mutedText,
                         ),
                       ),
                     ),

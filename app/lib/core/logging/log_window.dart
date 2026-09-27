@@ -5,8 +5,10 @@ import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'app_logger.dart';
+import '../theme/app_theme.dart';
 import 'log_entry.dart';
 
 /// Opens the detached log console in a separate OS window.
@@ -17,13 +19,18 @@ import 'log_entry.dart';
 Future<void> openLogConsole() async {
   AppLogger.instance.log('app', 'открытие окна консоли логов');
   try {
-    final WindowController controller = await WindowController.create(
-      WindowConfiguration(arguments: 'log_console'),
+    await WindowController.create(
+      const WindowConfiguration(arguments: 'log_console', hiddenAtLaunch: true),
     );
-    await controller.show();
+    // The child engine configures and shows itself after its custom title bar
+    // and geometry are ready. Showing it here would briefly expose the
+    // default GTK header and steal focus before those settings are applied.
   } catch (e) {
-    AppLogger.instance
-        .log('app', 'не удалось открыть консоль логов: $e', level: LogLevel.error);
+    AppLogger.instance.log(
+      'app',
+      'не удалось открыть консоль логов: $e',
+      level: LogLevel.error,
+    );
     rethrow;
   }
 }
@@ -34,17 +41,45 @@ class LogConsoleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ProviderScope(
+    return ProviderScope(
       child: MaterialApp(
         title: 'BCI Engine — Консоль логов',
         debugShowCheckedModeBanner: false,
-        home: LogConsoleScreen(),
+        theme: _logTheme,
+        home: const LogConsoleScreen(),
       ),
     );
   }
+
+  static final ThemeData _logTheme = ThemeData(
+    brightness: Brightness.dark,
+    useMaterial3: true,
+    scaffoldBackgroundColor: AppTheme.background,
+    canvasColor: AppTheme.background,
+    colorScheme: const ColorScheme.dark(
+      surface: AppTheme.panel,
+      primary: AppTheme.text,
+      outline: AppTheme.border,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppTheme.background,
+      foregroundColor: AppTheme.text,
+      elevation: 0,
+      toolbarHeight: 42,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppTheme.panel,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppTheme.border),
+      ),
+    ),
+  );
 }
 
-/// Minimalist (GNOME-style) log console: filter, pause, save, clear.
+/// Detached log console with the same compact, neutral visual language as the
+/// main application.
 class LogConsoleScreen extends ConsumerStatefulWidget {
   const LogConsoleScreen({super.key});
 
@@ -63,24 +98,16 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
 
   bool _paused = false;
   bool _autoScroll = true;
-  LogLevel? _levelFilter; // null = all
   String _query = '';
   bool _fileMissing = true;
-
-
-  static const List<LogLevel?> _filterOrder = <LogLevel?>[
-    null,
-    LogLevel.debug,
-    LogLevel.info,
-    LogLevel.warning,
-    LogLevel.error,
-  ];
+  final Set<LogLevel> _enabledLevels = LogLevel.values.toSet();
 
   @override
   void initState() {
     super.initState();
     _search.addListener(
-        () => setState(() => _query = _search.text.trim().toLowerCase()));
+      () => setState(() => _query = _search.text.trim().toLowerCase()),
+    );
     _openTail();
     _poller = Timer.periodic(const Duration(milliseconds: 400), (_) => _poll());
   }
@@ -131,12 +158,15 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
           continue;
         }
         final LogEntry? entry = LogEntry.tryParse(trimmed);
-        _entries.add(entry ??
-            LogEntry(
+        _entries.add(
+          entry ??
+              LogEntry(
                 time: DateTime.now(),
                 level: LogLevel.info,
                 source: 'raw',
-                message: trimmed));
+                message: trimmed,
+              ),
+        );
         added = true;
       }
       if (added && mounted) {
@@ -152,7 +182,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
 
   List<LogEntry> get _visible {
     return _entries.where((LogEntry e) {
-      if (_levelFilter != null && e.level != _levelFilter) {
+      if (!_enabledLevels.contains(e.level)) {
         return false;
       }
       if (_query.isNotEmpty &&
@@ -182,25 +212,27 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     try {
       final Directory dir = LogLocations.sessionLogDir();
       await dir.create(recursive: true);
-      final String stamp =
-          DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-      final File target =
-          File('${dir.path}${Platform.pathSeparator}console-export-$stamp.log');
+      final String stamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final File target = File(
+        '${dir.path}${Platform.pathSeparator}console-export-$stamp.log',
+      );
       final IOSink sink = target.openWrite();
       for (final LogEntry e in _visible) {
         sink.writeln(e.formatted);
       }
       await sink.close();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Сохранено: ${target.path}')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Сохранено: ${target.path}')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось сохранить: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
       }
     }
   }
@@ -214,143 +246,343 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = ThemeData.dark(useMaterial3: true);
+    final ThemeData theme = Theme.of(context);
     final List<LogEntry> visible = _visible;
-    final String filterLabel =
-        _levelFilter == null ? 'Все уровни' : _levelFilter!.label;
 
     return Theme(
       data: theme,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Консоль логов'),
-          centerTitle: false,
-          actions: [
-            IconButton(
-              tooltip: _paused ? 'Продолжить' : 'Пауза',
-              icon: Icon(_paused ? Icons.play_arrow : Icons.pause),
-              onPressed: () => setState(() => _paused = !_paused),
+        body: Column(
+          children: [
+            _LogHeader(
+              paused: _paused,
+              autoScroll: _autoScroll,
+              onPause: () => setState(() => _paused = !_paused),
+              onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
+              onSave: _saveAs,
+              onClear: () => setState(_entries.clear),
+              onClose: () async {
+                try {
+                  await windowManager.close();
+                } catch (_) {}
+              },
             ),
-            IconButton(
-              tooltip: 'Автопрокрутка',
-              icon: Icon(_autoScroll
-                  ? Icons.vertical_align_bottom
-                  : Icons.vertical_align_top),
-              color: _autoScroll ? theme.colorScheme.primary : null,
-              onPressed: () => setState(() => _autoScroll = !_autoScroll),
-            ),
-            PopupMenuButton<LogLevel?>(
-              tooltip: 'Фильтр уровня',
-              initialValue: _levelFilter,
-              onSelected: (LogLevel? v) => setState(() => _levelFilter = v),
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<LogLevel?>>[
-                for (final LogLevel? level in _filterOrder)
-                  PopupMenuItem<LogLevel?>(
-                    value: level,
-                    child: Text(level == null ? 'Все уровни' : level.label),
-                  ),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.filter_list, size: 18),
-                    const SizedBox(width: 4),
-                    Text(filterLabel),
-                  ],
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Сохранить видимое в файл',
-              icon: const Icon(Icons.save_outlined),
-              onPressed: _saveAs,
-            ),
-            IconButton(
-              tooltip: 'Очистить вид',
-              icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: () => setState(_entries.clear),
-            ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
               child: TextField(
                 controller: _search,
                 decoration: const InputDecoration(
                   hintText: 'Поиск по источнику и тексту…',
                   prefixIcon: Icon(Icons.search, size: 18),
-                  border: OutlineInputBorder(),
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Row(
+                children: [
+                  const Text(
+                    'LEVELS',
+                    style: TextStyle(
+                      color: AppTheme.mutedText,
+                      fontSize: 10,
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  for (final level in LogLevel.values)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _LogLevelButton(
+                        level: level,
+                        selected: _enabledLevels.contains(level),
+                        onPressed: () => setState(() {
+                          if (!_enabledLevels.remove(level)) {
+                            _enabledLevels.add(level);
+                          }
+                        }),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _fileMissing
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.hourglass_empty, size: 42),
+                          const SizedBox(height: 12),
+                          const Text('Файл latest.log пока не создан.'),
+                          const SizedBox(height: 4),
+                          const Text('Запустите основное окно приложения.'),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _openTail,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Повторить'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          color: _paused
+                              ? Colors.amber.withAlpha(40)
+                              : theme.colorScheme.surfaceContainerHighest
+                                    .withAlpha(60),
+                          child: Text(
+                            _paused
+                                ? 'Пауза — новые строки не подгружаются '
+                                      '(${_entries.length})'
+                                : 'Строк: ${visible.length} / ${_entries.length} · '
+                                      'файл: latest.log (обновление 0.4 с)',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _scroll,
+                            itemCount: visible.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final LogEntry e = visible[index];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 1,
+                                ),
+                                child: SelectableText(
+                                  e.formatted,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontFamily: 'monospace',
+                                    color: _levelColor(
+                                      e.level,
+                                      theme.colorScheme,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LogHeader extends StatelessWidget {
+  const _LogHeader({
+    required this.paused,
+    required this.autoScroll,
+    required this.onPause,
+    required this.onAutoScroll,
+    required this.onSave,
+    required this.onClear,
+    required this.onClose,
+  });
+
+  final bool paused;
+  final bool autoScroll;
+  final VoidCallback onPause;
+  final VoidCallback onAutoScroll;
+  final VoidCallback onSave;
+  final VoidCallback onClear;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 42,
+    decoration: const BoxDecoration(
+      color: AppTheme.background,
+      border: Border(bottom: BorderSide(color: AppTheme.border)),
+    ),
+    child: Stack(
+      children: [
+        Positioned.fill(child: DragToMoveArea(child: const SizedBox.expand())),
+        Row(
+          children: [
+            const SizedBox(width: 14),
+            const Icon(Icons.terminal, size: 16, color: AppTheme.text),
+            const SizedBox(width: 8),
+            const Text(
+              'Debug terminal',
+              style: TextStyle(
+                color: AppTheme.text,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            _LogIconButton(
+              tooltip: paused ? 'Продолжить' : 'Пауза',
+              icon: paused ? Icons.play_arrow : Icons.pause,
+              onPressed: onPause,
+            ),
+            _LogIconButton(
+              tooltip: 'Автопрокрутка',
+              icon: autoScroll
+                  ? Icons.vertical_align_bottom
+                  : Icons.vertical_align_top,
+              active: autoScroll,
+              onPressed: onAutoScroll,
+            ),
+            _LogIconButton(
+              tooltip: 'Сохранить видимое',
+              icon: Icons.save_outlined,
+              onPressed: onSave,
+            ),
+            _LogIconButton(
+              tooltip: 'Очистить вид',
+              icon: Icons.delete_sweep_outlined,
+              onPressed: onClear,
+            ),
+            _LogIconButton(
+              tooltip: 'Закрыть окно',
+              icon: Icons.close,
+              onPressed: onClose,
+            ),
+            const SizedBox(width: 6),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _LogIconButton extends StatefulWidget {
+  const _LogIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.active = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool active;
+
+  @override
+  State<_LogIconButton> createState() => _LogIconButtonState();
+}
+
+class _LogIconButtonState extends State<_LogIconButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: widget.tooltip,
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 30,
+          height: 30,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: _hovered || widget.active
+                ? AppTheme.border
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Icon(
+            widget.icon,
+            size: 16,
+            color: widget.active || _hovered
+                ? AppTheme.text
+                : AppTheme.mutedText,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _LogLevelButton extends StatefulWidget {
+  const _LogLevelButton({
+    required this.level,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final LogLevel level;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  State<_LogLevelButton> createState() => _LogLevelButtonState();
+}
+
+class _LogLevelButtonState extends State<_LogLevelButton> {
+  bool _hovered = false;
+
+  String get _shortLabel {
+    switch (widget.level) {
+      case LogLevel.debug:
+        return 'DEBUG';
+      case LogLevel.info:
+        return 'INFO';
+      case LogLevel.warning:
+        return 'WARN';
+      case LogLevel.error:
+        return 'ERROR';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: widget.level.label,
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          decoration: BoxDecoration(
+            color: widget.selected || _hovered
+                ? AppTheme.border
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: widget.selected ? AppTheme.text : AppTheme.border,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              _shortLabel,
+              style: TextStyle(
+                color: widget.selected ? AppTheme.text : AppTheme.mutedText,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: .3,
               ),
             ),
           ),
         ),
-        body: _fileMissing
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.hourglass_empty, size: 48),
-                    const SizedBox(height: 12),
-                    const Text('Файл latest.log пока не создан.'),
-                    const SizedBox(height: 4),
-                    const Text('Запустите основное окно приложения.'),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _openTail,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Повторить'),
-                    ),
-                  ],
-                ),
-              )
-            : Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    color: _paused
-                        ? Colors.amber.withAlpha(40)
-                        : theme.colorScheme.surfaceContainerHighest
-                            .withAlpha(60),
-                    child: Text(
-                      _paused
-                          ? 'Пауза — новые строки не подгружаются '
-                              '(${_entries.length})'
-                          : 'Строк: ${visible.length} / ${_entries.length} · '
-                              'файл: latest.log (обновление 0.4 с)',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scroll,
-                      itemCount: visible.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final LogEntry e = visible[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 1),
-                          child: SelectableText(
-                            e.formatted,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontFamily: 'monospace',
-                              color: _levelColor(e.level, theme.colorScheme),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
       ),
-    );
-  }
+    ),
+  );
 }
