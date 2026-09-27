@@ -78,6 +78,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('General'), findsWidgets);
     expect(find.text('Back to app'), findsOneWidget);
+    expect(find.text('Integrations'), findsNothing);
+    expect(find.text('Coding'), findsNothing);
     expect(find.text('ACTIVE MODULES'), findsNothing);
     expect(find.byTooltip('Modules'), findsNothing);
     await tester.tap(find.text('Back to app'));
@@ -227,6 +229,7 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Run'), findsNothing);
     await tester.tap(find.byKey(const ValueKey<String>('Edit menu button')));
     await tester.pump(const Duration(milliseconds: 80));
 

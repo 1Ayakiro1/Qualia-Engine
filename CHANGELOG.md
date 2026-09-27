@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.2] — Shortcut and shell menu visual refresh
+
+- Панель `Keyboard shortcuts` увеличена, получила более читаемую типографику,
+  крупные строки действий, прокрутку и более выразительные keycap-поля.
+- Из Preferences удалены разделы `Integrations` и `Coding`.
+- Debug terminal перемещён в верхнюю часть интерфейса рядом с global search.
+- Кнопка `Run` удалена из header; действие запуска осталось доступно в меню Build.
+- Контекстные меню `File`, `Edit`, `View` и `Build` получили отдельные
+  скруглённые строки с отступами и shortcut-плашками в стиле референса.
+
 ## [0.3.1] — Search and tooltip interaction polish
 
 - Tooltip получили единый размер текста `14px` и задержку появления `1 секунда`.

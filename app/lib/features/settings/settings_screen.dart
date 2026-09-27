@@ -87,20 +87,6 @@ class _PreferencesSidebar extends StatelessWidget {
     ('Account', Icons.account_circle_outlined),
   ];
 
-  static const _integrations = [
-    ('Computer use', Icons.near_me_outlined),
-    ('Plugins', Icons.extension_outlined),
-    ('Browser', Icons.web_asset_outlined),
-  ];
-
-  static const _coding = [
-    ('Hooks', Icons.anchor_outlined),
-    ('Connections', Icons.language_outlined),
-    ('Git', Icons.merge_type_outlined),
-    ('Environments', Icons.desktop_windows_outlined),
-    ('Worktrees', Icons.call_split_outlined),
-  ];
-
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: AppTheme.background,
@@ -137,18 +123,6 @@ class _PreferencesSidebar extends StatelessWidget {
           _SidebarGroup(
             title: 'Personal',
             items: _personal,
-            selected: selected,
-            onSelected: onSelected,
-          ),
-          _SidebarGroup(
-            title: 'Integrations',
-            items: _integrations,
-            selected: selected,
-            onSelected: onSelected,
-          ),
-          _SidebarGroup(
-            title: 'Coding',
-            items: _coding,
             selected: selected,
             onSelected: onSelected,
           ),

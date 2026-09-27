@@ -2,7 +2,7 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: v0.3.1 — search and tooltip interaction polish.** Каркас-оболочка собран,
+**Статус: v0.3.2 — shortcut and shell menu visual refresh.** Каркас-оболочка собран,
 сборка и запуск проверяются на каждую версию (бинарник + AppImage + portable
 tar.gz; Windows/macOS — в CI). Готовые сборки — в папке [`builds/`](builds/README.md).
 
@@ -14,7 +14,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 | Исследователь | + Конвейер, Спектрограмма, Модули, Датасеты, Модели |
 | Разработчик | + FFI-консоль ядра |
 
-## Что уже работает (v0.3.1)
+## Что уже работает (v0.3.2)
 
 - **Логгер сессии** (`AppLogger`): с момента запуска и до завершения пишет
   форматированные логи ядра и UI в `~/.local/share/bci_engine/logs/`
@@ -41,7 +41,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Ayakiro_BCI_Engine-0.3.1-x86_64.AppImage
+./builds/Ayakiro_BCI_Engine-0.3.2-x86_64.AppImage
 ```
 
 Требования: Flutter SDK (Linux desktop toolchain), CMake ≥ 3.21, GCC/Clang, Ninja.

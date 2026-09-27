@@ -144,9 +144,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                             body: Column(
                               children: [
                                 _TitleBar(
-                                  onRun: () => ref
-                                      .read(navSectionProvider.notifier)
-                                      .select(SectionId.session),
                                   onOpenDebugConsole: () =>
                                       _openDebugConsole(context),
                                   scale: uiScale,
@@ -339,13 +336,11 @@ class _AppShellState extends ConsumerState<AppShell> {
 
 class _TitleBar extends StatelessWidget {
   const _TitleBar({
-    required this.onRun,
     required this.onOpenDebugConsole,
     required this.onOpenPreferences,
     required this.scale,
     required this.onScaleChanged,
   });
-  final VoidCallback onRun;
   final VoidCallback onOpenDebugConsole;
   final VoidCallback onOpenPreferences;
   final double scale;
@@ -355,7 +350,6 @@ class _TitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final compact = MediaQuery.sizeOf(context).width < 1100;
-    final narrowHeader = MediaQuery.sizeOf(context).width < 1250;
     return Container(
       height: 36,
       decoration: const BoxDecoration(
@@ -400,22 +394,6 @@ class _TitleBar extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!narrowHeader && !compact)
-                        IconButton(
-                          onPressed: onOpenDebugConsole,
-                          tooltip: 'Открыть терминал отладки',
-                          icon: const Icon(Icons.bug_report_outlined, size: 17),
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppTheme.panel,
-                            foregroundColor: AppTheme.text,
-                            minimumSize: const Size(28, 28),
-                            maximumSize: const Size(28, 28),
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
                       _AnimatedContextMenuButton<double>(
                         tooltip: 'Масштаб интерфейса (Ctrl + / Ctrl -)',
                         menuWidth: 150,
@@ -452,15 +430,6 @@ class _TitleBar extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      TextButton.icon(
-                        onPressed: onRun,
-                        icon: const Icon(Icons.play_arrow, size: 16),
-                        label: const Text('Run'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.text,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
                       const _WindowControls(),
                       const SizedBox(width: 4),
                     ],
@@ -470,16 +439,50 @@ class _TitleBar extends StatelessWidget {
             ],
           ),
           if (!compact)
-            const Positioned.fill(
+            Positioned.fill(
               child: Align(
                 alignment: Alignment.center,
-                child: SizedBox(width: 320, height: 26, child: _GlobalSearch()),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 320,
+                      height: 26,
+                      child: _GlobalSearch(),
+                    ),
+                    const SizedBox(width: 6),
+                    _DebugConsoleButton(onPressed: onOpenDebugConsole),
+                  ],
+                ),
               ),
             ),
         ],
       ),
     );
   }
+}
+
+class _DebugConsoleButton extends StatelessWidget {
+  const _DebugConsoleButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'Открыть терминал отладки',
+    child: IconButton(
+      onPressed: onPressed,
+      icon: const Icon(Icons.bug_report_outlined, size: 17),
+      style: IconButton.styleFrom(
+        backgroundColor: AppTheme.panel,
+        foregroundColor: AppTheme.text,
+        minimumSize: const Size(28, 28),
+        maximumSize: const Size(28, 28),
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+  );
 }
 
 class _WindowControls extends StatefulWidget {
@@ -584,23 +587,30 @@ class _TopMenuItem extends StatelessWidget {
       case 'File':
         return const [
           _MenuAction(value: 'new', label: 'New workspace'),
-          _MenuAction(value: 'open', label: 'Open project'),
+          _MenuAction(value: 'open', label: 'Open project', shortcut: 'Ctrl+O'),
           _MenuAction(
             value: 'import',
             label: 'Import module (soon)',
             enabled: false,
+            shortcut: 'Ctrl+Shift+M',
             dividerBefore: true,
           ),
           _MenuAction(
             value: 'preferences',
             label: 'Preferences',
+            shortcut: 'Ctrl+,',
             dividerBefore: true,
           ),
         ];
       case 'Edit':
         return const [
-          _MenuAction(value: 'undo', label: 'Undo'),
-          _MenuAction(value: 'redo', label: 'Redo', enabled: false),
+          _MenuAction(value: 'undo', label: 'Undo', shortcut: 'Ctrl+Z'),
+          _MenuAction(
+            value: 'redo',
+            label: 'Redo',
+            enabled: false,
+            shortcut: 'Ctrl+Y',
+          ),
           _MenuAction(
             value: 'preferences',
             label: 'Preferences (soon)',
@@ -610,8 +620,12 @@ class _TopMenuItem extends StatelessWidget {
         ];
       case 'View':
         return const [
-          _MenuAction(value: 'explorer', label: 'Explorer'),
-          _MenuAction(value: 'terminal', label: 'Terminal'),
+          _MenuAction(
+            value: 'explorer',
+            label: 'Explorer',
+            shortcut: 'Ctrl+Shift+E',
+          ),
+          _MenuAction(value: 'terminal', label: 'Terminal', shortcut: 'Ctrl+J'),
           _MenuAction(
             value: 'layout',
             label: 'Customize layout (soon)',
@@ -621,8 +635,12 @@ class _TopMenuItem extends StatelessWidget {
         ];
       default:
         return const [
-          _MenuAction(value: 'build', label: 'Build project'),
-          _MenuAction(value: 'run', label: 'Run session'),
+          _MenuAction(
+            value: 'build',
+            label: 'Build project',
+            shortcut: 'Ctrl+B',
+          ),
+          _MenuAction(value: 'run', label: 'Run session', shortcut: 'F5'),
           _MenuAction(
             value: 'tasks',
             label: 'Build tasks (soon)',
@@ -658,12 +676,14 @@ class _MenuAction<T> {
     required this.label,
     this.enabled = true,
     this.dividerBefore = false,
+    this.shortcut,
   });
 
   final T value;
   final String label;
   final bool enabled;
   final bool dividerBefore;
+  final String? shortcut;
 }
 
 class _AnimatedContextMenuButton<T> extends StatefulWidget {
@@ -744,7 +764,7 @@ class _AnimatedContextMenuButtonState<T>
                 color: Colors.transparent,
                 child: Container(
                   width: widget.menuWidth,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     color: AppTheme.panel,
                     border: Border.all(color: AppTheme.border),
@@ -763,12 +783,15 @@ class _AnimatedContextMenuButtonState<T>
                       for (final action in widget.actions) ...[
                         if (action.dividerBefore)
                           const Divider(height: 8, indent: 8, endIndent: 8),
-                        _AnimatedMenuAction(
-                          action: action,
-                          onSelected: () {
-                            widget.onSelected(action.value);
-                            _closeMenu();
-                          },
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: _AnimatedMenuAction(
+                            action: action,
+                            onSelected: () {
+                              widget.onSelected(action.value);
+                              _closeMenu();
+                            },
+                          ),
                         ),
                       ],
                     ],
@@ -834,23 +857,51 @@ class _AnimatedMenuActionState<T> extends State<_AnimatedMenuAction<T>> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeOut,
-        height: 32,
-        color: _hovered && widget.action.enabled
-            ? AppTheme.border
-            : Colors.transparent,
+        height: 38,
+        decoration: BoxDecoration(
+          color: _hovered && widget.action.enabled
+              ? AppTheme.border
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              widget.action.label,
-              style: TextStyle(
-                color: widget.action.enabled
-                    ? AppTheme.text
-                    : AppTheme.mutedText,
-                fontSize: 13,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.action.label,
+                  style: TextStyle(
+                    color: widget.action.enabled
+                        ? AppTheme.text
+                        : AppTheme.mutedText,
+                    fontSize: 14,
+                  ),
+                ),
               ),
-            ),
+              if (widget.action.shortcut != null) ...[
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.action.enabled
+                        ? AppTheme.panel
+                        : AppTheme.background,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    widget.action.shortcut!,
+                    style: const TextStyle(
+                      color: AppTheme.mutedText,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -1158,24 +1209,24 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: 520,
+      width: 680,
+      height: 620,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+        padding: const EdgeInsets.fromLTRB(30, 26, 30, 24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: AppTheme.background,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(color: AppTheme.border),
                   ),
-                  child: const Icon(Icons.keyboard_alt_outlined, size: 18),
+                  child: const Icon(Icons.keyboard_alt_outlined, size: 23),
                 ),
                 const SizedBox(width: 9),
                 const Expanded(
@@ -1186,7 +1237,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                         'Keyboard shortcuts',
                         style: TextStyle(
                           color: AppTheme.text,
-                          fontSize: 16,
+                          fontSize: 21,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1195,7 +1246,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                         'Configure the commands you use most often',
                         style: TextStyle(
                           color: AppTheme.mutedText,
-                          fontSize: 11,
+                          fontSize: 13,
                         ),
                       ),
                     ],
@@ -1209,28 +1260,36 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 26),
             const Text(
               'AVAILABLE SHORTCUTS',
               style: TextStyle(
                 color: AppTheme.mutedText,
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
               ),
             ),
-            const SizedBox(height: 8),
-            for (final entry in _shortcuts.entries)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: _ShortcutRow(
-                  label: entry.key,
-                  shortcut: entry.value,
-                  editing: _editing,
-                  onChanged: (value) =>
-                      setState(() => _shortcuts[entry.key] = value),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final entry in _shortcuts.entries)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ShortcutRow(
+                          label: entry.key,
+                          shortcut: entry.value,
+                          editing: _editing,
+                          onChanged: (value) =>
+                              setState(() => _shortcuts[entry.key] = value),
+                        ),
+                      ),
+                  ],
                 ),
               ),
+            ),
             const SizedBox(height: 8),
             Container(height: 1, color: AppTheme.border),
             const SizedBox(height: 14),
@@ -1239,7 +1298,7 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
                 const Expanded(
                   child: Text(
                     'Click a key field and press a new combination.',
-                    style: TextStyle(color: AppTheme.mutedText, fontSize: 11),
+                    style: TextStyle(color: AppTheme.mutedText, fontSize: 13),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -1274,17 +1333,20 @@ class _ShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 48,
-    padding: const EdgeInsets.symmetric(horizontal: 14),
+    height: 62,
+    padding: const EdgeInsets.symmetric(horizontal: 18),
     decoration: BoxDecoration(
       color: AppTheme.background,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(12),
       border: Border.all(color: AppTheme.border),
     ),
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(color: AppTheme.text)),
+          child: Text(
+            label,
+            style: const TextStyle(color: AppTheme.text, fontSize: 15),
+          ),
         ),
         const SizedBox(width: 14),
         _ShortcutCapture(
@@ -1366,8 +1428,8 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 148,
-    height: 34,
+    width: 178,
+    height: 42,
     child: Focus(
       focusNode: _focusNode,
       onKeyEvent: (node, event) {
@@ -1390,19 +1452,19 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
           filled: true,
           fillColor: widget.editing ? AppTheme.panel : AppTheme.background,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppTheme.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppTheme.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppTheme.text),
           ),
         ),
-        style: const TextStyle(color: AppTheme.text, fontSize: 12),
+        style: const TextStyle(color: AppTheme.text, fontSize: 14),
       ),
     ),
   );
