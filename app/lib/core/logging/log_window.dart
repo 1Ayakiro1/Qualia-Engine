@@ -209,16 +209,19 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       child: Scaffold(
         body: Column(
           children: [
-            _LogHeader(
-              paused: _paused,
-              autoScroll: _autoScroll,
-              onPause: () => setState(() => _paused = !_paused),
-              onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
-              onSave: _saveAs,
-              onClear: () => setState(_entries.clear),
-              onClose: widget.onClose,
-              onDrag: widget.onDrag,
-              onDragStart: widget.onDragStart,
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _LogHeader(
+                paused: _paused,
+                autoScroll: _autoScroll,
+                onPause: () => setState(() => _paused = !_paused),
+                onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
+                onSave: _saveAs,
+                onClear: () => setState(_entries.clear),
+                onClose: widget.onClose,
+                onDrag: widget.onDrag,
+                onDragStart: widget.onDragStart,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),

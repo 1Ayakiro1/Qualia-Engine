@@ -214,8 +214,21 @@ void main() {
     expect(find.byTooltip('extensions'), findsOneWidget);
     await tester.tap(find.byTooltip('extensions'));
     await tester.pumpAndSettle();
-    expect(find.text('EXTENSIONS'), findsOneWidget);
+    expect(find.text('EXPLORER'), findsOneWidget);
     expect(find.text('Signal Tools'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('toggle extension inspector')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('EXTENSION INSPECTOR'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('user&dev switcher'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('bug report opens as an empty rail workspace', (
@@ -270,6 +283,11 @@ void main() {
     expect(find.text('Pets'), findsNothing);
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
+
+    await tester.tap(find.text('Keyboard shortcuts').last);
+    await tester.pumpAndSettle();
+    expect(find.text('KEYBOARD SHORTCUTS'), findsOneWidget);
+    expect(find.text('WORKSPACE'), findsOneWidget);
   });
 
   testWidgets('profile and preference pages open from their own buttons', (

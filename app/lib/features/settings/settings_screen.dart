@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_info.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/engine_state.dart';
+import 'keyboard_shortcuts_panel.dart';
 
 /// Settings workspace styled as a dedicated, two-column preferences panel.
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -224,6 +225,15 @@ class _PreferencesContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (selectedItem == 'Keyboard shortcuts') {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(48, 42, 48, 38),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: const KeyboardShortcutsPanel(),
+        ),
+      );
+    }
     if (selectedItem != 'General') {
       return Center(
         child: Text(

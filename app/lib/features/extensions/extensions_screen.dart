@@ -73,6 +73,7 @@ class ExtensionsScreen extends StatefulWidget {
 class _ExtensionsScreenState extends State<ExtensionsScreen> {
   ExtensionFilter _filter = ExtensionFilter.all;
   String? _activeExtensionId;
+  bool _rightSidebarOpen = false;
   final List<UserExtension> _tabs = <UserExtension>[];
 
   List<UserExtension> get _visibleExtensions {
@@ -124,13 +125,16 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 270,
+          width: 260,
           child: _ExtensionExplorer(
             filter: _filter,
             extensions: _visibleExtensions,
             activeId: _activeExtensionId,
+            rightSidebarOpen: _rightSidebarOpen,
             onFilterChanged: (filter) => setState(() => _filter = filter),
             onSelected: _openExtension,
+            onToggleSidebar: () =>
+                setState(() => _rightSidebarOpen = !_rightSidebarOpen),
           ),
         ),
         const VerticalDivider(width: 1),
@@ -154,6 +158,10 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
             ],
           ),
         ),
+        if (_rightSidebarOpen) ...[
+          const VerticalDivider(width: 1),
+          SizedBox(width: 250, child: _ExtensionInspector(extension: active)),
+        ],
       ],
     );
   }
@@ -164,15 +172,19 @@ class _ExtensionExplorer extends StatelessWidget {
     required this.filter,
     required this.extensions,
     required this.activeId,
+    required this.rightSidebarOpen,
     required this.onFilterChanged,
     required this.onSelected,
+    required this.onToggleSidebar,
   });
 
   final ExtensionFilter filter;
   final List<UserExtension> extensions;
   final String? activeId;
+  final bool rightSidebarOpen;
   final ValueChanged<ExtensionFilter> onFilterChanged;
   final ValueChanged<UserExtension> onSelected;
+  final VoidCallback onToggleSidebar;
 
   String _filterLabel(ExtensionFilter value) {
     switch (value) {
@@ -191,16 +203,43 @@ class _ExtensionExplorer extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 18, 16, 5),
-          child: Text(
-            'EXTENSIONS',
-            style: TextStyle(
-              color: AppTheme.mutedText,
-              fontSize: 11,
-              letterSpacing: 1,
-              fontWeight: FontWeight.w600,
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 9, 8, 8),
+          child: Row(
+            children: [
+              const Text(
+                'EXPLORER',
+                style: TextStyle(
+                  color: AppTheme.mutedText,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Tooltip(
+                message: rightSidebarOpen
+                    ? 'Hide extension inspector'
+                    : 'Show extension inspector',
+                child: IconButton(
+                  key: const ValueKey<String>('toggle extension inspector'),
+                  onPressed: onToggleSidebar,
+                  icon: Icon(
+                    rightSidebarOpen
+                        ? Icons.view_sidebar
+                        : Icons.view_sidebar_outlined,
+                    size: 17,
+                  ),
+                  color: AppTheme.mutedText,
+                  hoverColor: AppTheme.border,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 27,
+                    height: 27,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -358,7 +397,7 @@ class _ExtensionTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 38,
+    height: 35,
     color: AppTheme.background,
     child: Row(
       children: [
@@ -382,7 +421,7 @@ class _ExtensionTabs extends StatelessWidget {
                   color: AppTheme.mutedText,
                   constraints: const BoxConstraints.tightFor(
                     width: 32,
-                    height: 32,
+                    height: 30,
                   ),
                   padding: EdgeInsets.zero,
                 ),
@@ -414,28 +453,139 @@ class _ExtensionTab extends StatelessWidget {
     child: InkWell(
       onTap: onSelected,
       hoverColor: AppTheme.border,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(extension.icon, size: 15),
-            const SizedBox(width: 7),
-            Text(extension.name, style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 7),
-            Tooltip(
-              message: 'Close tab',
-              child: InkWell(
-                onTap: onClosed,
-                borderRadius: BorderRadius.circular(4),
-                child: const Padding(
-                  padding: EdgeInsets.all(3),
-                  child: Icon(Icons.close, size: 13, color: AppTheme.mutedText),
+      child: SizedBox(
+        width: 205,
+        height: 35,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(extension.icon, size: 15),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  extension.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Tooltip(
+                message: 'Close tab',
+                child: InkWell(
+                  onTap: onClosed,
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Padding(
+                    padding: EdgeInsets.all(3),
+                    child: Icon(
+                      Icons.close,
+                      size: 13,
+                      color: AppTheme.mutedText,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    ),
+  );
+}
+
+class _ExtensionInspector extends StatelessWidget {
+  const _ExtensionInspector({required this.extension});
+
+  final UserExtension? extension;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: AppTheme.panel,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'EXTENSION INSPECTOR',
+            style: TextStyle(
+              color: AppTheme.mutedText,
+              fontSize: 11,
+              letterSpacing: 1,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (extension == null)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Select an extension',
+                  style: TextStyle(color: AppTheme.mutedText),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(extension!.icon, size: 26, color: AppTheme.text),
+                  const SizedBox(height: 12),
+                  Text(
+                    extension!.name,
+                    style: const TextStyle(
+                      color: AppTheme.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    extension!.description,
+                    style: const TextStyle(
+                      color: AppTheme.mutedText,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'ID  ${extension!.id}',
+                    style: const TextStyle(
+                      color: AppTheme.mutedText,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    'Category  ${extension!.category}',
+                    style: const TextStyle(
+                      color: AppTheme.mutedText,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () {},
+                    icon: Icon(
+                      extension!.active ? Icons.pause : Icons.play_arrow,
+                    ),
+                    label: Text(
+                      extension!.active
+                          ? 'Disable extension'
+                          : 'Enable extension',
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.settings_outlined),
+                    label: const Text('Extension settings'),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     ),
   );

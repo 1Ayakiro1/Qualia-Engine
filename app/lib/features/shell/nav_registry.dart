@@ -88,7 +88,7 @@ const List<NavSection> kNavSections = <NavSection>[
   NavSection(
     id: SectionId.extensions,
     label: 'Extensions',
-    icon: Icons.extension_outlined,
+    icon: Icons.auto_awesome_mosaic_outlined,
     subtitle: 'Пользовательские расширения',
     modes: {AppMode.consumer, AppMode.researcher, AppMode.developer},
   ),

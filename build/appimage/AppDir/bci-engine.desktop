@@ -8,4 +8,4 @@ Icon=bci_engine
 Categories=Science;Development;
 Terminal=false
 StartupWMClass=bci_engine
-X-AppImage-Version=0.3.9
+X-AppImage-Version=0.4.0

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] — Extensions workspace and shortcut surfaces
+
+- Extensions приведён к IDE-структуре Modules: отдельный Explorer, фильтры,
+  единый tab-bar, активная рабочая область и опциональный Extension Inspector.
+- Для Extensions добавлена отдельная иконка `auto_awesome_mosaic_outlined`,
+  визуально отличающая её от Modules.
+- Панель выбора пользовательского режима теперь доступна поверх Extensions,
+  Profile и Bug report так же, как в основном workspace layout.
+- Keyboard shortcuts переработан в единый переиспользуемый компонент для
+  Preferences и contextual menu глобального поиска: группировка, читаемые
+  key-fields, режим редактирования и единый нейтральный стиль.
+- В debug console добавлен верхний отступ над заголовком и управляющими
+  кнопками.
+
 ## [0.3.9] — Standalone debug terminal
 
 - Debug terminal вынесен в отдельный процесс и native window с независимым

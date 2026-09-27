@@ -23,6 +23,7 @@ import '../pipeline/pipeline_screen.dart';
 import '../session/session_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
+import '../settings/keyboard_shortcuts_panel.dart';
 import '../spectrogram/spectrogram_screen.dart';
 import 'layout_model.dart';
 import 'nav_registry.dart';
@@ -48,7 +49,7 @@ IconData _phosphorFor(SectionId id) {
     case SectionId.developer:
       return Icons.terminal;
     case SectionId.extensions:
-      return Icons.extension_outlined;
+      return Icons.auto_awesome_mosaic_outlined;
     case SectionId.bugReport:
       return Icons.bug_report_outlined;
     case SectionId.profile:
@@ -243,6 +244,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     unawaited(DebugTerminalLauncher.launch());
   }
 
+  void _selectMode(AppMode value) {
+    ref.read(appModeProvider.notifier).setMode(value);
+    _openTab(SectionId.dashboard);
+    ref.read(navSectionProvider.notifier).select(SectionId.dashboard);
+    setState(() => modeSwitcherOpen = false);
+  }
+
+  Widget _modeSwitcherOverlay({required Widget child, required AppMode mode}) =>
+      Stack(
+        children: [
+          Positioned.fill(child: child),
+          if (modeSwitcherOpen)
+            Positioned(
+              left: layout.railWidth + layout.gap,
+              bottom: 54,
+              child: _ModeSwitcherPanel(current: mode, onSelected: _selectMode),
+            ),
+        ],
+      );
+
   Widget _buildActivityRail({
     required List<NavSection> sections,
     required AppMode mode,
@@ -343,25 +364,29 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                 padding: EdgeInsets.all(
                                                   layout.gap,
                                                 ),
-                                                child: Row(
-                                                  children: [
-                                                    _buildActivityRail(
-                                                      sections: sections,
-                                                      mode: mode,
-                                                      section: section,
-                                                    ),
-                                                    _LayoutDivider(
-                                                      onDrag: (_) {},
-                                                    ),
-                                                    Expanded(
-                                                      child: _ShellSurface(
-                                                        radius: layout.radius,
-                                                        child: ProfileScreen(
-                                                          onBack: _returnToApp,
+                                                child: _modeSwitcherOverlay(
+                                                  mode: mode,
+                                                  child: Row(
+                                                    children: [
+                                                      _buildActivityRail(
+                                                        sections: sections,
+                                                        mode: mode,
+                                                        section: section,
+                                                      ),
+                                                      _LayoutDivider(
+                                                        onDrag: (_) {},
+                                                      ),
+                                                      Expanded(
+                                                        child: _ShellSurface(
+                                                          radius: layout.radius,
+                                                          child: ProfileScreen(
+                                                            onBack:
+                                                                _returnToApp,
+                                                          ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  ],
+                                                    ],
+                                                  ),
                                                 ),
                                               )
                                             : section == SectionId.bugReport
@@ -369,24 +394,27 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                 padding: EdgeInsets.all(
                                                   layout.gap,
                                                 ),
-                                                child: Row(
-                                                  children: [
-                                                    _buildActivityRail(
-                                                      sections: sections,
-                                                      mode: mode,
-                                                      section: section,
-                                                    ),
-                                                    _LayoutDivider(
-                                                      onDrag: (_) {},
-                                                    ),
-                                                    Expanded(
-                                                      child: _ShellSurface(
-                                                        radius: layout.radius,
-                                                        child:
-                                                            const BugReportScreen(),
+                                                child: _modeSwitcherOverlay(
+                                                  mode: mode,
+                                                  child: Row(
+                                                    children: [
+                                                      _buildActivityRail(
+                                                        sections: sections,
+                                                        mode: mode,
+                                                        section: section,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      _LayoutDivider(
+                                                        onDrag: (_) {},
+                                                      ),
+                                                      Expanded(
+                                                        child: _ShellSurface(
+                                                          radius: layout.radius,
+                                                          child:
+                                                              const BugReportScreen(),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               )
                                             : section == SectionId.extensions
@@ -394,24 +422,27 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                 padding: EdgeInsets.all(
                                                   layout.gap,
                                                 ),
-                                                child: Row(
-                                                  children: [
-                                                    _buildActivityRail(
-                                                      sections: sections,
-                                                      mode: mode,
-                                                      section: section,
-                                                    ),
-                                                    _LayoutDivider(
-                                                      onDrag: (_) {},
-                                                    ),
-                                                    Expanded(
-                                                      child: _ShellSurface(
-                                                        radius: layout.radius,
-                                                        child:
-                                                            const ExtensionsScreen(),
+                                                child: _modeSwitcherOverlay(
+                                                  mode: mode,
+                                                  child: Row(
+                                                    children: [
+                                                      _buildActivityRail(
+                                                        sections: sections,
+                                                        mode: mode,
+                                                        section: section,
                                                       ),
-                                                    ),
-                                                  ],
+                                                      _LayoutDivider(
+                                                        onDrag: (_) {},
+                                                      ),
+                                                      Expanded(
+                                                        child: _ShellSurface(
+                                                          radius: layout.radius,
+                                                          child:
+                                                              const ExtensionsScreen(),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               )
                                             : section == SectionId.settings
@@ -582,35 +613,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                             layout.railWidth +
                                                             layout.gap,
                                                         bottom: 54,
-                                                        child: _ModeSwitcherPanel(
-                                                          current: mode,
-                                                          onSelected: (value) {
-                                                            ref
-                                                                .read(
-                                                                  appModeProvider
-                                                                      .notifier,
-                                                                )
-                                                                .setMode(value);
-                                                            _openTab(
-                                                              SectionId
-                                                                  .dashboard,
-                                                            );
-                                                            ref
-                                                                .read(
-                                                                  navSectionProvider
-                                                                      .notifier,
-                                                                )
-                                                                .select(
-                                                                  SectionId
-                                                                      .dashboard,
-                                                                );
-                                                            setState(
-                                                              () =>
-                                                                  modeSwitcherOpen =
-                                                                      false,
-                                                            );
-                                                          },
-                                                        ),
+                                                        child:
+                                                            _ModeSwitcherPanel(
+                                                              current: mode,
+                                                              onSelected:
+                                                                  _selectMode,
+                                                            ),
                                                       ),
                                                   ],
                                                 ),
@@ -1534,31 +1542,8 @@ class _HoverSearchActionState extends State<_HoverSearchAction> {
   );
 }
 
-class _ShortcutDialog extends StatefulWidget {
+class _ShortcutDialog extends StatelessWidget {
   const _ShortcutDialog();
-
-  @override
-  State<_ShortcutDialog> createState() => _ShortcutDialogState();
-}
-
-class _ShortcutDialogState extends State<_ShortcutDialog> {
-  bool _editing = false;
-  final Map<String, String> _shortcuts = {
-    'Open project': 'Ctrl+O',
-    'Find module': 'Ctrl+Shift+M',
-    'Increase interface scale': 'Ctrl++',
-    'Decrease interface scale': 'Ctrl+-',
-    'Reset interface scale': 'Ctrl+0',
-  };
-
-  static const _shortcutGroups = <String, List<String>>{
-    'WORKSPACE': ['Open project', 'Find module'],
-    'INTERFACE': [
-      'Increase interface scale',
-      'Decrease interface scale',
-      'Reset interface scale',
-    ],
-  };
 
   @override
   Widget build(BuildContext context) => Dialog(
@@ -1572,311 +1557,9 @@ class _ShortcutDialogState extends State<_ShortcutDialog> {
       height: math.min(700, MediaQuery.sizeOf(context).height - 48),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.background,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: AppTheme.border),
-                  ),
-                  child: const Icon(Icons.keyboard_alt_outlined, size: 21),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Keyboard shortcuts',
-                        style: TextStyle(
-                          color: AppTheme.text,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 3),
-                      Text(
-                        'Configure the commands you use most often',
-                        style: TextStyle(
-                          color: AppTheme.mutedText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 17),
-                  color: AppTheme.mutedText,
-                  tooltip: 'Close',
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'KEYBOARD SHORTCUTS',
-              style: TextStyle(
-                color: AppTheme.mutedText,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final group in _shortcutGroups.entries) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
-                          child: Text(
-                            group.key,
-                            style: const TextStyle(
-                              color: AppTheme.mutedText,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: .8,
-                            ),
-                          ),
-                        ),
-                      ),
-                      for (final label in group.value)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 5),
-                          child: _ShortcutRow(
-                            label: label,
-                            shortcut: _shortcuts[label]!,
-                            editing: _editing,
-                            onChanged: (value) =>
-                                setState(() => _shortcuts[label] = value),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(height: 1, color: AppTheme.border),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Click a key field and press a new combination.',
-                    style: TextStyle(color: AppTheme.mutedText, fontSize: 12),
-                  ),
-                ),
-                _ShortcutEditButton(
-                  editing: _editing,
-                  onPressed: () => setState(() => _editing = !_editing),
-                ),
-              ],
-            ),
-          ],
+        child: KeyboardShortcutsPanel(
+          onClose: () => Navigator.of(context).pop(),
         ),
-      ),
-    ),
-  );
-}
-
-class _ShortcutEditButton extends StatefulWidget {
-  const _ShortcutEditButton({required this.editing, required this.onPressed});
-
-  final bool editing;
-  final VoidCallback onPressed;
-
-  @override
-  State<_ShortcutEditButton> createState() => _ShortcutEditButtonState();
-}
-
-class _ShortcutEditButtonState extends State<_ShortcutEditButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      onTap: widget.onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: _hovered ? AppTheme.border : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.mutedText),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              widget.editing ? Icons.check : Icons.edit_outlined,
-              size: 16,
-              color: AppTheme.text,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              widget.editing ? 'Done' : 'Edit shortcuts',
-              style: const TextStyle(color: AppTheme.text, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _ShortcutRow extends StatelessWidget {
-  const _ShortcutRow({
-    required this.label,
-    required this.shortcut,
-    required this.editing,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String shortcut;
-  final bool editing;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 62,
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: AppTheme.border),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: AppTheme.text, fontSize: 14),
-          ),
-        ),
-        const SizedBox(width: 14),
-        _ShortcutCapture(
-          value: shortcut,
-          editing: editing,
-          onChanged: onChanged,
-        ),
-      ],
-    ),
-  );
-}
-
-class _ShortcutCapture extends StatefulWidget {
-  const _ShortcutCapture({
-    required this.value,
-    required this.editing,
-    required this.onChanged,
-  });
-
-  final String value;
-  final bool editing;
-  final ValueChanged<String> onChanged;
-
-  @override
-  State<_ShortcutCapture> createState() => _ShortcutCaptureState();
-}
-
-class _ShortcutCaptureState extends State<_ShortcutCapture> {
-  late final FocusNode _focusNode;
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-    _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(covariant _ShortcutCapture oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value && _controller.text != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _formatKey(KeyEvent event) {
-    final keyboard = HardwareKeyboard.instance;
-    final parts = <String>[];
-    if (keyboard.isControlPressed) parts.add('Ctrl');
-    if (keyboard.isAltPressed) parts.add('Alt');
-    if (keyboard.isShiftPressed) parts.add('Shift');
-    if (keyboard.isMetaPressed) parts.add('Meta');
-    final key = event.logicalKey.keyLabel;
-    final isModifier = <LogicalKeyboardKey>{
-      LogicalKeyboardKey.control,
-      LogicalKeyboardKey.controlLeft,
-      LogicalKeyboardKey.controlRight,
-      LogicalKeyboardKey.alt,
-      LogicalKeyboardKey.altLeft,
-      LogicalKeyboardKey.altRight,
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.shiftLeft,
-      LogicalKeyboardKey.shiftRight,
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.metaLeft,
-      LogicalKeyboardKey.metaRight,
-    }.contains(event.logicalKey);
-    if (key.isNotEmpty && !isModifier) parts.add(key);
-    return parts.join('+');
-  }
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 158,
-    height: 38,
-    child: Focus(
-      focusNode: _focusNode,
-      onKeyEvent: (node, event) {
-        if (!widget.editing || event is! KeyDownEvent) {
-          return KeyEventResult.ignored;
-        }
-        final value = _formatKey(event);
-        if (value.isNotEmpty) widget.onChanged(value);
-        return KeyEventResult.handled;
-      },
-      child: TextField(
-        controller: _controller,
-        readOnly: true,
-        enabled: widget.editing,
-        onTap: widget.editing ? _focusNode.requestFocus : null,
-        textAlign: TextAlign.center,
-        decoration: InputDecoration(
-          hintText: widget.editing ? 'Press keys' : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          filled: true,
-          fillColor: widget.editing ? AppTheme.panel : Colors.transparent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-        ),
-        style: const TextStyle(color: AppTheme.text, fontSize: 13),
       ),
     ),
   );
@@ -1972,7 +1655,7 @@ class _ActivityRail extends StatelessWidget {
       NavSection(
         id: SectionId.extensions,
         label: 'extensions',
-        icon: Icons.extension_outlined,
+        icon: Icons.auto_awesome_mosaic_outlined,
         modes: {},
       ),
       NavSection(
