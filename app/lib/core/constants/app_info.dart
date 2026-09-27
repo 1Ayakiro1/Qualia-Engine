@@ -4,7 +4,7 @@ class AppInfo {
 
   static const String appName = 'Ayakiro BCI Engine';
   static const String appId = 'com.ayakiro.bci_engine';
-  static const String version = '0.3.2';
+  static const String version = '0.3.3';
   static const String stage = 'skeleton + log-console';
   static const String organization = 'Ayakiro';
 

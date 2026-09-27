@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,6 +70,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   static const double _maxScale = 1.5;
   static const double _baseScale = 1.2;
   static const double _scaleStep = 0.1;
+  static const double _minExplorerWidth = 180;
+  static const double _maxExplorerWidth = 520;
 
   double get _visualScale => uiScale * _baseScale;
 
@@ -117,6 +121,10 @@ class _AppShellState extends ConsumerState<AppShell> {
             final visualScale = _visualScale;
             final width = constraints.maxWidth / visualScale;
             final height = constraints.maxHeight / visualScale;
+            final bounds = _explorerWidthBounds(width);
+            final effectiveExplorerWidth = layout.explorerWidth
+                .clamp(bounds.$1, bounds.$2)
+                .toDouble();
             final mediaQuery = MediaQuery.of(context);
             final logicalMediaQuery = mediaQuery.copyWith(
               size: Size(width, height),
@@ -131,10 +139,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                   width: constraints.maxWidth,
                   height: constraints.maxHeight,
                   child: Align(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topLeft,
                     child: Transform.scale(
                       scale: visualScale,
-                      alignment: Alignment.center,
+                      alignment: Alignment.topLeft,
                       child: SizedBox(
                         width: width,
                         height: height,
@@ -144,6 +152,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                             body: Column(
                               children: [
                                 _TitleBar(
+                                  compact: width < 1050,
                                   onOpenDebugConsole: () =>
                                       _openDebugConsole(context),
                                   scale: uiScale,
@@ -230,11 +239,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     }),
                                                   ),
                                                   _ShellSurface(
-                                                    width: layout.explorerWidth,
+                                                    width:
+                                                        effectiveExplorerWidth,
                                                     radius: layout.radius,
                                                     child: _Explorer(
                                                       width:
-                                                          layout.explorerWidth,
+                                                          effectiveExplorerWidth,
                                                       sections: sections,
                                                       selected: selected < 0
                                                           ? 0
@@ -250,15 +260,14 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                     ),
                                                   ),
                                                   _LayoutDivider(
-                                                    onDrag: (delta) => setState(() {
-                                                      layout = layout.copyWith(
-                                                        explorerWidth:
-                                                            (layout.explorerWidth +
-                                                                    delta)
-                                                                .clamp(220, 420)
-                                                                .toDouble(),
-                                                      );
-                                                    }),
+                                                    key: const ValueKey<String>(
+                                                      'explorer resize handle',
+                                                    ),
+                                                    onDrag: (delta) =>
+                                                        _resizeExplorer(
+                                                          delta,
+                                                          width,
+                                                        ),
                                                   ),
                                                   Expanded(
                                                     child: _ShellSurface(
@@ -332,15 +341,36 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
     );
   }
+
+  void _resizeExplorer(double delta, double availableWidth) {
+    final bounds = _explorerWidthBounds(availableWidth);
+    setState(() {
+      layout = layout.copyWith(
+        explorerWidth: (layout.explorerWidth + delta)
+            .clamp(bounds.$1, bounds.$2)
+            .toDouble(),
+      );
+    });
+  }
+
+  (double, double) _explorerWidthBounds(double availableWidth) {
+    final available =
+        availableWidth - (layout.gap * 2) - layout.railWidth - 16 - 180;
+    final minimum = math.min(_minExplorerWidth, math.max(140.0, available));
+    final maximum = math.max(minimum, math.min(_maxExplorerWidth, available));
+    return (minimum, maximum);
+  }
 }
 
 class _TitleBar extends StatelessWidget {
   const _TitleBar({
+    required this.compact,
     required this.onOpenDebugConsole,
     required this.onOpenPreferences,
     required this.scale,
     required this.onScaleChanged,
   });
+  final bool compact;
   final VoidCallback onOpenDebugConsole;
   final VoidCallback onOpenPreferences;
   final double scale;
@@ -349,7 +379,6 @@ class _TitleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final compact = MediaQuery.sizeOf(context).width < 1100;
     return Container(
       height: 36,
       decoration: const BoxDecoration(
@@ -382,12 +411,10 @@ class _TitleBar extends StatelessWidget {
               const SizedBox(width: 8),
               Container(width: 1, height: 20, color: AppTheme.border),
               const SizedBox(width: 6),
-              if (!compact) ...[
-                _TopMenuItem(label: 'File', onPreferences: onOpenPreferences),
-                _TopMenuItem(label: 'Edit'),
-                _TopMenuItem(label: 'View'),
-                _TopMenuItem(label: 'Build'),
-              ],
+              _TopMenuItem(label: 'File', onPreferences: onOpenPreferences),
+              _TopMenuItem(label: 'Edit'),
+              _TopMenuItem(label: 'View'),
+              _TopMenuItem(label: 'Build'),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -1494,18 +1521,40 @@ class _ShellSurface extends StatelessWidget {
   );
 }
 
-class _LayoutDivider extends StatelessWidget {
-  const _LayoutDivider({required this.onDrag});
+class _LayoutDivider extends StatefulWidget {
+  const _LayoutDivider({super.key, required this.onDrag});
 
   final ValueChanged<double> onDrag;
 
   @override
+  State<_LayoutDivider> createState() => _LayoutDividerState();
+}
+
+class _LayoutDividerState extends State<_LayoutDivider> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) => MouseRegion(
     cursor: SystemMouseCursors.resizeColumn,
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
-      child: const SizedBox(width: 8),
+      onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
+      child: SizedBox(
+        width: 8,
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: _hovered ? 2 : 1,
+            height: _hovered ? 34 : 20,
+            decoration: BoxDecoration(
+              color: _hovered ? AppTheme.mutedText : AppTheme.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -1767,13 +1816,26 @@ class _ExplorerState extends State<_Explorer> {
             Expanded(
               child: ScrollbarTheme(
                 data: ScrollbarThemeData(
-                  thumbColor: const WidgetStatePropertyAll(AppTheme.mutedText),
-                  thickness: const WidgetStatePropertyAll(4),
-                  radius: const Radius.circular(4),
+                  thumbColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.dragged)) {
+                      return AppTheme.mutedText.withAlpha(155);
+                    }
+                    if (states.contains(WidgetState.hovered)) {
+                      return AppTheme.mutedText.withAlpha(125);
+                    }
+                    return AppTheme.mutedText.withAlpha(70);
+                  }),
+                  trackColor: const WidgetStatePropertyAll(Colors.transparent),
+                  trackBorderColor: const WidgetStatePropertyAll(
+                    Colors.transparent,
+                  ),
+                  thickness: const WidgetStatePropertyAll(3),
+                  minThumbLength: 24,
+                  radius: const Radius.circular(3),
                 ),
                 child: Scrollbar(
                   controller: _moduleScrollController,
-                  thumbVisibility: true,
+                  thumbVisibility: false,
                   child: SingleChildScrollView(
                     controller: _moduleScrollController,
                     padding: EdgeInsets.zero,

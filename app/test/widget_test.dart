@@ -62,6 +62,77 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
   });
 
+  testWidgets('header menus remain available across interface scales', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    for (var index = 0; index < 5; index++) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pump();
+    }
+    expect(find.text('150%'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('File menu button')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('Edit menu button')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('View menu button')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('Build menu button')),
+      findsOneWidget,
+    );
+
+    for (var index = 0; index < 7; index++) {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pump();
+    }
+    expect(find.text('80%'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('File menu button')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('explorer resize handle adapts the sidebar width', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final handle = find.byKey(const ValueKey<String>('explorer resize handle'));
+    expect(handle, findsOneWidget);
+    final before = tester.getTopLeft(handle).dx;
+    await tester.drag(handle, const Offset(100, 0));
+    await tester.pump();
+    expect(tester.getTopLeft(handle).dx, greaterThan(before));
+  });
+
   testWidgets('top menus and global search expose contextual actions', (
     WidgetTester tester,
   ) async {
