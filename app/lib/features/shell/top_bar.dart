@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/logging/log_window.dart';
 import '../../../state/app_state.dart';
 import '../../../state/engine_state.dart';
 import '../common/widgets.dart';
@@ -45,21 +44,6 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
-        IconButton(
-          tooltip: 'Консоль логов (отдельное окно)',
-          icon: const Icon(Icons.terminal),
-          onPressed: () async {
-            try {
-              await openLogConsole();
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Не удалось открыть консоль: $e')),
-                );
-              }
-            }
-          },
-        ),
         Padding(
           padding: const EdgeInsets.only(right: 12),
           child: StatusChip(

@@ -2,90 +2,20 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:window_manager/window_manager.dart';
 
-import 'app_logger.dart';
 import '../theme/app_theme.dart';
+import 'app_logger.dart';
 import 'log_entry.dart';
 
-/// Opens the detached log console in a separate OS window.
-///
-/// The console is a second Flutter engine running the same binary with the
-/// `log_console` argument; it tails `logs/latest.log` from disk, so no shared
-/// memory is required between engines.
-Future<void> openLogConsole() async {
-  AppLogger.instance.log('app', 'открытие окна консоли логов');
-  try {
-    await WindowController.create(
-      const WindowConfiguration(arguments: 'log_console', hiddenAtLaunch: true),
-    );
-    // The child engine configures and shows itself after its custom title bar
-    // and geometry are ready. Showing it here would briefly expose the
-    // default GTK header and steal focus before those settings are applied.
-  } catch (e) {
-    AppLogger.instance.log(
-      'app',
-      'не удалось открыть консоль логов: $e',
-      level: LogLevel.error,
-    );
-    rethrow;
-  }
-}
-
-/// Root widget of the detached log console window (second engine entrypoint).
-class LogConsoleApp extends StatelessWidget {
-  const LogConsoleApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ProviderScope(
-      child: MaterialApp(
-        title: 'BCI Engine — Консоль логов',
-        debugShowCheckedModeBanner: false,
-        theme: _logTheme,
-        home: const LogConsoleScreen(),
-      ),
-    );
-  }
-
-  static final ThemeData _logTheme = ThemeData(
-    brightness: Brightness.dark,
-    useMaterial3: true,
-    scaffoldBackgroundColor: AppTheme.background,
-    canvasColor: AppTheme.background,
-    colorScheme: const ColorScheme.dark(
-      surface: AppTheme.panel,
-      primary: AppTheme.text,
-      outline: AppTheme.border,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppTheme.background,
-      foregroundColor: AppTheme.text,
-      elevation: 0,
-      toolbarHeight: 42,
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppTheme.panel,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-        borderSide: BorderSide(color: AppTheme.border),
-      ),
-    ),
-  );
-}
-
-/// Detached log console with the same compact, neutral visual language as the
+/// In-app debug terminal with the same compact, neutral visual language as the
 /// main application.
 class LogConsoleScreen extends ConsumerStatefulWidget {
-  const LogConsoleScreen({super.key, this.onClose});
+  const LogConsoleScreen({super.key, required this.onClose, this.onDrag});
 
-  /// Used by the in-app terminal panel. Detached-window callers leave this
-  /// null and use the native window close action instead.
-  final VoidCallback? onClose;
+  final VoidCallback onClose;
+  final ValueChanged<Offset>? onDrag;
 
   @override
   ConsumerState<LogConsoleScreen> createState() => _LogConsoleScreenState();
@@ -267,7 +197,8 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
               onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
               onSave: _saveAs,
               onClear: () => setState(_entries.clear),
-              onClose: widget.onClose ?? () => windowManager.close(),
+              onClose: widget.onClose,
+              onDrag: widget.onDrag,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -324,7 +255,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                           const SizedBox(height: 12),
                           const Text('Файл latest.log пока не создан.'),
                           const SizedBox(height: 4),
-                          const Text('Запустите основное окно приложения.'),
+                          const Text('Запустите рабочую область приложения.'),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: _openTail,
@@ -404,6 +335,7 @@ class _LogHeader extends StatelessWidget {
     required this.onSave,
     required this.onClear,
     required this.onClose,
+    required this.onDrag,
   });
 
   final bool paused;
@@ -413,6 +345,7 @@ class _LogHeader extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onClear;
   final VoidCallback onClose;
+  final ValueChanged<Offset>? onDrag;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -423,21 +356,31 @@ class _LogHeader extends StatelessWidget {
     ),
     child: Stack(
       children: [
-        Positioned.fill(child: DragToMoveArea(child: const SizedBox.expand())),
         Row(
           children: [
             const SizedBox(width: 16),
-            const Icon(Icons.terminal, size: 19, color: AppTheme.text),
-            const SizedBox(width: 10),
-            const Text(
-              'Debug terminal',
-              style: TextStyle(
-                color: AppTheme.text,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: onDrag == null
+                    ? null
+                    : (details) => onDrag!(details.delta),
+                child: const Row(
+                  children: [
+                    Icon(Icons.terminal, size: 19, color: AppTheme.text),
+                    SizedBox(width: 10),
+                    Text(
+                      'Debug terminal',
+                      style: TextStyle(
+                        color: AppTheme.text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Spacer(),
             _LogIconButton(
               tooltip: paused ? 'Продолжить' : 'Пауза',
               icon: paused ? Icons.play_arrow : Icons.pause,

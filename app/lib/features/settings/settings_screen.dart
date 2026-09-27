@@ -106,7 +106,7 @@ class _PreferencesSidebar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(10, 14, 10, 28),
         children: [
           _SidebarBackButton(onPressed: onBack),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Container(
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -129,14 +129,14 @@ class _PreferencesSidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           _SidebarGroup(
             title: 'Personal',
             items: _personal,
             selected: selected,
             onSelected: onSelected,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
           const Text('Archived', style: TextStyle(color: AppTheme.mutedText)),
         ],
       ),
@@ -178,18 +178,21 @@ class _SidebarGroup extends StatelessWidget {
         child: Text(title, style: const TextStyle(color: AppTheme.mutedText)),
       ),
       for (final item in items)
-        _PreferenceNavButton(
-          label: item.$1,
-          icon: item.$2,
-          selected: selected == item.$1,
-          trailing: item.$1 == 'Account'
-              ? const Icon(
-                  Icons.north_east,
-                  size: 15,
-                  color: AppTheme.mutedText,
-                )
-              : null,
-          onTap: () => onSelected(item.$1),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: _PreferenceNavButton(
+            label: item.$1,
+            icon: item.$2,
+            selected: selected == item.$1,
+            trailing: item.$1 == 'Account'
+                ? const Icon(
+                    Icons.north_east,
+                    size: 15,
+                    color: AppTheme.mutedText,
+                  )
+                : null,
+            onTap: () => onSelected(item.$1),
+          ),
         ),
     ],
   );

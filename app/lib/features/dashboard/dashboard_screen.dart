@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/logging/app_logger.dart';
-import '../../core/logging/log_window.dart';
 import '../../state/engine_provider.dart';
 import '../../state/engine_state.dart';
 import '../../state/app_state.dart';
@@ -186,30 +184,6 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  AppLogger.instance.log(
-                    'app',
-                    'консоль логов открыта с дашборда',
-                  );
-                  try {
-                    await openLogConsole();
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Не удалось открыть консоль: $e'),
-                        ),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.terminal),
-                label: const Text('Открыть консоль логов'),
-              ),
-            ),
           ],
         ),
         InfoCard(

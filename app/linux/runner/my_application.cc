@@ -1,6 +1,5 @@
 #include "my_application.h"
 
-#include <desktop_multi_window/desktop_multi_window_plugin.h>
 #include <flutter_linux/flutter_linux.h>
 #include "flutter/generated_plugin_registrant.h"
 
@@ -23,8 +22,7 @@ static void my_application_activate(GApplication* application) {
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
   // The Flutter shell hides the native frame for the main window through
-  // window_manager. Leave the default decoration here so detached secondary
-  // windows, such as the log console, retain normal window controls.
+  // window_manager.
   gtk_window_set_title(window, "Ayakiro BCI Engine");
 
   gtk_window_set_default_size(window, 1280, 720);
@@ -56,13 +54,6 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
-
-  // Secondary windows created by desktop_multi_window get ONLY that plugin
-  // by default. Register the full generated set (window_manager, etc.) in
-  // every new window too — otherwise the log console engine crashes with
-  // MissingPluginException on window_manager.ensureInitialized().
-  desktop_multi_window_plugin_set_window_created_callback(
-      [](FlPluginRegistry* registry) { fl_register_plugins(registry); });
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

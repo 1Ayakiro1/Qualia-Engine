@@ -290,6 +290,31 @@ void main() {
     expect(find.text('QUICK ACTIONS'), findsNothing);
   });
 
+  testWidgets('debug terminal stays in the shell and can be moved', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('Открыть терминал отладки'));
+    await tester.pumpAndSettle();
+    expect(find.text('Debug terminal'), findsOneWidget);
+    expect(find.byTooltip('Открыть отдельное окно'), findsNothing);
+
+    final title = find.text('Debug terminal');
+    final before = tester.getTopLeft(title);
+    await tester.drag(title, const Offset(-100, -60));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(title).dx, lessThan(before.dx));
+  });
+
   testWidgets('active and catalog module searches are separate', (
     WidgetTester tester,
   ) async {

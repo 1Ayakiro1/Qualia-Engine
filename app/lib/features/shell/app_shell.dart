@@ -70,6 +70,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _explorerVisible = true;
   String settingsItem = 'General';
   bool _debugConsoleVisible = false;
+  Offset _debugConsolePosition = const Offset(-1, -1);
   SystemModule? _selectedModule;
   final List<NavSection> _openTabs = <NavSection>[];
   SectionId? _activeTab;
@@ -214,7 +215,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _resetScale() => setState(() => uiScale = 1.0);
 
-  Future<void> _openDebugConsole(BuildContext context) async {
+  void _openDebugConsole() {
     if (!mounted) return;
     setState(() => _debugConsoleVisible = true);
   }
@@ -279,8 +280,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                               children: [
                                 _TitleBar(
                                   compact: width < 1050,
-                                  onOpenDebugConsole: () =>
-                                      _openDebugConsole(context),
+                                  onOpenDebugConsole: _openDebugConsole,
                                   scale: uiScale,
                                   onScaleChanged: (value) =>
                                       setState(() => uiScale = value),
@@ -479,10 +479,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                                         () => terminalOpen =
                                                                             !terminalOpen,
                                                                       ),
-                                                                  onOpenWindow: () =>
-                                                                      _openDebugConsole(
-                                                                        context,
-                                                                      ),
                                                                 ),
                                                               ],
                                                             ),
@@ -531,29 +527,82 @@ class _AppShellState extends ConsumerState<AppShell> {
                                               ),
                                       ),
                                       if (_debugConsoleVisible)
-                                        Positioned(
-                                          right: layout.gap,
-                                          bottom: layout.gap,
-                                          width: math.min(900, width - 24),
-                                          height: math.min(620, height - 24),
-                                          child: Material(
-                                            color: AppTheme.background,
-                                            elevation: 20,
-                                            clipBehavior: Clip.antiAlias,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              side: const BorderSide(
-                                                color: AppTheme.border,
+                                        Builder(
+                                          builder: (context) {
+                                            final panelWidth = math.min(
+                                              900.0,
+                                              math.max(1.0, width - 24),
+                                            );
+                                            final panelHeight = math.min(
+                                              620.0,
+                                              math.max(1.0, height - 24),
+                                            );
+                                            final defaultLeft = math.max(
+                                              layout.gap,
+                                              width - panelWidth - layout.gap,
+                                            );
+                                            final defaultTop = math.max(
+                                              layout.gap,
+                                              height - panelHeight - layout.gap,
+                                            );
+                                            final left =
+                                                _debugConsolePosition.dx < 0
+                                                ? defaultLeft
+                                                : _debugConsolePosition.dx
+                                                      .clamp(
+                                                        0.0,
+                                                        math.max(
+                                                          0.0,
+                                                          width - panelWidth,
+                                                        ),
+                                                      )
+                                                      .toDouble();
+                                            final top =
+                                                _debugConsolePosition.dy < 0
+                                                ? defaultTop
+                                                : _debugConsolePosition.dy
+                                                      .clamp(
+                                                        0.0,
+                                                        math.max(
+                                                          0.0,
+                                                          height - panelHeight,
+                                                        ),
+                                                      )
+                                                      .toDouble();
+                                            return Positioned(
+                                              left: left,
+                                              top: top,
+                                              width: panelWidth,
+                                              height: panelHeight,
+                                              child: Material(
+                                                color: AppTheme.background,
+                                                elevation: 20,
+                                                clipBehavior: Clip.antiAlias,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  side: const BorderSide(
+                                                    color: AppTheme.border,
+                                                  ),
+                                                ),
+                                                child: LogConsoleScreen(
+                                                  onClose: () => setState(
+                                                    () => _debugConsoleVisible =
+                                                        false,
+                                                  ),
+                                                  onDrag: (delta) =>
+                                                      setState(() {
+                                                        final current = Offset(
+                                                          left,
+                                                          top,
+                                                        );
+                                                        _debugConsolePosition =
+                                                            current + delta;
+                                                      }),
+                                                ),
                                               ),
-                                            ),
-                                            child: LogConsoleScreen(
-                                              onClose: () => setState(
-                                                () => _debugConsoleVisible =
-                                                    false,
-                                              ),
-                                            ),
-                                          ),
+                                            );
+                                          },
                                         ),
                                     ],
                                   ),
@@ -2878,14 +2927,9 @@ class _ModuleEditorDialogState extends State<_ModuleEditorDialog> {
 }
 
 class _TerminalPanel extends StatelessWidget {
-  const _TerminalPanel({
-    required this.open,
-    required this.onToggle,
-    required this.onOpenWindow,
-  });
+  const _TerminalPanel({required this.open, required this.onToggle});
   final bool open;
   final VoidCallback onToggle;
-  final VoidCallback onOpenWindow;
   @override
   Widget build(BuildContext context) => AnimatedContainer(
     duration: const Duration(milliseconds: 180),
@@ -2920,17 +2964,6 @@ class _TerminalPanel extends StatelessWidget {
                       style: TextStyle(fontSize: 12, color: AppTheme.mutedText),
                     ),
                   const Spacer(),
-                  if (!compact)
-                    IconButton(
-                      onPressed: onOpenWindow,
-                      tooltip: 'Открыть отдельное окно',
-                      icon: const Icon(Icons.open_in_new, size: 16),
-                      constraints: const BoxConstraints.tightFor(
-                        width: 30,
-                        height: 30,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
                   IconButton(
                     onPressed: onToggle,
                     icon: Icon(
