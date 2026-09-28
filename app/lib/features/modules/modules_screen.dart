@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/modules/module_registry.dart';
 import '../../core/theme/app_theme.dart';
+import '../common/widgets.dart';
 
 /// Module workspace with an optional inspector on the right.
 class ModulesScreen extends StatefulWidget {
@@ -11,12 +12,18 @@ class ModulesScreen extends StatefulWidget {
     required this.onAdd,
     required this.onEdit,
     required this.onRemove,
+    this.selectedModule,
+    this.inspectorOpen = false,
+    this.onToggleInspector,
   });
 
   final List<SystemModule> modules;
   final VoidCallback onAdd;
   final ValueChanged<SystemModule> onEdit;
   final ValueChanged<SystemModule> onRemove;
+  final SystemModule? selectedModule;
+  final bool inspectorOpen;
+  final VoidCallback? onToggleInspector;
 
   @override
   State<ModulesScreen> createState() => _ModulesScreenState();
@@ -29,15 +36,19 @@ class _ModulesScreenState extends State<ModulesScreen> {
   @override
   Widget build(BuildContext context) {
     final activeCount = widget.modules.where((module) => module.active).length;
-    final selected = widget.modules.any((module) => module.id == _selected?.id)
-        ? widget.modules.firstWhere((module) => module.id == _selected!.id)
+    final activeSelection = widget.selectedModule ?? _selected;
+    final selected =
+        widget.modules.any((module) => module.id == activeSelection?.id)
+        ? widget.modules.firstWhere(
+            (module) => module.id == activeSelection!.id,
+          )
         : null;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: ColoredBox(
+          child: DesktopPane(
             color: AppTheme.background,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(22, 18, 22, 30),
@@ -61,12 +72,14 @@ class _ModulesScreenState extends State<ModulesScreen> {
                     ),
                     _ModuleToolbarButton(
                       icon: Icons.view_sidebar_outlined,
-                      tooltip: _rightSidebarOpen
+                      tooltip: widget.inspectorOpen
                           ? 'Hide module inspector'
                           : 'Show module inspector',
-                      onPressed: () => setState(
-                        () => _rightSidebarOpen = !_rightSidebarOpen,
-                      ),
+                      onPressed:
+                          widget.onToggleInspector ??
+                          () => setState(
+                            () => _rightSidebarOpen = !_rightSidebarOpen,
+                          ),
                     ),
                   ],
                 ),
@@ -93,15 +106,18 @@ class _ModulesScreenState extends State<ModulesScreen> {
             ),
           ),
         ),
-        if (_rightSidebarOpen)
+        if (widget.inspectorOpen ||
+            (widget.onToggleInspector == null && _rightSidebarOpen))
           SizedBox(
             width: 260,
-            child: _ModuleInspector(
-              module: selected,
-              onEdit: selected == null ? null : () => widget.onEdit(selected),
-              onRemove: selected == null
-                  ? null
-                  : () => widget.onRemove(selected),
+            child: DesktopPane(
+              child: _ModuleInspector(
+                module: selected,
+                onEdit: selected == null ? null : () => widget.onEdit(selected),
+                onRemove: selected == null
+                    ? null
+                    : () => widget.onRemove(selected),
+              ),
             ),
           ),
       ],
@@ -121,17 +137,12 @@ class _ModuleToolbarButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      color: AppTheme.mutedText,
-      hoverColor: AppTheme.border,
-      splashRadius: 17,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-      padding: EdgeInsets.zero,
-    ),
+  Widget build(BuildContext context) => DesktopIconButton(
+    icon: icon,
+    tooltip: tooltip,
+    onPressed: onPressed,
+    size: 32,
+    iconSize: 18,
   );
 }
 
@@ -191,31 +202,19 @@ class _ModuleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Tooltip(
-                message: 'Edit module',
-                child: IconButton(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  color: AppTheme.mutedText,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 30,
-                    height: 30,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+              DesktopIconButton(
+                icon: Icons.edit_outlined,
+                tooltip: 'Edit module',
+                onPressed: onEdit,
+                size: 30,
+                iconSize: 16,
               ),
-              Tooltip(
-                message: 'Remove module',
-                child: IconButton(
-                  onPressed: onRemove,
-                  icon: const Icon(Icons.remove, size: 17),
-                  color: AppTheme.mutedText,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 30,
-                    height: 30,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+              DesktopIconButton(
+                icon: Icons.remove,
+                tooltip: 'Remove module',
+                onPressed: onRemove,
+                size: 30,
+                iconSize: 17,
               ),
             ],
           ),

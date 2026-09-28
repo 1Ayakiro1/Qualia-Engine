@@ -65,6 +65,13 @@ const List<NavSection> kNavSections = <NavSection>[
     modes: {AppMode.researcher, AppMode.developer},
   ),
   NavSection(
+    id: SectionId.entity,
+    label: 'Entity',
+    icon: Icons.hub_outlined,
+    subtitle: 'Neural network entities',
+    modes: {AppMode.researcher, AppMode.developer},
+  ),
+  NavSection(
     id: SectionId.datasets,
     label: 'Датасеты',
     icon: Icons.folder_copy_outlined,

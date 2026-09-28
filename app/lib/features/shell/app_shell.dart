@@ -15,7 +15,9 @@ import '../dashboard/dashboard_screen.dart';
 import '../datasets/datasets_screen.dart';
 import '../developer/developer_screen.dart';
 import '../devices/devices_screen.dart';
+import '../entity/entity_screen.dart';
 import '../bug_report/bug_report_screen.dart';
+import '../common/widgets.dart';
 import '../extensions/extensions_screen.dart';
 import '../models/models_screen.dart';
 import '../modules/modules_screen.dart';
@@ -42,6 +44,8 @@ IconData _phosphorFor(SectionId id) {
       return Icons.graphic_eq;
     case SectionId.modules:
       return Icons.extension_outlined;
+    case SectionId.entity:
+      return Icons.hub_outlined;
     case SectionId.datasets:
       return Icons.folder_open_outlined;
     case SectionId.models:
@@ -83,9 +87,15 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   bool _explorerVisible = true;
   String settingsItem = 'General';
   SystemModule? _selectedModule;
+  NeuralEntity? _selectedEntity;
+  String? _selectedExtensionId;
+  bool _moduleInspectorOpen = false;
+  bool _entityInspectorOpen = false;
+  bool _extensionInspectorOpen = false;
   final List<NavSection> _openTabs = <NavSection>[];
   SectionId? _activeTab;
   List<SystemModule> _workspaceModules = List<SystemModule>.of(kSystemModules);
+  List<NeuralEntity> _entities = List<NeuralEntity>.of(kNeuralEntities);
 
   /// User-facing scale. The shell deliberately renders at a 120% base density
   /// while keeping this preference at the familiar 100% default.
@@ -238,6 +248,60 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         _workspaceModules = updated;
       }
     });
+    _addNotification(
+      existing == null ? 'Module added' : 'Module updated',
+      '${result.name} is now available in the Modules workspace.',
+      Icons.extension_outlined,
+    );
+  }
+
+  Future<void> _showEntityEditor([NeuralEntity? existing]) async {
+    final result = await showDialog<NeuralEntity>(
+      context: context,
+      builder: (context) => _EntityEditorDialog(existing: existing),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      final index = _entities.indexWhere((entity) => entity.id == result.id);
+      if (index < 0) {
+        _entities = [..._entities, result];
+      } else {
+        _entities = [..._entities]..[index] = result;
+      }
+      _selectedEntity = result;
+    });
+    _addNotification(
+      existing == null ? 'Entity added' : 'Entity updated',
+      '${result.name} is now available in Entity.',
+      Icons.hub_outlined,
+    );
+  }
+
+  void _removeEntity(NeuralEntity entity) {
+    setState(() {
+      _entities = _entities.where((item) => item.id != entity.id).toList();
+      if (_selectedEntity?.id == entity.id) _selectedEntity = null;
+    });
+    _addNotification(
+      'Entity removed',
+      '${entity.name} was removed from Entity.',
+      Icons.delete_outline,
+    );
+  }
+
+  void _toggleEntityInstalled(NeuralEntity entity) {
+    setState(() {
+      final replacement = entity.copyWith(installed: !entity.installed);
+      _entities = _entities
+          .map((item) => item.id == entity.id ? replacement : item)
+          .toList();
+      _selectedEntity = replacement;
+    });
+    _addNotification(
+      entity.installed ? 'Entity uninstalled' : 'Entity installed',
+      entity.name,
+      Icons.hub_outlined,
+    );
   }
 
   void _removeModule(SystemModule module) {
@@ -246,6 +310,17 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
           .where((item) => item.id != module.id)
           .toList();
     });
+    _addNotification(
+      'Module removed',
+      '${module.name} was removed from the workspace.',
+      Icons.delete_outline,
+    );
+  }
+
+  void _addNotification(String title, String message, IconData icon) {
+    ref
+        .read(notificationProvider.notifier)
+        .add(id: title, title: title, message: message, icon: icon);
   }
 
   void _changeScale(double delta) {
@@ -357,6 +432,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     required SectionId section,
   }) {
     return _ShellSurface(
+      key: const ValueKey<String>('activity rail surface'),
       width: layout.railWidth,
       radius: layout.radius,
       child: _ActivityRail(
@@ -464,7 +540,13 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                         section: section,
                                                       ),
                                                       _LayoutDivider(
-                                                        onDrag: (_) {},
+                                                        key:
+                                                            const ValueKey<
+                                                              String
+                                                            >(
+                                                              'rail resize handle',
+                                                            ),
+                                                        onDrag: _resizeRail,
                                                       ),
                                                       Expanded(
                                                         child: _ShellSurface(
@@ -494,41 +576,19 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                         section: section,
                                                       ),
                                                       _LayoutDivider(
-                                                        onDrag: (_) {},
+                                                        key:
+                                                            const ValueKey<
+                                                              String
+                                                            >(
+                                                              'rail resize handle',
+                                                            ),
+                                                        onDrag: _resizeRail,
                                                       ),
                                                       Expanded(
                                                         child: _ShellSurface(
                                                           radius: layout.radius,
                                                           child:
                                                               const BugReportScreen(),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              )
-                                            : section == SectionId.extensions
-                                            ? Padding(
-                                                padding: EdgeInsets.all(
-                                                  layout.gap,
-                                                ),
-                                                child: _modeSwitcherOverlay(
-                                                  mode: mode,
-                                                  child: Row(
-                                                    children: [
-                                                      _buildActivityRail(
-                                                        sections: sections,
-                                                        mode: mode,
-                                                        section: section,
-                                                      ),
-                                                      _LayoutDivider(
-                                                        onDrag: (_) {},
-                                                      ),
-                                                      Expanded(
-                                                        child: _ShellSurface(
-                                                          radius: layout.radius,
-                                                          child:
-                                                              const ExtensionsScreen(),
                                                         ),
                                                       ),
                                                     ],
@@ -554,21 +614,26 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                           section: section,
                                                         ),
                                                         _LayoutDivider(
-                                                          onDrag: (delta) => setState(() {
-                                                            layout = layout.copyWith(
-                                                              railWidth:
-                                                                  (layout.railWidth +
-                                                                          delta)
-                                                                      .clamp(
-                                                                        40,
-                                                                        96,
-                                                                      )
-                                                                      .toDouble(),
-                                                            );
-                                                          }),
+                                                          key:
+                                                              const ValueKey<
+                                                                String
+                                                              >(
+                                                                'rail resize handle',
+                                                              ),
+                                                          onDrag: _resizeRail,
                                                         ),
                                                         if (_explorerVisible) ...[
                                                           _ShellSurface(
+                                                            key:
+                                                                active.id ==
+                                                                    SectionId
+                                                                        .extensions
+                                                                ? const ValueKey<
+                                                                    String
+                                                                  >(
+                                                                    'extensions explorer pane',
+                                                                  )
+                                                                : null,
                                                             width:
                                                                 effectiveExplorerWidth,
                                                             radius:
@@ -586,8 +651,64 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                   active.id ==
                                                                   SectionId
                                                                       .modules,
+                                                              showEntityActions:
+                                                                  active.id ==
+                                                                  SectionId
+                                                                      .entity,
+                                                              showExtensionActions:
+                                                                  active.id ==
+                                                                  SectionId
+                                                                      .extensions,
+                                                              inspectorOpen:
+                                                                  active.id ==
+                                                                      SectionId
+                                                                          .modules
+                                                                  ? _moduleInspectorOpen
+                                                                  : active.id ==
+                                                                        SectionId
+                                                                            .entity
+                                                                  ? _entityInspectorOpen
+                                                                  : _extensionInspectorOpen,
                                                               modules:
                                                                   _workspaceModules,
+                                                              entities:
+                                                                  _entities,
+                                                              extensions:
+                                                                  kUserExtensions,
+                                                              selectedExtensionId:
+                                                                  _selectedExtensionId,
+                                                              onExtensionSelected:
+                                                                  (
+                                                                    extension,
+                                                                  ) => setState(
+                                                                    () => _selectedExtensionId =
+                                                                        extension
+                                                                            .id,
+                                                                  ),
+                                                              onExtensionNotification:
+                                                                  _addNotification,
+                                                              onToggleInspector: () => setState(() {
+                                                                if (active.id ==
+                                                                    SectionId
+                                                                        .modules) {
+                                                                  _moduleInspectorOpen =
+                                                                      !_moduleInspectorOpen;
+                                                                } else if (active
+                                                                        .id ==
+                                                                    SectionId
+                                                                        .entity) {
+                                                                  _entityInspectorOpen =
+                                                                      !_entityInspectorOpen;
+                                                                } else if (active
+                                                                        .id ==
+                                                                    SectionId
+                                                                        .extensions) {
+                                                                  _extensionInspectorOpen =
+                                                                      !_extensionInspectorOpen;
+                                                                }
+                                                              }),
+                                                              selectedEntity:
+                                                                  _selectedEntity,
                                                               onSelected: (index) =>
                                                                   _selectSection(
                                                                     sections[index]
@@ -600,6 +721,19 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                   _removeModule,
                                                               onEditModule:
                                                                   _showModuleEditor,
+                                                              onAddEntity:
+                                                                  _showEntityEditor,
+                                                              onRemoveEntity:
+                                                                  _removeEntity,
+                                                              onEditEntity:
+                                                                  _showEntityEditor,
+                                                              onEntitySelected:
+                                                                  (
+                                                                    entity,
+                                                                  ) => setState(
+                                                                    () => _selectedEntity =
+                                                                        entity,
+                                                                  ),
                                                               selectedModule:
                                                                   _selectedModule,
                                                               onModuleSelected:
@@ -613,11 +747,19 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                           ),
                                                           _LayoutDivider(
                                                             key:
-                                                                const ValueKey<
-                                                                  String
-                                                                >(
-                                                                  'explorer resize handle',
-                                                                ),
+                                                                active.id ==
+                                                                    SectionId
+                                                                        .extensions
+                                                                ? const ValueKey<
+                                                                    String
+                                                                  >(
+                                                                    'extensions resize handle',
+                                                                  )
+                                                                : const ValueKey<
+                                                                    String
+                                                                  >(
+                                                                    'explorer resize handle',
+                                                                  ),
                                                             onDrag: (delta) =>
                                                                 _resizeExplorer(
                                                                   delta,
@@ -680,6 +822,45 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                               _showModuleEditor,
                                                                           onRemoveModule:
                                                                               _removeModule,
+                                                                          entities:
+                                                                              _entities,
+                                                                          selectedModule:
+                                                                              _selectedModule,
+                                                                          inspectorOpen:
+                                                                              active.id == SectionId.modules
+                                                                              ? _moduleInspectorOpen
+                                                                              : active.id == SectionId.entity
+                                                                              ? _entityInspectorOpen
+                                                                              : _extensionInspectorOpen,
+                                                                          selectedExtensionId:
+                                                                              _selectedExtensionId,
+                                                                          extensionInspectorOpen:
+                                                                              _extensionInspectorOpen,
+                                                                          onToggleInspector: () => setState(() {
+                                                                            if (active.id ==
+                                                                                SectionId.modules) {
+                                                                              _moduleInspectorOpen = !_moduleInspectorOpen;
+                                                                            } else if (active.id ==
+                                                                                SectionId.entity) {
+                                                                              _entityInspectorOpen = !_entityInspectorOpen;
+                                                                            } else if (active.id ==
+                                                                                SectionId.extensions) {
+                                                                              _extensionInspectorOpen = !_extensionInspectorOpen;
+                                                                            }
+                                                                          }),
+                                                                          onSelectExtension: (
+                                                                            extension,
+                                                                          ) => setState(() => _selectedExtensionId = extension.id),
+                                                                          selectedEntity:
+                                                                              _selectedEntity,
+                                                                          onAddEntity:
+                                                                              _showEntityEditor,
+                                                                          onEditEntity:
+                                                                              _showEntityEditor,
+                                                                          onRemoveEntity:
+                                                                              _removeEntity,
+                                                                          onToggleEntityInstalled:
+                                                                              _toggleEntityInstalled,
                                                                         ),
                                                                 ),
                                                                 _TerminalPanel(
@@ -740,6 +921,14 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         explorerWidth: (layout.explorerWidth + delta)
             .clamp(bounds.$1, bounds.$2)
             .toDouble(),
+      );
+    });
+  }
+
+  void _resizeRail(double delta) {
+    setState(() {
+      layout = layout.copyWith(
+        railWidth: (layout.railWidth + delta).clamp(40.0, 96.0).toDouble(),
       );
     });
   }
@@ -806,11 +995,23 @@ class _TitleBar extends StatelessWidget {
               const SizedBox(width: 8),
               Container(width: 1, height: 20, color: AppTheme.border),
               const SizedBox(width: 6),
-              _TopMenuItem(label: 'File', onPreferences: onOpenPreferences),
-              _TopMenuItem(label: 'Edit'),
-              _TopMenuItem(label: 'View', onAction: onViewAction),
-              _TopMenuItem(label: 'Build'),
-              if (!compact) _TopMenuItem(label: 'Help', onAction: onHelpAction),
+              TapRegion(
+                groupId: _AnimatedContextMenuButtonState._topMenuTapRegionGroup,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _TopMenuItem(
+                      label: 'File',
+                      onPreferences: onOpenPreferences,
+                    ),
+                    _TopMenuItem(label: 'Edit'),
+                    _TopMenuItem(label: 'View', onAction: onViewAction),
+                    _TopMenuItem(label: 'Build'),
+                    if (!compact)
+                      _TopMenuItem(label: 'Help', onAction: onHelpAction),
+                  ],
+                ),
+              ),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -867,16 +1068,12 @@ class _TitleBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Opacity(
-                    // Keep the target mounted while the window is restored.
-                    // This preserves an already-open search menu instead of
-                    // disposing its OverlayEntry at the compact breakpoint.
-                    opacity: 1,
-                    child: SizedBox(
-                      width: compact ? 180 : 320,
-                      height: 26,
-                      child: const _GlobalSearch(),
-                    ),
+                  const _NotificationsButton(),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: compact ? 180 : 320,
+                    height: 26,
+                    child: const _GlobalSearch(),
                   ),
                   if (!compact) ...[
                     const SizedBox(width: 6),
@@ -892,26 +1089,294 @@ class _TitleBar extends StatelessWidget {
   }
 }
 
+/// Header notification control backed by the app-wide notification provider.
+class _NotificationsButton extends ConsumerStatefulWidget {
+  const _NotificationsButton();
+
+  @override
+  ConsumerState<_NotificationsButton> createState() =>
+      _NotificationsButtonState();
+}
+
+class _NotificationsButtonState extends ConsumerState<_NotificationsButton> {
+  static const double _panelWidth = 330;
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+
+  List<AppNotification> get _items => ref.watch(notificationProvider);
+
+  bool get _hasUnread => _items.any((item) => !item.read);
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    super.dispose();
+  }
+
+  void _toggle() {
+    if (_overlayEntry == null) {
+      _open();
+    } else {
+      _close();
+    }
+  }
+
+  void _open() {
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _close,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: const Offset(-300, 32),
+            child: Material(
+              color: AppTheme.panel,
+              elevation: 12,
+              borderRadius: BorderRadius.circular(9),
+              clipBehavior: Clip.antiAlias,
+              child: SizedBox(
+                width: _panelWidth,
+                child: _NotificationPanel(
+                  items: _items,
+                  hasUnread: _hasUnread,
+                  onMarkRead: _markRead,
+                  onMarkAllRead: _markAllRead,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    overlay.insert(_overlayEntry!);
+    setState(() {});
+  }
+
+  void _close() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() {});
+  }
+
+  void _markRead(String id) {
+    ref.read(notificationProvider.notifier).markRead(id);
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  void _markAllRead() {
+    ref.read(notificationProvider.notifier).markAllRead();
+    _overlayEntry?.markNeedsBuild();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<List<AppNotification>>(notificationProvider, (previous, next) {
+      _overlayEntry?.markNeedsBuild();
+    });
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          DesktopIconButton(
+            key: const ValueKey<String>('notifications button'),
+            icon: _hasUnread
+                ? Icons.notifications_active_outlined
+                : Icons.notifications_none_outlined,
+            tooltip: 'Notifications',
+            onPressed: _toggle,
+            size: 30,
+            iconSize: 17,
+            active: _overlayEntry != null,
+          ),
+          if (_hasUnread)
+            Positioned(
+              top: 3,
+              right: 3,
+              child: IgnorePointer(
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.text,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String _notificationTime(DateTime createdAt) {
+  final elapsed = DateTime.now().difference(createdAt);
+  if (elapsed.inMinutes < 1) return 'Just now';
+  if (elapsed.inHours < 1) return '${elapsed.inMinutes} min ago';
+  if (elapsed.inDays < 1) return '${elapsed.inHours} h ago';
+  return '${elapsed.inDays} d ago';
+}
+
+class _NotificationPanel extends StatelessWidget {
+  const _NotificationPanel({
+    required this.items,
+    required this.hasUnread,
+    required this.onMarkRead,
+    required this.onMarkAllRead,
+  });
+
+  final List<AppNotification> items;
+  final bool hasUnread;
+  final ValueChanged<String> onMarkRead;
+  final VoidCallback onMarkAllRead;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(maxHeight: 360),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Notifications',
+                  style: TextStyle(
+                    color: AppTheme.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (hasUnread)
+                TextButton(
+                  onPressed: onMarkAllRead,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.mutedText,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 5,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Mark all as read',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        if (items.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'No notifications',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.mutedText),
+            ),
+          )
+        else
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return InkWell(
+                  onTap: () => onMarkRead(item.id),
+                  hoverColor: AppTheme.border,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(item.icon, size: 18, color: AppTheme.mutedText),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: const TextStyle(
+                                  color: AppTheme.text,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                item.message,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.mutedText,
+                                  fontSize: 11,
+                                  height: 1.25,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                _notificationTime(item.createdAt),
+                                style: const TextStyle(
+                                  color: AppTheme.mutedText,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!item.read)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8, top: 4),
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.text,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
 class _DebugConsoleButton extends StatelessWidget {
   const _DebugConsoleButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: 'Открыть терминал отладки',
-    child: IconButton(
-      onPressed: onPressed,
-      icon: const Icon(Icons.bug_report_outlined, size: 17),
-      style: IconButton.styleFrom(
-        backgroundColor: AppTheme.panel,
-        foregroundColor: AppTheme.text,
-        minimumSize: const Size(28, 28),
-        maximumSize: const Size(28, 28),
-        padding: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    ),
+  Widget build(BuildContext context) => DesktopIconButton(
+    icon: Icons.bug_report_outlined,
+    tooltip: 'Открыть терминал отладки',
+    onPressed: onPressed,
+    size: 30,
+    iconSize: 17,
   );
 }
 
@@ -972,31 +1437,14 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
     required String tooltip,
     required IconData icon,
     required VoidCallback onPressed,
-  }) => Tooltip(
-    message: tooltip,
-    waitDuration: const Duration(seconds: 1),
-    showDuration: const Duration(seconds: 4),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: AppTheme.panel,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: AppTheme.border),
-      boxShadow: const [
-        BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-      ],
-    ),
-    textStyle: const TextStyle(color: AppTheme.text, fontSize: 14),
-    child: TapRegion(
-      groupId: _globalSearchTapRegionGroup,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 15),
-        color: AppTheme.mutedText,
-        hoverColor: AppTheme.border,
-        splashRadius: 16,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 30, height: 30),
-      ),
+  }) => TapRegion(
+    groupId: _globalSearchTapRegionGroup,
+    child: DesktopIconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      size: 30,
+      iconSize: 15,
     ),
   );
 
@@ -1189,6 +1637,12 @@ class _AnimatedContextMenuButtonState<T>
   final LayerLink _layerLink = LayerLink();
   late final AnimationController _animationController;
   OverlayEntry? _overlayEntry;
+  bool _submenuOpen = false;
+  Object? _menuToken;
+
+  static Object? _activeMenuToken;
+  static VoidCallback? _activeMenuCloser;
+  static final Object _topMenuTapRegionGroup = Object();
 
   @override
   void initState() {
@@ -1203,6 +1657,11 @@ class _AnimatedContextMenuButtonState<T>
   @override
   void dispose() {
     _overlayEntry?.remove();
+    if (identical(_activeMenuToken, _menuToken)) {
+      _activeMenuCloser = null;
+      _activeMenuToken = null;
+    }
+    _menuToken = null;
     _animationController.dispose();
     super.dispose();
   }
@@ -1215,78 +1674,110 @@ class _AnimatedContextMenuButtonState<T>
     }
   }
 
+  double _submenuTopOffset(
+    List<_MenuAction<T>> actions,
+    _MenuAction<T> target,
+  ) {
+    var offset = 8.0;
+    for (final action in actions) {
+      if (identical(action, target)) return offset;
+      if (action.dividerBefore) offset += 8;
+      offset += 38;
+    }
+    return offset;
+  }
+
+  Widget _menuSurface(
+    List<_MenuAction<T>> actions, {
+    required double width,
+    required ValueChanged<_MenuAction<T>> onAction,
+  }) => Container(
+    width: width,
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    decoration: BoxDecoration(
+      color: AppTheme.panel,
+      border: Border.all(color: AppTheme.border),
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: const [
+        BoxShadow(color: Colors.black54, blurRadius: 16, offset: Offset(0, 5)),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final action in actions) ...[
+          if (action.dividerBefore)
+            const Divider(height: 8, indent: 8, endIndent: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: _AnimatedMenuAction<T>(
+              action: action,
+              onSelected: () => onAction(action),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+
   void _openMenu() {
+    _activeMenuCloser?.call();
+    final token = Object();
+    _menuToken = token;
+    _activeMenuToken = token;
+    _activeMenuCloser = _closeMenu;
     final overlay = Overlay.of(context);
     _overlayEntry = OverlayEntry(
       builder: (overlayContext) => Stack(
         children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _closeMenu,
-              child: const SizedBox.expand(),
-            ),
-          ),
           CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
             offset: const Offset(0, 32),
-            child: FadeTransition(
-              opacity: CurvedAnimation(
-                parent: _animationController,
-                curve: Curves.easeOut,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  width: widget.menuWidth,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.panel,
-                    border: Border.all(color: AppTheme.border),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black54,
-                        blurRadius: 16,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Column(
+            child: TapRegion(
+              groupId: _topMenuTapRegionGroup,
+              onTapOutside: (_) => _closeMenu(),
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _animationController,
+                  curve: Curves.easeOut,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final action in widget.actions) ...[
-                        if (action.dividerBefore)
-                          const Divider(height: 8, indent: 8, endIndent: 8),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: _AnimatedMenuAction(
-                            action: action,
-                            onSelected: () {
-                              if (action.submenu == null) {
-                                widget.onSelected(action.value);
-                                _closeMenu();
-                              }
-                            },
-                          ),
-                        ),
-                        if (action.submenu != null)
-                          for (final submenuAction in action.submenu!)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 20,
-                                right: 6,
-                              ),
-                              child: _AnimatedMenuAction<T>(
-                                action: submenuAction,
-                                onSelected: () {
-                                  widget.onSelected(submenuAction.value);
-                                  _closeMenu();
-                                },
-                              ),
+                      _menuSurface(
+                        widget.actions,
+                        width: widget.menuWidth,
+                        onAction: (action) {
+                          if (action.submenu != null) {
+                            _submenuOpen = !_submenuOpen;
+                            _overlayEntry?.markNeedsBuild();
+                          } else {
+                            widget.onSelected(action.value);
+                            _closeMenu();
+                          }
+                        },
+                      ),
+                      for (final action in widget.actions)
+                        if (_submenuOpen && action.submenu != null) ...[
+                          const SizedBox(width: 5),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: _submenuTopOffset(widget.actions, action),
                             ),
-                      ],
+                            child: _menuSurface(
+                              action.submenu!,
+                              width: 160,
+                              onAction: (submenuAction) {
+                                widget.onSelected(submenuAction.value);
+                                _closeMenu();
+                              },
+                            ),
+                          ),
+                        ],
                     ],
                   ),
                 ),
@@ -1302,8 +1793,21 @@ class _AnimatedContextMenuButtonState<T>
 
   void _closeMenu() {
     final entry = _overlayEntry;
-    if (entry == null) return;
+    if (entry == null) {
+      if (identical(_activeMenuToken, _menuToken)) {
+        _activeMenuCloser = null;
+        _activeMenuToken = null;
+        _menuToken = null;
+      }
+      return;
+    }
     _overlayEntry = null;
+    _submenuOpen = false;
+    if (identical(_activeMenuToken, _menuToken)) {
+      _activeMenuCloser = null;
+      _activeMenuToken = null;
+    }
+    _menuToken = null;
     _animationController.reverse().whenCompleteOrCancel(() {
       entry.remove();
     });
@@ -1312,14 +1816,17 @@ class _AnimatedContextMenuButtonState<T>
   @override
   Widget build(BuildContext context) => CompositedTransformTarget(
     link: _layerLink,
-    child: Tooltip(
-      message: widget.tooltip,
-      child: InkWell(
-        onTap: _toggleMenu,
-        hoverColor: AppTheme.border,
-        mouseCursor: SystemMouseCursors.click,
-        borderRadius: BorderRadius.circular(6),
-        child: widget.child,
+    child: TapRegion(
+      groupId: _topMenuTapRegionGroup,
+      child: DesktopTooltip(
+        message: widget.tooltip,
+        child: InkWell(
+          onTap: _toggleMenu,
+          hoverColor: AppTheme.border,
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(6),
+          child: widget.child,
+        ),
       ),
     ),
   );
@@ -1722,7 +2229,12 @@ class _ShortcutDialog extends StatelessWidget {
 }
 
 class _ShellSurface extends StatelessWidget {
-  const _ShellSurface({required this.child, required this.radius, this.width});
+  const _ShellSurface({
+    super.key,
+    required this.child,
+    required this.radius,
+    this.width,
+  });
 
   final Widget child;
   final double radius;
@@ -1731,56 +2243,20 @@ class _ShellSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: width,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.panel,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: child,
-      ),
+    child: DesktopPane(
+      borderRadius: BorderRadius.circular(radius),
+      child: child,
     ),
   );
 }
 
-class _LayoutDivider extends StatefulWidget {
+class _LayoutDivider extends StatelessWidget {
   const _LayoutDivider({super.key, required this.onDrag});
 
   final ValueChanged<double> onDrag;
 
   @override
-  State<_LayoutDivider> createState() => _LayoutDividerState();
-}
-
-class _LayoutDividerState extends State<_LayoutDivider> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.resizeColumn,
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
-      child: SizedBox(
-        width: 8,
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: _hovered ? 2 : 1,
-            height: _hovered ? 34 : 20,
-            decoration: BoxDecoration(
-              color: _hovered ? AppTheme.mutedText : AppTheme.border,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => DesktopResizeHandle(onDrag: onDrag);
 }
 
 class _ActivityRail extends StatelessWidget {
@@ -1821,6 +2297,12 @@ class _ActivityRail extends StatelessWidget {
         modes: {},
       ),
       NavSection(
+        id: SectionId.entity,
+        label: 'Entity',
+        icon: Icons.hub_outlined,
+        modes: {},
+      ),
+      NavSection(
         id: SectionId.bugReport,
         label: 'bug report',
         icon: Icons.bug_report_outlined,
@@ -1829,7 +2311,8 @@ class _ActivityRail extends StatelessWidget {
     ];
 
     return Container(
-      width: 48,
+      key: const ValueKey<String>('activity rail content'),
+      width: double.infinity,
       color: AppTheme.background,
       child: Column(
         children: [
@@ -1894,20 +2377,8 @@ class _RailButtonState extends State<_RailButton> {
   bool _hovered = false;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
+  Widget build(BuildContext context) => DesktopTooltip(
     message: widget.item.label,
-    waitDuration: const Duration(seconds: 1),
-    showDuration: const Duration(seconds: 4),
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    decoration: BoxDecoration(
-      color: AppTheme.panel,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: AppTheme.border),
-      boxShadow: const [
-        BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-      ],
-    ),
-    textStyle: const TextStyle(color: AppTheme.text, fontSize: 14),
     child: MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -1954,24 +2425,53 @@ class _Explorer extends StatefulWidget {
     required this.selected,
     required this.onSelected,
     required this.showModuleActions,
+    required this.showEntityActions,
+    required this.showExtensionActions,
+    required this.inspectorOpen,
     required this.modules,
+    required this.entities,
+    required this.extensions,
+    required this.selectedExtensionId,
+    required this.selectedEntity,
     required this.selectedModule,
     required this.onModuleSelected,
     this.onAddModule,
     this.onRemoveModule,
     this.onEditModule,
+    this.onAddEntity,
+    this.onRemoveEntity,
+    this.onEditEntity,
+    required this.onEntitySelected,
+    required this.onExtensionSelected,
+    required this.onExtensionNotification,
+    required this.onToggleInspector,
   });
   final double width;
   final List<NavSection> sections;
   final int selected;
   final ValueChanged<int> onSelected;
   final bool showModuleActions;
+  final bool showEntityActions;
+  final bool showExtensionActions;
+  final bool inspectorOpen;
   final List<SystemModule> modules;
+  final List<NeuralEntity> entities;
+  final List<UserExtension> extensions;
+  final String? selectedExtensionId;
+  final NeuralEntity? selectedEntity;
   final SystemModule? selectedModule;
   final ValueChanged<SystemModule> onModuleSelected;
   final VoidCallback? onAddModule;
   final ValueChanged<SystemModule>? onRemoveModule;
   final ValueChanged<SystemModule>? onEditModule;
+  final VoidCallback? onAddEntity;
+  final ValueChanged<NeuralEntity>? onRemoveEntity;
+  final ValueChanged<NeuralEntity>? onEditEntity;
+  final ValueChanged<NeuralEntity> onEntitySelected;
+  final ValueChanged<UserExtension> onExtensionSelected;
+  final void Function(String title, String message, IconData icon)
+  onExtensionNotification;
+  final VoidCallback onToggleInspector;
 
   @override
   State<_Explorer> createState() => _ExplorerState();
@@ -1984,6 +2484,10 @@ class _ExplorerState extends State<_Explorer> {
       TextEditingController();
   String _activeModuleQuery = '';
   String _catalogModuleQuery = '';
+  bool _activeModulesExpanded = true;
+  bool _catalogModulesExpanded = true;
+  bool _installedExtensionsExpanded = true;
+  bool _recommendedExtensionsExpanded = false;
 
   List<SystemModule> _filterModules(String query) {
     final normalized = query.trim().toLowerCase();
@@ -2002,6 +2506,12 @@ class _ExplorerState extends State<_Explorer> {
           .toList();
 
   List<SystemModule> get _catalogModules => _filterModules(_catalogModuleQuery);
+
+  List<UserExtension> get _installedExtensions =>
+      widget.extensions.where((extension) => extension.downloaded).toList();
+
+  List<UserExtension> get _recommendedExtensions =>
+      widget.extensions.where((extension) => !extension.downloaded).toList();
 
   @override
   void dispose() {
@@ -2068,6 +2578,60 @@ class _ExplorerState extends State<_Explorer> {
                       },
                     ),
                   ],
+                  if (widget.showEntityActions) ...[
+                    _ExplorerActionButton(
+                      icon: Icons.add,
+                      tooltip: 'Add entity',
+                      onPressed: widget.onAddEntity,
+                    ),
+                    _ExplorerActionButton(
+                      icon: Icons.remove,
+                      tooltip: 'Remove entity',
+                      onPressed: () {
+                        final entity =
+                            widget.selectedEntity ??
+                            (widget.entities.isEmpty
+                                ? null
+                                : widget.entities.first);
+                        if (entity != null) widget.onRemoveEntity?.call(entity);
+                      },
+                    ),
+                    _ExplorerActionButton(
+                      icon: Icons.edit_outlined,
+                      tooltip: 'Edit entity',
+                      onPressed: () {
+                        final entity =
+                            widget.selectedEntity ??
+                            (widget.entities.isEmpty
+                                ? null
+                                : widget.entities.first);
+                        if (entity != null) widget.onEditEntity?.call(entity);
+                      },
+                    ),
+                  ],
+                  if (widget.showExtensionActions ||
+                      widget.showModuleActions ||
+                      widget.showEntityActions)
+                    _ExplorerActionButton(
+                      key: widget.showExtensionActions
+                          ? const ValueKey<String>('toggle extension inspector')
+                          : null,
+                      icon: widget.inspectorOpen
+                          ? Icons.view_sidebar
+                          : Icons.view_sidebar_outlined,
+                      tooltip: widget.inspectorOpen
+                          ? 'Hide ${widget.showExtensionActions
+                                ? 'extension'
+                                : widget.showEntityActions
+                                ? 'entity'
+                                : 'module'} inspector'
+                          : 'Show ${widget.showExtensionActions
+                                ? 'extension'
+                                : widget.showEntityActions
+                                ? 'entity'
+                                : 'module'} inspector',
+                      onPressed: widget.onToggleInspector,
+                    ),
                 ],
               ),
             ),
@@ -2102,76 +2666,177 @@ class _ExplorerState extends State<_Explorer> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (widget.showModuleActions) ...[
-                          _ExplorerHeading(
+                          ExplorerDisclosureSection(
                             title: 'ACTIVE MODULES',
-                            icon: Icons.expand_more,
-                          ),
-                          _ModuleSearchField(
-                            controller: _activeModuleController,
-                            hintText: 'Search active modules...',
-                            query: _activeModuleQuery,
-                            onChanged: (value) =>
-                                setState(() => _activeModuleQuery = value),
-                            onClear: () {
-                              _activeModuleController.clear();
-                              setState(() => _activeModuleQuery = '');
-                            },
-                          ),
-                          if (_activeModules.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                              child: Text(
-                                'No active modules found',
-                                style: TextStyle(
-                                  color: AppTheme.mutedText,
-                                  fontSize: 12,
+                            expanded: _activeModulesExpanded,
+                            onToggle: () => setState(
+                              () => _activeModulesExpanded =
+                                  !_activeModulesExpanded,
+                            ),
+                            children: [
+                              _ModuleSearchField(
+                                fieldKey: const ValueKey<String>(
+                                  'active module search',
                                 ),
+                                controller: _activeModuleController,
+                                hintText: 'Search active modules...',
+                                query: _activeModuleQuery,
+                                onChanged: (value) =>
+                                    setState(() => _activeModuleQuery = value),
+                                onClear: () {
+                                  _activeModuleController.clear();
+                                  setState(() => _activeModuleQuery = '');
+                                },
                               ),
+                              if (_activeModules.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                                  child: Text(
+                                    'No active modules found',
+                                    style: TextStyle(
+                                      color: AppTheme.mutedText,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              for (final module in _activeModules)
+                                _ModuleItem(
+                                  module: module,
+                                  selected:
+                                      widget.selectedModule?.id == module.id,
+                                  onTap: () => widget.onModuleSelected(module),
+                                ),
+                            ],
+                          ),
+                          ExplorerDisclosureSection(
+                            title: 'MODULE CATALOG',
+                            expanded: _catalogModulesExpanded,
+                            onToggle: () => setState(
+                              () => _catalogModulesExpanded =
+                                  !_catalogModulesExpanded,
                             ),
-                          for (final module in _activeModules)
-                            _ModuleItem(
-                              module: module,
-                              selected: widget.selectedModule?.id == module.id,
-                              onTap: () => widget.onModuleSelected(module),
+                            showDivider: false,
+                            children: [
+                              _ModuleSearchField(
+                                fieldKey: const ValueKey<String>(
+                                  'catalog module search',
+                                ),
+                                controller: _catalogModuleController,
+                                hintText: 'Search modules...',
+                                query: _catalogModuleQuery,
+                                onChanged: (value) =>
+                                    setState(() => _catalogModuleQuery = value),
+                                onClear: () {
+                                  _catalogModuleController.clear();
+                                  setState(() => _catalogModuleQuery = '');
+                                },
+                              ),
+                              if (_catalogModules.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
+                                  child: Text(
+                                    'No modules found',
+                                    style: TextStyle(
+                                      color: AppTheme.mutedText,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              for (final module in _catalogModules)
+                                _ModuleItem(
+                                  module: module,
+                                  catalog: true,
+                                  selected:
+                                      widget.selectedModule?.id == module.id,
+                                  onTap: () => widget.onModuleSelected(module),
+                                ),
+                            ],
+                          ),
+                        ] else if (widget.showEntityActions) ...[
+                          ExplorerSectionHeader(
+                            title: 'INSTALLED ENTITIES',
+                            expanded: _activeModulesExpanded,
+                            onToggle: () => setState(
+                              () => _activeModulesExpanded =
+                                  !_activeModulesExpanded,
                             ),
-                          const SizedBox(height: 12),
+                          ),
+                          if (_activeModulesExpanded)
+                            for (final entity in widget.entities.where(
+                              (e) => e.installed,
+                            ))
+                              _EntityExplorerItem(
+                                entity: entity,
+                                selected:
+                                    entity.id == widget.selectedEntity?.id,
+                                onTap: () => widget.onEntitySelected(entity),
+                              ),
                           const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 10),
                             child: Divider(height: 1),
                           ),
-                          _ExplorerHeading(
-                            title: 'MODULE CATALOG',
-                            icon: Icons.search,
+                          ExplorerSectionHeader(
+                            title: 'ENTITY CATALOG',
+                            expanded: _catalogModulesExpanded,
+                            onToggle: () => setState(
+                              () => _catalogModulesExpanded =
+                                  !_catalogModulesExpanded,
+                            ),
                           ),
-                          _ModuleSearchField(
-                            controller: _catalogModuleController,
-                            hintText: 'Search modules...',
-                            query: _catalogModuleQuery,
-                            onChanged: (value) =>
-                                setState(() => _catalogModuleQuery = value),
-                            onClear: () {
-                              _catalogModuleController.clear();
-                              setState(() => _catalogModuleQuery = '');
-                            },
-                          ),
-                          if (_catalogModules.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                              child: Text(
-                                'No modules found',
-                                style: TextStyle(
-                                  color: AppTheme.mutedText,
-                                  fontSize: 12,
-                                ),
+                          if (_catalogModulesExpanded)
+                            for (final entity in widget.entities.where(
+                              (e) => !e.installed,
+                            ))
+                              _EntityExplorerItem(
+                                entity: entity,
+                                selected:
+                                    entity.id == widget.selectedEntity?.id,
+                                onTap: () => widget.onEntitySelected(entity),
                               ),
+                        ] else if (widget.showExtensionActions) ...[
+                          ExplorerDisclosureSection(
+                            title: 'Installed',
+                            expanded: _installedExtensionsExpanded,
+                            onToggle: () => setState(
+                              () => _installedExtensionsExpanded =
+                                  !_installedExtensionsExpanded,
                             ),
-                          for (final module in _catalogModules)
-                            _ModuleItem(
-                              module: module,
-                              catalog: true,
-                              selected: widget.selectedModule?.id == module.id,
-                              onTap: () => widget.onModuleSelected(module),
+                            children: [
+                              for (final extension in _installedExtensions)
+                                _ExtensionExplorerItem(
+                                  extension: extension,
+                                  selected:
+                                      extension.id ==
+                                      widget.selectedExtensionId,
+                                  onTap: () =>
+                                      widget.onExtensionSelected(extension),
+                                  onNotification:
+                                      widget.onExtensionNotification,
+                                ),
+                            ],
+                          ),
+                          ExplorerDisclosureSection(
+                            title: 'Recommended',
+                            expanded: _recommendedExtensionsExpanded,
+                            onToggle: () => setState(
+                              () => _recommendedExtensionsExpanded =
+                                  !_recommendedExtensionsExpanded,
                             ),
+                            showDivider: false,
+                            children: [
+                              for (final extension in _recommendedExtensions)
+                                _ExtensionExplorerItem(
+                                  extension: extension,
+                                  selected:
+                                      extension.id ==
+                                      widget.selectedExtensionId,
+                                  onTap: () =>
+                                      widget.onExtensionSelected(extension),
+                                  onNotification:
+                                      widget.onExtensionNotification,
+                                ),
+                            ],
+                          ),
                         ] else ...[
                           const Padding(
                             padding: EdgeInsets.fromLTRB(14, 28, 14, 14),
@@ -2190,15 +2855,6 @@ class _ExplorerState extends State<_Explorer> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'NerveGears Engine ${AppInfo.version}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: AppTheme.mutedText,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -2206,32 +2862,9 @@ class _ExplorerState extends State<_Explorer> {
   }
 }
 
-class _ExplorerHeading extends StatelessWidget {
-  const _ExplorerHeading({required this.title, required this.icon});
-  final String title;
-  final IconData icon;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-    child: Row(
-      children: [
-        Icon(icon, size: 15, color: AppTheme.text),
-        const SizedBox(width: 3),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            letterSpacing: .8,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.text,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 class _ModuleSearchField extends StatelessWidget {
   const _ModuleSearchField({
+    this.fieldKey,
     required this.controller,
     required this.hintText,
     required this.query,
@@ -2239,6 +2872,7 @@ class _ModuleSearchField extends StatelessWidget {
     required this.onClear,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String hintText;
   final String query;
@@ -2249,6 +2883,7 @@ class _ModuleSearchField extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(10, 3, 10, 7),
     child: TextField(
+      key: fieldKey,
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
@@ -2284,6 +2919,7 @@ class _ModuleSearchField extends StatelessWidget {
 
 class _ExplorerActionButton extends StatelessWidget {
   const _ExplorerActionButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
@@ -2294,17 +2930,12 @@ class _ExplorerActionButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 17),
-      color: AppTheme.mutedText,
-      hoverColor: AppTheme.border,
-      splashRadius: 16,
-      constraints: const BoxConstraints.tightFor(width: 27, height: 27),
-      padding: EdgeInsets.zero,
-    ),
+  Widget build(BuildContext context) => DesktopIconButton(
+    icon: icon,
+    tooltip: tooltip,
+    onPressed: onPressed,
+    size: 27,
+    iconSize: 17,
   );
 }
 
@@ -2593,15 +3224,14 @@ class _EditorTabState extends State<_EditorTab> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Tooltip(
-              message: 'Close tab',
-              child: InkWell(
-                onTap: widget.onClose,
-                borderRadius: BorderRadius.circular(5),
-                child: const Padding(
-                  padding: EdgeInsets.all(3),
-                  child: Icon(Icons.close, size: 14, color: AppTheme.mutedText),
-                ),
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: DesktopIconButton(
+                icon: Icons.close,
+                tooltip: 'Close tab',
+                onPressed: widget.onClose,
+                size: 22,
+                iconSize: 14,
               ),
             ),
           ],
@@ -2623,23 +3253,12 @@ class _EditorTabAction extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: IconButton(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 17),
-      style: IconButton.styleFrom(
-        foregroundColor: AppTheme.mutedText,
-        backgroundColor: Colors.transparent,
-        hoverColor: AppTheme.border,
-        fixedSize: const Size.square(30),
-        minimumSize: const Size.square(30),
-        maximumSize: const Size.square(30),
-        padding: EdgeInsets.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      ),
-    ),
+  Widget build(BuildContext context) => DesktopIconButton(
+    icon: icon,
+    tooltip: tooltip,
+    onPressed: onPressed,
+    size: 30,
+    iconSize: 17,
   );
 }
 
@@ -2773,6 +3392,279 @@ class _ModuleEditorDialogState extends State<_ModuleEditorDialog> {
   );
 }
 
+class _EntityEditorDialog extends StatefulWidget {
+  const _EntityEditorDialog({this.existing});
+
+  final NeuralEntity? existing;
+
+  @override
+  State<_EntityEditorDialog> createState() => _EntityEditorDialogState();
+}
+
+class _EntityEditorDialogState extends State<_EntityEditorDialog> {
+  late final TextEditingController _id;
+  late final TextEditingController _name;
+  late final TextEditingController _framework;
+  late final TextEditingController _version;
+  late final TextEditingController _description;
+
+  @override
+  void initState() {
+    super.initState();
+    final entity = widget.existing;
+    _id = TextEditingController(text: entity?.id ?? 'custom.neural-entity');
+    _name = TextEditingController(text: entity?.name ?? 'New neural entity');
+    _framework = TextEditingController(
+      text: entity?.framework ?? 'ONNX Runtime',
+    );
+    _version = TextEditingController(text: entity?.version ?? '1.0.0');
+    _description = TextEditingController(
+      text: entity?.description ?? 'Neural network description.',
+    );
+  }
+
+  @override
+  void dispose() {
+    _id.dispose();
+    _name.dispose();
+    _framework.dispose();
+    _version.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.existing == null ? 'Add entity' : 'Edit entity'),
+    content: SizedBox(
+      width: 420,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _id,
+              decoration: const InputDecoration(labelText: 'ID'),
+            ),
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: _framework,
+              decoration: const InputDecoration(labelText: 'Framework'),
+            ),
+            TextField(
+              controller: _version,
+              decoration: const InputDecoration(labelText: 'Version'),
+            ),
+            TextField(
+              controller: _description,
+              minLines: 3,
+              maxLines: 5,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(
+          context,
+          NeuralEntity(
+            id: _id.text.trim().isEmpty
+                ? 'custom.neural-entity'
+                : _id.text.trim(),
+            name: _name.text.trim().isEmpty
+                ? 'New neural entity'
+                : _name.text.trim(),
+            framework: _framework.text.trim().isEmpty
+                ? 'Unknown'
+                : _framework.text.trim(),
+            version: _version.text.trim().isEmpty
+                ? '1.0.0'
+                : _version.text.trim(),
+            description: _description.text.trim(),
+            installed: widget.existing?.installed ?? false,
+          ),
+        ),
+        child: const Text('Save'),
+      ),
+    ],
+  );
+}
+
+class _EntityExplorerItem extends StatelessWidget {
+  const _EntityExplorerItem({
+    required this.entity,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NeuralEntity entity;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => _ExplorerItem(
+    title: entity.name,
+    subtitle: '${entity.framework} · v${entity.version}',
+    icon: Icons.hub_outlined,
+    selected: selected,
+    onTap: onTap,
+  );
+}
+
+class _ExtensionExplorerItem extends StatelessWidget {
+  const _ExtensionExplorerItem({
+    required this.extension,
+    required this.selected,
+    required this.onTap,
+    required this.onNotification,
+  });
+
+  final UserExtension extension;
+  final bool selected;
+  final VoidCallback onTap;
+  final void Function(String title, String message, IconData icon)
+  onNotification;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    child: Material(
+      color: selected ? AppTheme.background : Colors.transparent,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: AppTheme.border,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Row(
+            children: [
+              Icon(extension.icon, size: 17),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      extension.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      extension.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.mutedText,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (extension.downloaded)
+                DesktopContextMenu(
+                  tooltip: 'Extension settings',
+                  actions: const [
+                    'Disable/enable',
+                    'Autoupdate',
+                    'Uninstall',
+                    'Copy link',
+                    'Copy name',
+                    'Keyboard',
+                    'Profiles operate',
+                    'Shortcuts',
+                  ],
+                  menuWidth: 208,
+                  menuOffset: const Offset(-178, 30),
+                  onSelected: (action) => onNotification(
+                    'Extension changed',
+                    '${extension.name}: $action selected.',
+                    Icons.auto_awesome_mosaic_outlined,
+                  ),
+                  child: const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: Icon(
+                      Icons.settings_outlined,
+                      size: 16,
+                      color: AppTheme.mutedText,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _ExplorerItem extends StatelessWidget {
+  const _ExplorerItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    child: Material(
+      color: selected ? AppTheme.background : Colors.transparent,
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: AppTheme.border,
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Icon(icon, size: 17, color: AppTheme.text),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.mutedText,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _TerminalPanel extends StatelessWidget {
   const _TerminalPanel({required this.open, required this.onToggle});
   final bool open;
@@ -2858,12 +3750,36 @@ class _SectionBody extends ConsumerWidget {
     required this.onAddModule,
     required this.onEditModule,
     required this.onRemoveModule,
+    required this.entities,
+    required this.selectedEntity,
+    required this.onAddEntity,
+    required this.onEditEntity,
+    required this.onRemoveEntity,
+    required this.onToggleEntityInstalled,
+    required this.selectedModule,
+    required this.inspectorOpen,
+    required this.selectedExtensionId,
+    required this.extensionInspectorOpen,
+    required this.onToggleInspector,
+    required this.onSelectExtension,
   });
   final SectionId section;
   final List<SystemModule> modules;
   final VoidCallback onAddModule;
   final ValueChanged<SystemModule> onEditModule;
   final ValueChanged<SystemModule> onRemoveModule;
+  final List<NeuralEntity> entities;
+  final NeuralEntity? selectedEntity;
+  final VoidCallback onAddEntity;
+  final ValueChanged<NeuralEntity> onEditEntity;
+  final ValueChanged<NeuralEntity> onRemoveEntity;
+  final ValueChanged<NeuralEntity> onToggleEntityInstalled;
+  final SystemModule? selectedModule;
+  final bool inspectorOpen;
+  final String? selectedExtensionId;
+  final bool extensionInspectorOpen;
+  final VoidCallback onToggleInspector;
+  final ValueChanged<UserExtension> onSelectExtension;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     switch (section) {
@@ -2883,6 +3799,18 @@ class _SectionBody extends ConsumerWidget {
           onAdd: onAddModule,
           onEdit: onEditModule,
           onRemove: onRemoveModule,
+          selectedModule: selectedModule,
+          inspectorOpen: inspectorOpen,
+          onToggleInspector: onToggleInspector,
+        );
+      case SectionId.entity:
+        return EntityWorkspace(
+          entity: selectedEntity,
+          inspectorOpen: inspectorOpen,
+          onToggleInspector: onToggleInspector,
+          onEdit: onEditEntity,
+          onRemove: onRemoveEntity,
+          onToggleInstalled: onToggleEntityInstalled,
         );
       case SectionId.datasets:
         return const DatasetsScreen();
@@ -2891,7 +3819,12 @@ class _SectionBody extends ConsumerWidget {
       case SectionId.developer:
         return const DeveloperScreen();
       case SectionId.extensions:
-        return const ExtensionsScreen();
+        return ExtensionsScreen(
+          selectedExtensionId: selectedExtensionId,
+          inspectorOpen: extensionInspectorOpen,
+          onToggleInspector: onToggleInspector,
+          onSelectExtension: onSelectExtension,
+        );
       case SectionId.bugReport:
         return const BugReportScreen();
       case SectionId.profile:

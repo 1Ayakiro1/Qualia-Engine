@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../common/widgets.dart';
 
 /// Shared keyboard-shortcuts surface used by Preferences and global search.
 /// Keeping the editor in one widget prevents the two entry points from drifting
@@ -53,10 +54,10 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
               ),
             ),
             if (widget.onClose != null)
-              IconButton(
+              DesktopIconButton(
                 onPressed: widget.onClose,
-                icon: const Icon(Icons.close, size: 17),
-                color: AppTheme.mutedText,
+                icon: Icons.close,
+                iconSize: 17,
                 tooltip: 'Close',
               ),
           ],

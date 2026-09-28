@@ -3,6 +3,73 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/shell/nav_registry.dart';
 
+class AppNotification {
+  const AppNotification({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.createdAt,
+    this.read = false,
+  });
+
+  final String id;
+  final String title;
+  final String message;
+  final IconData icon;
+  final DateTime createdAt;
+  final bool read;
+
+  AppNotification copyWith({bool? read}) => AppNotification(
+    id: id,
+    title: title,
+    message: message,
+    icon: icon,
+    createdAt: createdAt,
+    read: read ?? this.read,
+  );
+}
+
+class NotificationController extends Notifier<List<AppNotification>> {
+  @override
+  List<AppNotification> build() => const <AppNotification>[];
+
+  void add({
+    required String id,
+    required String title,
+    required String message,
+    required IconData icon,
+  }) {
+    state = [
+      AppNotification(
+        id: '$id-${DateTime.now().microsecondsSinceEpoch}',
+        title: title,
+        message: message,
+        icon: icon,
+        createdAt: DateTime.now(),
+      ),
+      ...state,
+    ];
+  }
+
+  void markRead(String id) {
+    state = [
+      for (final item in state)
+        item.id == id ? item.copyWith(read: true) : item,
+    ];
+  }
+
+  void markAllRead() {
+    state = [for (final item in state) item.copyWith(read: true)];
+  }
+}
+
+final NotifierProvider<NotificationController, List<AppNotification>>
+notificationProvider =
+    NotifierProvider<NotificationController, List<AppNotification>>(
+      NotificationController.new,
+    );
+
 /// Theme mode of the application (dark-first).
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
@@ -60,6 +127,7 @@ enum SectionId {
   pipeline,
   spectrogram,
   modules,
+  entity,
   datasets,
   models,
   developer,

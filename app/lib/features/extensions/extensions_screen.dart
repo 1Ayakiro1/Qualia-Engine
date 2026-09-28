@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../common/widgets.dart';
 
-enum ExtensionFilter { downloaded, active, all }
+enum ExtensionSection { installed, recommended }
 
 class UserExtension {
   const UserExtension({
@@ -64,29 +65,55 @@ const List<UserExtension> kUserExtensions = <UserExtension>[
 ];
 
 class ExtensionsScreen extends StatefulWidget {
-  const ExtensionsScreen({super.key});
+  const ExtensionsScreen({
+    super.key,
+    this.selectedExtensionId,
+    this.onSelectExtension,
+    this.onNotification,
+    this.inspectorOpen = false,
+    this.onToggleInspector,
+  });
+
+  final String? selectedExtensionId;
+  final ValueChanged<UserExtension>? onSelectExtension;
+  final void Function(String title, String message, IconData icon)?
+  onNotification;
+  final bool inspectorOpen;
+  final VoidCallback? onToggleInspector;
 
   @override
   State<ExtensionsScreen> createState() => _ExtensionsScreenState();
 }
 
 class _ExtensionsScreenState extends State<ExtensionsScreen> {
-  ExtensionFilter _filter = ExtensionFilter.all;
   String? _activeExtensionId;
-  bool _rightSidebarOpen = false;
   final List<UserExtension> _tabs = <UserExtension>[];
 
-  List<UserExtension> get _visibleExtensions {
-    return kUserExtensions.where((extension) {
-      switch (_filter) {
-        case ExtensionFilter.downloaded:
-          return extension.downloaded;
-        case ExtensionFilter.active:
-          return extension.active;
-        case ExtensionFilter.all:
-          return true;
+  @override
+  void initState() {
+    super.initState();
+    final selectedId = widget.selectedExtensionId;
+    if (selectedId == null) return;
+    for (final extension in kUserExtensions) {
+      if (extension.id == selectedId) {
+        _activeExtensionId = extension.id;
+        _tabs.add(extension);
+        break;
       }
-    }).toList();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ExtensionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final selectedId = widget.selectedExtensionId;
+    if (selectedId != null && selectedId != _activeExtensionId) {
+      final extension = kUserExtensions.firstWhere(
+        (item) => item.id == selectedId,
+        orElse: () => kUserExtensions.first,
+      );
+      _openExtension(extension, notifyParent: false);
+    }
   }
 
   UserExtension? get _activeExtension {
@@ -96,13 +123,14 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
     return null;
   }
 
-  void _openExtension(UserExtension extension) {
+  void _openExtension(UserExtension extension, {bool notifyParent = true}) {
     setState(() {
       if (!_tabs.any((tab) => tab.id == extension.id)) {
         _tabs.add(extension);
       }
       _activeExtensionId = extension.id;
     });
+    if (notifyParent) widget.onSelectExtension?.call(extension);
   }
 
   void _closeExtension(UserExtension extension) {
@@ -121,260 +149,117 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
   @override
   Widget build(BuildContext context) {
     final active = _activeExtension;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 260,
-          child: _ExtensionExplorer(
-            filter: _filter,
-            extensions: _visibleExtensions,
+    return ColoredBox(
+      color: AppTheme.background,
+      child: Column(
+        children: [
+          _ExtensionTabs(
+            tabs: _tabs,
             activeId: _activeExtensionId,
-            rightSidebarOpen: _rightSidebarOpen,
-            onFilterChanged: (filter) => setState(() => _filter = filter),
             onSelected: _openExtension,
-            onToggleSidebar: () =>
-                setState(() => _rightSidebarOpen = !_rightSidebarOpen),
+            onClosed: _closeExtension,
+            onCreate:
+                kUserExtensions
+                    .where((extension) => extension.downloaded)
+                    .isEmpty
+                ? null
+                : () => _openExtension(
+                    kUserExtensions.firstWhere(
+                      (extension) => extension.downloaded,
+                    ),
+                  ),
           ),
-        ),
-        const VerticalDivider(width: 1),
-        Expanded(
-          child: Column(
-            children: [
-              _ExtensionTabs(
-                tabs: _tabs,
-                activeId: _activeExtensionId,
-                onSelected: _openExtension,
-                onClosed: _closeExtension,
-                onCreate: _visibleExtensions.isEmpty
-                    ? null
-                    : () => _openExtension(_visibleExtensions.first),
-              ),
-              Expanded(
-                child: active == null
-                    ? const _EmptyExtensions()
-                    : _ExtensionDetails(extension: active),
-              ),
-            ],
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: active == null
+                      ? const _EmptyExtensions()
+                      : _ExtensionDetails(
+                          extension: active,
+                          onAction: (action) => widget.onNotification?.call(
+                            'Extension changed',
+                            '${active.name}: $action selected.',
+                            Icons.auto_awesome_mosaic_outlined,
+                          ),
+                        ),
+                ),
+                if (widget.inspectorOpen)
+                  SizedBox(
+                    width: 260,
+                    child: DesktopPane(
+                      child: _ExtensionInspector(extension: active),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        if (_rightSidebarOpen) ...[
-          const VerticalDivider(width: 1),
-          SizedBox(width: 250, child: _ExtensionInspector(extension: active)),
         ],
-      ],
+      ),
     );
   }
 }
 
-class _ExtensionExplorer extends StatelessWidget {
-  const _ExtensionExplorer({
-    required this.filter,
-    required this.extensions,
-    required this.activeId,
-    required this.rightSidebarOpen,
-    required this.onFilterChanged,
-    required this.onSelected,
-    required this.onToggleSidebar,
-  });
+class _ExtensionInspector extends StatelessWidget {
+  const _ExtensionInspector({required this.extension});
 
-  final ExtensionFilter filter;
-  final List<UserExtension> extensions;
-  final String? activeId;
-  final bool rightSidebarOpen;
-  final ValueChanged<ExtensionFilter> onFilterChanged;
-  final ValueChanged<UserExtension> onSelected;
-  final VoidCallback onToggleSidebar;
-
-  String _filterLabel(ExtensionFilter value) {
-    switch (value) {
-      case ExtensionFilter.downloaded:
-        return 'Downloaded';
-      case ExtensionFilter.active:
-        return 'Active';
-      case ExtensionFilter.all:
-        return 'All';
-    }
-  }
+  final UserExtension? extension;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: AppTheme.background,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 9, 8, 8),
-          child: Row(
-            children: [
-              const Text(
-                'EXPLORER',
-                style: TextStyle(
-                  color: AppTheme.mutedText,
-                  fontSize: 11,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.bold,
+    color: AppTheme.panel,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'EXTENSION INSPECTOR',
+            style: TextStyle(
+              color: AppTheme.mutedText,
+              fontSize: 11,
+              letterSpacing: 1,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (extension == null)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Select an extension',
+                  style: TextStyle(color: AppTheme.mutedText),
                 ),
               ),
-              const Spacer(),
-              Tooltip(
-                message: rightSidebarOpen
-                    ? 'Hide extension inspector'
-                    : 'Show extension inspector',
-                child: IconButton(
-                  key: const ValueKey<String>('toggle extension inspector'),
-                  onPressed: onToggleSidebar,
-                  icon: Icon(
-                    rightSidebarOpen
-                        ? Icons.view_sidebar
-                        : Icons.view_sidebar_outlined,
-                    size: 17,
-                  ),
-                  color: AppTheme.mutedText,
-                  hoverColor: AppTheme.border,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 27,
-                    height: 27,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+            )
+          else ...[
+            Icon(extension!.icon, size: 26, color: AppTheme.text),
+            const SizedBox(height: 12),
+            Text(
+              extension!.name,
+              style: const TextStyle(
+                color: AppTheme.text,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              for (final value in ExtensionFilter.values)
-                _ExtensionFilterButton(
-                  label: _filterLabel(value),
-                  selected: filter == value,
-                  onPressed: () => onFilterChanged(value),
-                ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              for (final extension in extensions)
-                _ExtensionListItem(
-                  extension: extension,
-                  selected: extension.id == activeId,
-                  onTap: () => onSelected(extension),
-                ),
-              if (extensions.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(18),
-                  child: Text(
-                    'No extensions found',
-                    style: TextStyle(color: AppTheme.mutedText),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _ExtensionFilterButton extends StatelessWidget {
-  const _ExtensionFilterButton({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => TextButton(
-    onPressed: onPressed,
-    style: TextButton.styleFrom(
-      foregroundColor: selected ? AppTheme.text : AppTheme.mutedText,
-      backgroundColor: selected ? AppTheme.panel : Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      minimumSize: Size.zero,
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-    ),
-    child: Text(label, style: const TextStyle(fontSize: 11)),
-  );
-}
-
-class _ExtensionListItem extends StatelessWidget {
-  const _ExtensionListItem({
-    required this.extension,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final UserExtension extension;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    child: Material(
-      color: selected ? AppTheme.panel : Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onTap,
-        hoverColor: AppTheme.border,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(9, 9, 5, 9),
-          child: Row(
-            children: [
-              Icon(extension.icon, size: 17, color: AppTheme.text),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      extension.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.text,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      extension.category,
-                      style: const TextStyle(
-                        color: AppTheme.mutedText,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (extension.downloaded)
-                const Tooltip(
-                  message: 'Downloaded',
-                  child: Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.download_done_outlined,
-                      size: 16,
-                      color: AppTheme.mutedText,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              extension!.description,
+              style: const TextStyle(color: AppTheme.mutedText, height: 1.4),
+            ),
+            const Spacer(),
+            Text(
+              'ID  ${extension!.id}',
+              style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+            ),
+            Text(
+              'Category  ${extension!.category}',
+              style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+            ),
+          ],
+        ],
       ),
     ),
   );
@@ -413,18 +298,12 @@ class _ExtensionTabs extends StatelessWidget {
                   onSelected: () => onSelected(extension),
                   onClosed: () => onClosed(extension),
                 ),
-              Tooltip(
-                message: 'Create extension tab',
-                child: IconButton(
-                  onPressed: onCreate,
-                  icon: const Icon(Icons.add, size: 17),
-                  color: AppTheme.mutedText,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 30,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
+              DesktopIconButton(
+                icon: Icons.add,
+                tooltip: 'Create extension tab',
+                onPressed: onCreate,
+                size: 30,
+                iconSize: 17,
               ),
             ],
           ),
@@ -472,19 +351,14 @@ class _ExtensionTab extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Tooltip(
-                message: 'Close tab',
-                child: InkWell(
-                  onTap: onClosed,
-                  borderRadius: BorderRadius.circular(4),
-                  child: const Padding(
-                    padding: EdgeInsets.all(3),
-                    child: Icon(
-                      Icons.close,
-                      size: 13,
-                      color: AppTheme.mutedText,
-                    ),
-                  ),
+              Padding(
+                padding: const EdgeInsets.all(4),
+                child: DesktopIconButton(
+                  icon: Icons.close,
+                  tooltip: 'Close tab',
+                  onPressed: onClosed,
+                  size: 22,
+                  iconSize: 13,
                 ),
               ),
             ],
@@ -495,106 +369,11 @@ class _ExtensionTab extends StatelessWidget {
   );
 }
 
-class _ExtensionInspector extends StatelessWidget {
-  const _ExtensionInspector({required this.extension});
-
-  final UserExtension? extension;
-
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: AppTheme.panel,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'EXTENSION INSPECTOR',
-            style: TextStyle(
-              color: AppTheme.mutedText,
-              fontSize: 11,
-              letterSpacing: 1,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 18),
-          if (extension == null)
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Select an extension',
-                  style: TextStyle(color: AppTheme.mutedText),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(extension!.icon, size: 26, color: AppTheme.text),
-                  const SizedBox(height: 12),
-                  Text(
-                    extension!.name,
-                    style: const TextStyle(
-                      color: AppTheme.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    extension!.description,
-                    style: const TextStyle(
-                      color: AppTheme.mutedText,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'ID  ${extension!.id}',
-                    style: const TextStyle(
-                      color: AppTheme.mutedText,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    'Category  ${extension!.category}',
-                    style: const TextStyle(
-                      color: AppTheme.mutedText,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () {},
-                    icon: Icon(
-                      extension!.active ? Icons.pause : Icons.play_arrow,
-                    ),
-                    label: Text(
-                      extension!.active
-                          ? 'Disable extension'
-                          : 'Enable extension',
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.settings_outlined),
-                    label: const Text('Extension settings'),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _ExtensionDetails extends StatelessWidget {
-  const _ExtensionDetails({required this.extension});
+  const _ExtensionDetails({required this.extension, required this.onAction});
 
   final UserExtension extension;
+  final ValueChanged<String> onAction;
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
@@ -638,10 +417,13 @@ class _ExtensionDetails extends StatelessWidget {
               _ExtensionAction(
                 label: extension.active ? 'Disable' : 'Enable',
                 icon: extension.active ? Icons.pause : Icons.play_arrow,
+                onPressed: () =>
+                    onAction(extension.active ? 'Disable' : 'Enable'),
               ),
               _ExtensionAction(
                 label: 'Settings',
                 icon: Icons.settings_outlined,
+                onPressed: () => onAction('Settings'),
               ),
             ],
           ),
@@ -666,14 +448,19 @@ class _ExtensionDetails extends StatelessWidget {
 }
 
 class _ExtensionAction extends StatelessWidget {
-  const _ExtensionAction({required this.label, required this.icon});
+  const _ExtensionAction({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
 
   final String label;
   final IconData icon;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: () {},
+    onPressed: onPressed,
     icon: Icon(icon, size: 16),
     label: Text(label),
   );
@@ -683,19 +470,41 @@ class _EmptyExtensions extends StatelessWidget {
   const _EmptyExtensions();
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.extension_outlined, size: 40, color: AppTheme.mutedText),
-        SizedBox(height: 12),
-        Text('Select an extension', style: TextStyle(color: AppTheme.text)),
-        SizedBox(height: 5),
-        Text(
-          'Choose an extension from the sidebar to open a tab.',
-          style: TextStyle(color: AppTheme.mutedText),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 80 || constraints.maxHeight < 100) {
+        return const SizedBox.shrink();
+      }
+      final narrow = constraints.maxWidth < 260;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.extension_outlined,
+                size: 40,
+                color: AppTheme.mutedText,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Select an extension',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.text),
+              ),
+              if (!narrow) ...[
+                const SizedBox(height: 5),
+                const Text(
+                  'Choose an extension from the sidebar to open a tab.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.mutedText),
+                ),
+              ],
+            ],
+          ),
         ),
-      ],
-    ),
+      );
+    },
   );
 }

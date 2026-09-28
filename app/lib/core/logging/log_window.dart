@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_theme.dart';
+import '../../features/common/widgets.dart';
 import 'app_logger.dart';
 import 'log_entry.dart';
 
@@ -443,7 +444,7 @@ class _LogHeader extends StatelessWidget {
   );
 }
 
-class _LogIconButton extends StatefulWidget {
+class _LogIconButton extends StatelessWidget {
   const _LogIconButton({
     required this.tooltip,
     required this.icon,
@@ -457,41 +458,15 @@ class _LogIconButton extends StatefulWidget {
   final bool active;
 
   @override
-  State<_LogIconButton> createState() => _LogIconButtonState();
-}
-
-class _LogIconButtonState extends State<_LogIconButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: widget.tooltip,
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 36,
-          height: 36,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: _hovered || widget.active
-                ? AppTheme.border
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(
-            widget.icon,
-            size: 19,
-            color: widget.active || _hovered
-                ? AppTheme.text
-                : AppTheme.mutedText,
-          ),
-        ),
-      ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: DesktopIconButton(
+      icon: icon,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      size: 36,
+      iconSize: 19,
+      active: active,
     ),
   );
 }

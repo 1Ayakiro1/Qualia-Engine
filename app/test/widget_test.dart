@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bci_engine/features/common/widgets.dart';
+
 void main() {
   testWidgets('app shell renders top bar and dashboard', (
     WidgetTester tester,
@@ -39,6 +41,45 @@ void main() {
     expect(find.text('No active workspace items'), findsOneWidget);
     expect(find.text('ACTIVE MODULES'), findsNothing);
     expect(find.text('MODULE CATALOG'), findsNothing);
+  });
+
+  testWidgets('Entity section supports adding and installing neural networks', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('user&dev switcher'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Entity'), findsWidgets);
+    await tester.tap(find.byTooltip('Entity').last);
+    await tester.pumpAndSettle();
+    expect(find.text('ENTITY CATALOG'), findsOneWidget);
+    expect(find.text('Artifact Detector'), findsWidgets);
+
+    await tester.tap(find.text('Artifact Detector').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Install'));
+    await tester.pumpAndSettle();
+    expect(find.text('Uninstall'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Add entity').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Add entity'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('New neural entity'), findsWidgets);
+
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
   });
 
   testWidgets('interface scale starts at 100% with a denser 120% visual base', (
@@ -197,7 +238,7 @@ void main() {
     }
     await tester.tap(find.text('About Us'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.4.2'), findsOneWidget);
+    expect(find.textContaining('Version 0.4.3'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
@@ -228,6 +269,53 @@ void main() {
     });
   });
 
+  testWidgets('topbar switches directly between adjacent context menus', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byKey(const ValueKey<String>('File menu button')));
+    await tester.pumpAndSettle();
+    expect(find.text('New workspace'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('View menu button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Explorer'), findsOneWidget);
+    expect(find.text('New workspace'), findsNothing);
+  });
+
+  testWidgets('notification button shows unread state and notification panel', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final button = find.byKey(const ValueKey<String>('notifications button'));
+    expect(button, findsOneWidget);
+    expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Modules'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add module').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.notifications_active_outlined), findsOneWidget);
+
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Module added'), findsOneWidget);
+    expect(find.text('Mark all as read'), findsOneWidget);
+
+    await tester.tap(find.text('Mark all as read'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.notifications_active_outlined), findsNothing);
+    expect(find.text('Mark all as read'), findsNothing);
+  });
+
   testWidgets('View menu changes between system, dark and white themes', (
     WidgetTester tester,
   ) async {
@@ -238,6 +326,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('View menu button')));
       await tester.pumpAndSettle();
       expect(find.text('Theme'), findsOneWidget);
+      await tester.tap(find.text('Theme'));
+      await tester.pumpAndSettle();
       expect(find.text('System'), findsOneWidget);
       expect(find.text('Dark'), findsOneWidget);
       expect(find.text('White'), findsOneWidget);
@@ -325,7 +415,7 @@ void main() {
     expect(find.text('Signal Tools'), findsNothing);
   });
 
-  testWidgets('extensions filter and tab controls are interactive', (
+  testWidgets('extensions section list and tab controls are interactive', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -333,19 +423,189 @@ void main() {
     await tester.tap(find.byTooltip('extensions'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Active'));
-    await tester.pumpAndSettle();
     expect(find.text('Signal Tools'), findsWidgets);
-    expect(find.text('Session Notes'), findsNothing);
+    expect(find.text('Session Notes'), findsOneWidget);
+    expect(find.text('Downloaded'), findsNothing);
+    expect(find.text('Active'), findsNothing);
+    expect(find.text('All'), findsNothing);
 
     await tester.tap(find.text('Signal Tools').first);
     await tester.pumpAndSettle();
     expect(find.text('Extension details'), findsOneWidget);
-    expect(find.byTooltip('Close tab'), findsOneWidget);
+    expect(find.byTooltip('Close tab'), findsWidgets);
 
-    await tester.tap(find.byTooltip('Close tab'));
+    await tester.tap(find.byTooltip('Close tab').last);
     await tester.pumpAndSettle();
     expect(find.text('Select an extension'), findsOneWidget);
+  });
+
+  testWidgets('activity rail resizes on Profile, Extensions and Bug Report', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    for (final destination in const [
+      'extensions',
+      'User profile button',
+      'bug report',
+    ]) {
+      await tester.tap(find.byTooltip(destination));
+      await tester.pumpAndSettle();
+      final rail = find.byKey(const ValueKey<String>('activity rail surface'));
+      final initialWidth = tester.getSize(rail).width;
+      await tester.drag(
+        find.byKey(const ValueKey<String>('rail resize handle')),
+        const Offset(24, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getSize(rail).width, greaterThan(initialWidth));
+    }
+
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  });
+
+  testWidgets(
+    'extensions use vertical collapsible sections and resizable pane',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1400, 800);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(const ProviderScope(child: BciApp()));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.byTooltip('extensions'));
+      await tester.pumpAndSettle();
+
+      final explorer = find.byKey(
+        const ValueKey<String>('extensions explorer pane'),
+      );
+      final handle = find.byKey(
+        const ValueKey<String>('extensions resize handle'),
+      );
+      final initialWidth = tester.getSize(explorer).width;
+      expect(find.text('Signal Tools'), findsOneWidget);
+      expect(find.text('Neuro Dashboard'), findsNothing);
+      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+
+      await tester.tap(find.text('Installed'));
+      await tester.pumpAndSettle();
+      expect(find.text('Signal Tools'), findsNothing);
+
+      await tester.tapAt(const Offset(5, 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recommended'));
+      await tester.pumpAndSettle();
+      expect(find.text('Neuro Dashboard'), findsOneWidget);
+      expect(find.text('Signal Tools'), findsNothing);
+
+      await tester.tap(find.text('Installed'));
+      await tester.pumpAndSettle();
+      expect(find.text('Signal Tools'), findsOneWidget);
+
+      await tester.drag(handle, const Offset(80, 0));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(explorer).width, greaterThan(initialWidth));
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+    },
+  );
+
+  testWidgets('module explorer groups collapse vertically', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Modules'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('active module search')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('ACTIVE MODULES'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('active module search')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('catalog module search')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('MODULE CATALOG'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('catalog module search')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'extensions separate installed and recommended settings actions',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const ProviderScope(child: BciApp()));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.byTooltip('extensions'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Installed'), findsOneWidget);
+      expect(find.text('Recommended'), findsOneWidget);
+      expect(find.text('Signal Tools'), findsOneWidget);
+      expect(find.text('Neuro Dashboard'), findsNothing);
+
+      await tester.tap(find.byTooltip('Extension settings').first);
+      await tester.pumpAndSettle();
+      for (final action in const [
+        'Disable/enable',
+        'Autoupdate',
+        'Uninstall',
+        'Copy link',
+        'Copy name',
+        'Keyboard',
+        'Profiles operate',
+        'Shortcuts',
+      ]) {
+        expect(find.text(action), findsOneWidget);
+      }
+
+      await tester.tapAt(const Offset(5, 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recommended'));
+      await tester.pumpAndSettle();
+      expect(find.text('Signal Tools'), findsOneWidget);
+      expect(find.text('Neuro Dashboard'), findsOneWidget);
+      await tester.tap(find.text('Installed'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Extension settings'), findsNothing);
+    },
+  );
+
+  testWidgets('extension settings action creates a real notification', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('extensions'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Extension settings').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Autoupdate'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('notifications button')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Extension changed'), findsOneWidget);
+    expect(find.text('Signal Tools: Autoupdate selected.'), findsOneWidget);
   });
 
   testWidgets('preferences replace the shell sidebars from the rail', (
@@ -497,6 +757,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('No open tabs'), findsOneWidget);
   });
+
+  testWidgets(
+    'shared desktop action controls use rectangular tab close targets',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const ProviderScope(child: BciApp()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byTooltip('Close tab'), findsOneWidget);
+      final close = find.byTooltip('Close tab');
+      expect(tester.getSize(close), const Size(22, 22));
+      expect(find.byType(DesktopIconButton), findsWidgets);
+    },
+  );
 
   testWidgets('Edit menu uses the themed contextual surface', (
     WidgetTester tester,
