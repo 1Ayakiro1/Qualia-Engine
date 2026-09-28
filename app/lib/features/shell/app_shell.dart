@@ -266,6 +266,71 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     _restoreShellFocus();
   }
 
+  void _handleHelpAction(String action) {
+    if (action == 'report_issue') {
+      _selectSection(SectionId.bugReport, ref.read(appModeProvider));
+      return;
+    }
+
+    final content = switch (action) {
+      'documentation' => (
+        'Documentation',
+        'Learn how to configure workspaces, devices, sessions and modules in Qualia Engine.',
+      ),
+      'about' => (
+        'About Us',
+        '${AppInfo.appName}\nVersion ${AppInfo.version}\n\nBuilt by ${AppInfo.organization} for focused brain-computer interface workflows.',
+      ),
+      'welcome' => (
+        'Welcome to Qualia Engine',
+        'Qualia Engine is a desktop workspace for exploring BCI data, sessions and modular signal-processing pipelines.',
+      ),
+      'tutorials' => (
+        'Tutorials',
+        'Start with the Dashboard, connect a device, create a session and open Modules to build your processing workflow.',
+      ),
+      'license' => (
+        'License',
+        'Qualia Engine is distributed under the project license. See the repository license file for the complete terms.',
+      ),
+      'updates' => (
+        'Check updates',
+        'You are running Qualia Engine ${AppInfo.version}. Update checking will be connected to the release channel in a future build.',
+      ),
+      'youtube' => (
+        'Our Youtube',
+        'Video tutorials and project updates will be available on the Qualia Engine YouTube channel.',
+      ),
+      _ => ('Help', 'This help action is not available yet.'),
+    };
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(content.$1),
+        content: Text(content.$2),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleViewAction(String action) {
+    final mode = switch (action) {
+      'theme_system' => ThemeMode.system,
+      'theme_dark' => ThemeMode.dark,
+      'theme_light' => ThemeMode.light,
+      _ => null,
+    };
+    if (mode != null) {
+      ref.read(themeModeProvider.notifier).setThemeMode(mode);
+    }
+  }
+
   void _selectMode(AppMode value) {
     ref.read(appModeProvider.notifier).setMode(value);
     _openTab(SectionId.dashboard);
@@ -377,6 +442,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                         .read(navSectionProvider.notifier)
                                         .select(SectionId.settings);
                                   }),
+                                  onHelpAction: _handleHelpAction,
+                                  onViewAction: _handleViewAction,
                                 ),
                                 Expanded(
                                   child: Stack(
@@ -691,12 +758,16 @@ class _TitleBar extends StatelessWidget {
     required this.compact,
     required this.onOpenDebugConsole,
     required this.onOpenPreferences,
+    required this.onHelpAction,
+    required this.onViewAction,
     required this.scale,
     required this.onScaleChanged,
   });
   final bool compact;
   final VoidCallback onOpenDebugConsole;
   final VoidCallback onOpenPreferences;
+  final ValueChanged<String> onHelpAction;
+  final ValueChanged<String> onViewAction;
   final double scale;
   final ValueChanged<double> onScaleChanged;
 
@@ -737,8 +808,9 @@ class _TitleBar extends StatelessWidget {
               const SizedBox(width: 6),
               _TopMenuItem(label: 'File', onPreferences: onOpenPreferences),
               _TopMenuItem(label: 'Edit'),
-              _TopMenuItem(label: 'View'),
+              _TopMenuItem(label: 'View', onAction: onViewAction),
               _TopMenuItem(label: 'Build'),
+              if (!compact) _TopMenuItem(label: 'Help', onAction: onHelpAction),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -952,10 +1024,11 @@ class _WindowControlsState extends State<_WindowControls> with WindowListener {
 }
 
 class _TopMenuItem extends StatelessWidget {
-  const _TopMenuItem({required this.label, this.onPreferences});
+  const _TopMenuItem({required this.label, this.onPreferences, this.onAction});
 
   final String label;
   final VoidCallback? onPreferences;
+  final ValueChanged<String>? onAction;
 
   List<_MenuAction<String>> _items() {
     switch (label) {
@@ -1007,6 +1080,31 @@ class _TopMenuItem extends StatelessWidget {
             enabled: false,
             dividerBefore: true,
           ),
+          _MenuAction(
+            value: 'theme',
+            label: 'Theme',
+            dividerBefore: true,
+            submenu: [
+              _MenuAction(value: 'theme_system', label: 'System'),
+              _MenuAction(value: 'theme_dark', label: 'Dark'),
+              _MenuAction(value: 'theme_light', label: 'White'),
+            ],
+          ),
+        ];
+      case 'Help':
+        return const [
+          _MenuAction(value: 'documentation', label: 'Documentation'),
+          _MenuAction(value: 'about', label: 'About Us'),
+          _MenuAction(value: 'welcome', label: 'Welcome'),
+          _MenuAction(value: 'tutorials', label: 'Tutorials'),
+          _MenuAction(value: 'license', label: 'License'),
+          _MenuAction(
+            value: 'updates',
+            label: 'Check updates',
+            dividerBefore: true,
+          ),
+          _MenuAction(value: 'report_issue', label: 'Report Issue'),
+          _MenuAction(value: 'youtube', label: 'Our Youtube'),
         ];
       default:
         return const [
@@ -1033,6 +1131,7 @@ class _TopMenuItem extends StatelessWidget {
     actions: _items(),
     onSelected: (value) {
       if (value == 'preferences') onPreferences?.call();
+      onAction?.call(value);
     },
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1052,6 +1151,7 @@ class _MenuAction<T> {
     this.enabled = true,
     this.dividerBefore = false,
     this.shortcut,
+    this.submenu,
   });
 
   final T value;
@@ -1059,6 +1159,7 @@ class _MenuAction<T> {
   final bool enabled;
   final bool dividerBefore;
   final String? shortcut;
+  final List<_MenuAction<T>>? submenu;
 }
 
 class _AnimatedContextMenuButton<T> extends StatefulWidget {
@@ -1163,11 +1264,28 @@ class _AnimatedContextMenuButtonState<T>
                           child: _AnimatedMenuAction(
                             action: action,
                             onSelected: () {
-                              widget.onSelected(action.value);
-                              _closeMenu();
+                              if (action.submenu == null) {
+                                widget.onSelected(action.value);
+                                _closeMenu();
+                              }
                             },
                           ),
                         ),
+                        if (action.submenu != null)
+                          for (final submenuAction in action.submenu!)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 20,
+                                right: 6,
+                              ),
+                              child: _AnimatedMenuAction<T>(
+                                action: submenuAction,
+                                onSelected: () {
+                                  widget.onSelected(submenuAction.value);
+                                  _closeMenu();
+                                },
+                              ),
+                            ),
                       ],
                     ],
                   ),
@@ -1274,6 +1392,14 @@ class _AnimatedMenuActionState<T> extends State<_AnimatedMenuAction<T>> {
                       fontSize: 12,
                     ),
                   ),
+                ),
+              ],
+              if (widget.action.submenu != null) ...[
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: AppTheme.mutedText,
                 ),
               ],
             ],

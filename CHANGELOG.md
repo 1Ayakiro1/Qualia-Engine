@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.2] — Help menu and theme selection
+
+- В header добавлено меню `Help` с разделами Documentation, About Us, Welcome,
+  Tutorials, License, Check updates, Report Issue и Our Youtube.
+- В меню `View` добавлен пункт `Theme` с вариантами `System`, `Dark` и `White`.
+- Светлая тема применяется сразу и распространяется на shell, меню, диалоги и
+  остальные Material overlays; `System` следует системной настройке.
+- Добавлены UI-тесты для Help menu и переключения всех вариантов темы.
+
 ## [0.4.1] — Qualia Engine UI polish
 
 - Репозиторий и локальная рабочая папка переименованы в Qualia Engine.

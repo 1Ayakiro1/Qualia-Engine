@@ -181,6 +181,26 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const ValueKey<String>('Help menu button')));
+    await tester.pumpAndSettle();
+    for (final label in const <String>[
+      'Documentation',
+      'About Us',
+      'Welcome',
+      'Tutorials',
+      'License',
+      'Check updates',
+      'Report Issue',
+      'Our Youtube',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.tap(find.text('About Us'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Version 0.4.1'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
     await tester.tap(
       find.byWidgetPredicate(
         (widget) =>
@@ -206,6 +226,42 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
+  });
+
+  testWidgets('View menu changes between system, dark and white themes', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    Future<void> chooseTheme(String label) async {
+      await tester.tap(find.byKey(const ValueKey<String>('View menu button')));
+      await tester.pumpAndSettle();
+      expect(find.text('Theme'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
+      expect(find.text('White'), findsOneWidget);
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    await chooseTheme('White');
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.light,
+    );
+
+    await chooseTheme('Dark');
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+
+    await chooseTheme('System');
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.system,
+    );
   });
 
   testWidgets('rail buttons navigate to sections outside the current mode', (

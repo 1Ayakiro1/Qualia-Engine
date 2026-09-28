@@ -14,7 +14,10 @@ class AppTheme {
 
   static ThemeData dark() => _base(Brightness.dark);
 
-  static ThemeData light() => _base(Brightness.light);
+  /// The light appearance is rendered by inverting this same neutral palette.
+  /// Keeping the source palette identical prevents explicit shell colors and
+  /// Material overlays (dialogs, menus and tooltips) from drifting apart.
+  static ThemeData light() => _base(Brightness.dark);
 
   static ThemeData _base(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
