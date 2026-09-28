@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.3] — Profile login and shortcuts polish
+
+- Profile workspace заменён на экран `Log in with:` с провайдерами Github,
+  Google и Gmail.
+- Модальное окно Keyboard shortcuts расширено примерно на 20% по ширине.
+- Из заголовка Keyboard shortcuts убраны иконка и дополнительный текст.
+- Убрано лишнее пояснение про ввод новой комбинации клавиш.
+- `Edit shortcuts` оформлена в едином стиле интерфейса с компактным hover и
+  active-состояниями.
+
 ## [0.4.2] — Help menu and theme selection
 
 - В header добавлено меню `Help` с разделами Documentation, About Us, Welcome,

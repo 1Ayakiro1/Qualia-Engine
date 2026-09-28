@@ -1702,7 +1702,7 @@ class _ShortcutDialog extends StatelessWidget {
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: math.min(820, MediaQuery.sizeOf(context).width - 32),
+      width: math.min(980, MediaQuery.sizeOf(context).width - 32),
       height: math.min(700, MediaQuery.sizeOf(context).height - 48),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),

@@ -42,35 +42,14 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
       if (!widget.compact) ...[
         Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppTheme.background,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: const Icon(Icons.keyboard_alt_outlined, size: 21),
-            ),
-            const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Keyboard shortcuts',
-                    style: TextStyle(
-                      color: AppTheme.text,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Configure the commands you use most often',
-                    style: TextStyle(color: AppTheme.mutedText, fontSize: 12),
-                  ),
-                ],
+              child: Text(
+                'Keyboard shortcuts',
+                style: TextStyle(
+                  color: AppTheme.text,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             if (widget.onClose != null)
@@ -84,16 +63,6 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
         ),
         const SizedBox(height: 28),
       ],
-      const Text(
-        'KEYBOARD SHORTCUTS',
-        style: TextStyle(
-          color: AppTheme.mutedText,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1,
-        ),
-      ),
-      const SizedBox(height: 10),
       Expanded(
         child: SingleChildScrollView(
           child: Column(
@@ -133,19 +102,12 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
       const SizedBox(height: 8),
       Container(height: 1, color: AppTheme.border),
       const SizedBox(height: 14),
-      Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Click a key field and press a new combination.',
-              style: TextStyle(color: AppTheme.mutedText, fontSize: 12),
-            ),
-          ),
-          _ShortcutEditButton(
-            editing: _editing,
-            onPressed: () => setState(() => _editing = !_editing),
-          ),
-        ],
+      Align(
+        alignment: Alignment.centerRight,
+        child: _ShortcutEditButton(
+          editing: _editing,
+          onPressed: () => setState(() => _editing = !_editing),
+        ),
       ),
     ],
   );
@@ -202,6 +164,15 @@ class _ShortcutEditButton extends StatelessWidget {
     onPressed: onPressed,
     icon: Icon(editing ? Icons.check : Icons.edit_outlined, size: 16),
     label: Text(editing ? 'Done' : 'Edit shortcuts'),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: AppTheme.text,
+      backgroundColor: editing ? AppTheme.border : AppTheme.panel,
+      side: const BorderSide(color: AppTheme.border),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      minimumSize: const Size(0, 38),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    ),
   );
 }
 

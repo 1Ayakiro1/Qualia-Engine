@@ -197,7 +197,7 @@ void main() {
     }
     await tester.tap(find.text('About Us'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.4.1'), findsOneWidget);
+    expect(find.textContaining('Version 0.4.2'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
@@ -214,7 +214,7 @@ void main() {
     expect(find.text('Shortcuts'), findsOneWidget);
     await tester.tap(find.text('Shortcuts'));
     await tester.pumpAndSettle();
-    expect(find.text('Keyboard shortcuts'), findsOneWidget);
+    expect(find.text('Keyboard shortcuts'), findsWidgets);
     expect(find.text('WORKSPACE'), findsOneWidget);
     expect(find.text('INTERFACE'), findsOneWidget);
     expect(find.text('Edit shortcuts'), findsOneWidget);
@@ -365,7 +365,7 @@ void main() {
 
     await tester.tap(find.text('Keyboard shortcuts').last);
     await tester.pumpAndSettle();
-    expect(find.text('KEYBOARD SHORTCUTS'), findsOneWidget);
+    expect(find.text('Keyboard shortcuts'), findsWidgets);
     expect(find.text('WORKSPACE'), findsOneWidget);
   });
 
@@ -377,7 +377,10 @@ void main() {
 
     await tester.tap(find.byTooltip('User profile button'));
     await tester.pumpAndSettle();
-    expect(find.text('Account 1'), findsOneWidget);
+    expect(find.text('Log in with:'), findsOneWidget);
+    expect(find.text('Github'), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('Gmail'), findsOneWidget);
     expect(find.byTooltip('User profile button'), findsOneWidget);
     expect(find.text('EXPLORER'), findsNothing);
     await tester.tap(find.text('Back to app'));

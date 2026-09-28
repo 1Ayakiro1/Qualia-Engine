@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// A dedicated profile workspace opened from the account button in the rail.
+/// Account workspace. Authentication providers are presented here without
+/// coupling the shell to a specific OAuth implementation yet.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.onBack});
 
@@ -23,16 +24,13 @@ class ProfileScreen extends StatelessWidget {
                 label: 'Back to app',
                 onTap: onBack,
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Profile',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: AppTheme.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+              const Spacer(),
+              const Text(
+                'Profile',
+                style: TextStyle(
+                  color: AppTheme.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -40,90 +38,41 @@ class ProfileScreen extends StatelessWidget {
         ),
         const Divider(height: 1),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(48, 48, 48, 80),
-            child: Center(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Text(
-                      'Profile',
+                      'Log in with:',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppTheme.text,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 330;
-                        final identity = const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ayakiro',
-                              style: TextStyle(
-                                color: AppTheme.text,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              'Local offline profile',
-                              style: TextStyle(
-                                color: AppTheme.mutedText,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        );
-                        final avatar = Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: AppTheme.border,
-                            borderRadius: BorderRadius.circular(36),
-                          ),
-                          child: const Icon(
-                            Icons.account_circle_outlined,
-                            size: 42,
-                            color: AppTheme.text,
-                          ),
-                        );
-                        return Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: AppTheme.panel,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppTheme.border),
-                          ),
-                          child: compact
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    avatar,
-                                    const SizedBox(height: 14),
-                                    identity,
-                                  ],
-                                )
-                              : Row(
-                                  children: [
-                                    avatar,
-                                    const SizedBox(width: 18),
-                                    identity,
-                                  ],
-                                ),
-                        );
-                      },
-                    ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Account 1',
-                      style: TextStyle(color: AppTheme.mutedText, fontSize: 13),
+                    _LoginProviderButton(
+                      label: 'Github',
+                      icon: Icons.code,
+                      onPressed: () {},
+                    ),
+                    const SizedBox(height: 10),
+                    _LoginProviderButton(
+                      label: 'Google',
+                      icon: Icons.g_mobiledata,
+                      onPressed: () {},
+                    ),
+                    const SizedBox(height: 10),
+                    _LoginProviderButton(
+                      label: 'Gmail',
+                      icon: Icons.mail_outline,
+                      onPressed: () {},
                     ),
                   ],
                 ),
@@ -136,7 +85,36 @@ class ProfileScreen extends StatelessWidget {
   );
 }
 
-class _ProfileAction extends StatefulWidget {
+class _LoginProviderButton extends StatelessWidget {
+  const _LoginProviderButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 46,
+    child: OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppTheme.text,
+        backgroundColor: AppTheme.panel,
+        side: const BorderSide(color: AppTheme.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+    ),
+  );
+}
+
+class _ProfileAction extends StatelessWidget {
   const _ProfileAction({
     required this.icon,
     required this.label,
@@ -148,39 +126,14 @@ class _ProfileAction extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<_ProfileAction> createState() => _ProfileActionState();
-}
-
-class _ProfileActionState extends State<_ProfileAction> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: _hovered ? AppTheme.panel : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(widget.icon, size: 17, color: AppTheme.text),
-            const SizedBox(width: 8),
-            Text(
-              widget.label,
-              style: const TextStyle(color: AppTheme.text, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
+  Widget build(BuildContext context) => TextButton.icon(
+    onPressed: onTap,
+    icon: Icon(icon, size: 17),
+    label: Text(label),
+    style: TextButton.styleFrom(
+      foregroundColor: AppTheme.text,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
   );
 }
