@@ -74,7 +74,10 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> with WindowListener {
+  final FocusNode _shellFocusNode = FocusNode(
+    debugLabel: 'app shell shortcuts',
+  );
   bool terminalOpen = true;
   bool modeSwitcherOpen = false;
   bool _explorerVisible = true;
@@ -101,10 +104,27 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     final initial = kNavSections.first;
     _openTabs.add(initial);
     _activeTab = initial.id;
   }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    _shellFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _restoreShellFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _shellFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void onWindowFocus() => _restoreShellFocus();
 
   NavSection? get _activeTabSection {
     for (final tab in _openTabs) {
@@ -239,9 +259,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _openDebugConsole() {
     if (widget.onOpenDebugTerminal != null) {
       widget.onOpenDebugTerminal!();
+      _restoreShellFocus();
       return;
     }
     unawaited(DebugTerminalLauncher.launch());
+    _restoreShellFocus();
   }
 
   void _selectMode(AppMode value) {
@@ -306,6 +328,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             _resetScale,
       },
       child: Focus(
+        focusNode: _shellFocusNode,
         autofocus: true,
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -595,11 +618,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                                 _TerminalPanel(
                                                                   open:
                                                                       terminalOpen,
-                                                                  onToggle: () =>
-                                                                      setState(
-                                                                        () => terminalOpen =
-                                                                            !terminalOpen,
-                                                                      ),
+                                                                  onToggle: () => setState(() {
+                                                                    terminalOpen =
+                                                                        !terminalOpen;
+                                                                    _restoreShellFocus();
+                                                                  }),
                                                                 ),
                                                               ],
                                                             ),
@@ -1553,12 +1576,19 @@ class _ShortcutDialog extends StatelessWidget {
       side: const BorderSide(color: AppTheme.border),
     ),
     child: SizedBox(
-      width: math.min(660, MediaQuery.sizeOf(context).width - 48),
+      width: math.min(820, MediaQuery.sizeOf(context).width - 32),
       height: math.min(700, MediaQuery.sizeOf(context).height - 48),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
         child: KeyboardShortcutsPanel(
-          onClose: () => Navigator.of(context).pop(),
+          onClose: () {
+            Navigator.of(context).pop();
+            // Return keyboard ownership to the shell after the modal route is
+            // removed so Ctrl+/Ctrl- shortcuts keep working immediately.
+            context
+                .findAncestorStateOfType<_AppShellState>()
+                ?._restoreShellFocus();
+          },
         ),
       ),
     ),
@@ -2472,10 +2502,17 @@ class _EditorTabAction extends StatelessWidget {
     child: IconButton(
       onPressed: onPressed,
       icon: Icon(icon, size: 17),
-      color: AppTheme.mutedText,
-      hoverColor: AppTheme.border,
-      constraints: const BoxConstraints.tightFor(width: 30, height: 30),
-      padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        foregroundColor: AppTheme.mutedText,
+        backgroundColor: Colors.transparent,
+        hoverColor: AppTheme.border,
+        fixedSize: const Size.square(30),
+        minimumSize: const Size.square(30),
+        maximumSize: const Size.square(30),
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
     ),
   );
 }
@@ -2649,6 +2686,7 @@ class _TerminalPanel extends StatelessWidget {
                     ),
                   const Spacer(),
                   IconButton(
+                    key: const ValueKey<String>('terminal panel toggle'),
                     onPressed: onToggle,
                     icon: Icon(
                       open

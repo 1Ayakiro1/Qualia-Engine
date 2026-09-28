@@ -167,11 +167,10 @@ class _ShortcutSettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     constraints: const BoxConstraints(minHeight: 62),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
     decoration: BoxDecoration(
       color: AppTheme.background.withAlpha(90),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: AppTheme.border),
     ),
     child: Row(
       children: [
@@ -277,7 +276,7 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 158,
+    width: 184,
     height: 38,
     child: Focus(
       focusNode: _focusNode,
@@ -300,18 +299,9 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           filled: true,
           fillColor: widget.editing ? AppTheme.panel : Colors.transparent,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
-            borderSide: const BorderSide(color: AppTheme.text),
-          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
         ),
         style: const TextStyle(
           color: AppTheme.text,

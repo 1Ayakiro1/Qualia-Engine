@@ -62,6 +62,29 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
   });
 
+  testWidgets('shell shortcuts survive terminal panel toggles', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('terminal panel toggle')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('terminal panel toggle')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump();
+
+    expect(find.text('110%'), findsOneWidget);
+  });
+
   testWidgets('header menus remain available across interface scales', (
     WidgetTester tester,
   ) async {

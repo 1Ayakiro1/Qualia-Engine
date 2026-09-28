@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core
+CMAKE_SOURCE_DIR = "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build
+CMAKE_BINARY_DIR = "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build"
 
 # Include any dependencies generated for this target.
 include CMakeFiles/bci_engine_core.dir/depend.make
@@ -73,74 +73,74 @@ CMakeFiles/bci_engine_core.dir/codegen:
 .PHONY : CMakeFiles/bci_engine_core.dir/codegen
 
 CMakeFiles/bci_engine_core.dir/src/version.cpp.o: CMakeFiles/bci_engine_core.dir/flags.make
-CMakeFiles/bci_engine_core.dir/src/version.cpp.o: /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/version.cpp
+CMakeFiles/bci_engine_core.dir/src/version.cpp.o: /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/version.cpp
 CMakeFiles/bci_engine_core.dir/src/version.cpp.o: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/bci_engine_core.dir/src/version.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/version.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/version.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/version.cpp.o -c /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/version.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/bci_engine_core.dir/src/version.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/version.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/version.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/version.cpp.o -c "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/version.cpp"
 
 CMakeFiles/bci_engine_core.dir/src/version.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/bci_engine_core.dir/src/version.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/version.cpp > CMakeFiles/bci_engine_core.dir/src/version.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/version.cpp" > CMakeFiles/bci_engine_core.dir/src/version.cpp.i
 
 CMakeFiles/bci_engine_core.dir/src/version.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/bci_engine_core.dir/src/version.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/version.cpp -o CMakeFiles/bci_engine_core.dir/src/version.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/version.cpp" -o CMakeFiles/bci_engine_core.dir/src/version.cpp.s
 
 CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: CMakeFiles/bci_engine_core.dir/flags.make
-CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/engine.cpp
+CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/engine.cpp
 CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/bci_engine_core.dir/src/engine.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/engine.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/engine.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/engine.cpp.o -c /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/engine.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/bci_engine_core.dir/src/engine.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/engine.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/engine.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/engine.cpp.o -c "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/engine.cpp"
 
 CMakeFiles/bci_engine_core.dir/src/engine.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/bci_engine_core.dir/src/engine.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/engine.cpp > CMakeFiles/bci_engine_core.dir/src/engine.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/engine.cpp" > CMakeFiles/bci_engine_core.dir/src/engine.cpp.i
 
 CMakeFiles/bci_engine_core.dir/src/engine.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/bci_engine_core.dir/src/engine.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/engine.cpp -o CMakeFiles/bci_engine_core.dir/src/engine.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/engine.cpp" -o CMakeFiles/bci_engine_core.dir/src/engine.cpp.s
 
 CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: CMakeFiles/bci_engine_core.dir/flags.make
-CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/modules.cpp
+CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/modules.cpp
 CMakeFiles/bci_engine_core.dir/src/modules.cpp.o: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/bci_engine_core.dir/src/modules.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/modules.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/modules.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/modules.cpp.o -c /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/modules.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/bci_engine_core.dir/src/modules.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/modules.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/modules.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/modules.cpp.o -c "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/modules.cpp"
 
 CMakeFiles/bci_engine_core.dir/src/modules.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/bci_engine_core.dir/src/modules.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/modules.cpp > CMakeFiles/bci_engine_core.dir/src/modules.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/modules.cpp" > CMakeFiles/bci_engine_core.dir/src/modules.cpp.i
 
 CMakeFiles/bci_engine_core.dir/src/modules.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/bci_engine_core.dir/src/modules.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/modules.cpp -o CMakeFiles/bci_engine_core.dir/src/modules.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/modules.cpp" -o CMakeFiles/bci_engine_core.dir/src/modules.cpp.s
 
 CMakeFiles/bci_engine_core.dir/src/fft.cpp.o: CMakeFiles/bci_engine_core.dir/flags.make
-CMakeFiles/bci_engine_core.dir/src/fft.cpp.o: /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/fft.cpp
+CMakeFiles/bci_engine_core.dir/src/fft.cpp.o: /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/fft.cpp
 CMakeFiles/bci_engine_core.dir/src/fft.cpp.o: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/bci_engine_core.dir/src/fft.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/fft.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/fft.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/fft.cpp.o -c /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/fft.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/bci_engine_core.dir/src/fft.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/fft.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/fft.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/fft.cpp.o -c "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/fft.cpp"
 
 CMakeFiles/bci_engine_core.dir/src/fft.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/bci_engine_core.dir/src/fft.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/fft.cpp > CMakeFiles/bci_engine_core.dir/src/fft.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/fft.cpp" > CMakeFiles/bci_engine_core.dir/src/fft.cpp.i
 
 CMakeFiles/bci_engine_core.dir/src/fft.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/bci_engine_core.dir/src/fft.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/fft.cpp -o CMakeFiles/bci_engine_core.dir/src/fft.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/fft.cpp" -o CMakeFiles/bci_engine_core.dir/src/fft.cpp.s
 
 CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: CMakeFiles/bci_engine_core.dir/flags.make
-CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/c_api.cpp
+CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/c_api.cpp
 CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o -c /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/c_api.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o -MF CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o.d -o CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o -c "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/c_api.cpp"
 
 CMakeFiles/bci_engine_core.dir/src/c_api.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/bci_engine_core.dir/src/c_api.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/c_api.cpp > CMakeFiles/bci_engine_core.dir/src/c_api.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/c_api.cpp" > CMakeFiles/bci_engine_core.dir/src/c_api.cpp.i
 
 CMakeFiles/bci_engine_core.dir/src/c_api.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/bci_engine_core.dir/src/c_api.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/c_api.cpp -o CMakeFiles/bci_engine_core.dir/src/c_api.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/src/c_api.cpp" -o CMakeFiles/bci_engine_core.dir/src/c_api.cpp.s
 
 # Object files for target bci_engine_core
 bci_engine_core_OBJECTS = \
@@ -161,7 +161,7 @@ libbci_engine_core.so.0.1.0: CMakeFiles/bci_engine_core.dir/src/c_api.cpp.o
 libbci_engine_core.so.0.1.0: CMakeFiles/bci_engine_core.dir/build.make
 libbci_engine_core.so.0.1.0: CMakeFiles/bci_engine_core.dir/compiler_depend.ts
 libbci_engine_core.so.0.1.0: CMakeFiles/bci_engine_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX shared library libbci_engine_core.so"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX shared library libbci_engine_core.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/bci_engine_core.dir/link.txt --verbose=$(VERBOSE)
 	$(CMAKE_COMMAND) -E cmake_symlink_library libbci_engine_core.so.0.1.0 libbci_engine_core.so.0 libbci_engine_core.so
 
@@ -180,6 +180,6 @@ CMakeFiles/bci_engine_core.dir/clean:
 .PHONY : CMakeFiles/bci_engine_core.dir/clean
 
 CMakeFiles/bci_engine_core.dir/depend:
-	cd /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/CMakeFiles/bci_engine_core.dir/DependInfo.cmake "--color=$(COLOR)" bci_engine_core
+	cd "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build" && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core" "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core" "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build" "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build" "/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build/CMakeFiles/bci_engine_core.dir/DependInfo.cmake" "--color=$(COLOR)" bci_engine_core
 .PHONY : CMakeFiles/bci_engine_core.dir/depend
 

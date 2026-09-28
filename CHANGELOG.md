@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1] — Qualia Engine UI polish
+
+- Репозиторий и локальная рабочая папка переименованы в Qualia Engine.
+- Keyboard shortcuts расширены: action rows и key fields теперь без лишних
+  borders, поле комбинации шире и центрировано для более чистого desktop-вида.
+- Исправлен квадратный hover/focus state у кнопок действий в tab bar.
+- После открытия/закрытия terminal panel shell возвращает keyboard focus;
+  shortcuts масштаба продолжают работать без дополнительного клика.
+
 ## [0.4.0] — Extensions workspace and shortcut surfaces
 
 - Extensions приведён к IDE-структуре Modules: отдельный Explorer, фильтры,

@@ -1,7 +1,7 @@
 CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/engine.cpp \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/engine.cpp \
  /usr/include/stdc-predef.h \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include/bci_engine/core.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/include/bci_engine/core.hpp \
  /usr/include/c++/16/atomic /usr/include/c++/16/bits/version.h \
  /usr/include/c++/16/x86_64-redhat-linux/bits/c++config.h \
  /usr/include/bits/wordsize.h \
@@ -153,7 +153,7 @@ CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: \
  /usr/include/c++/16/bits/stl_vector.h \
  /usr/include/c++/16/bits/stl_bvector.h \
  /usr/include/c++/16/bits/vector.tcc \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/include/bci_engine/version.h \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/include/bci_engine/version.h \
  /usr/include/c++/16/algorithm /usr/include/c++/16/bits/stl_algo.h \
  /usr/include/c++/16/bits/algorithmfwd.h \
  /usr/include/c++/16/bits/stl_heap.h \
@@ -161,11 +161,11 @@ CMakeFiles/bci_engine_core.dir/src/engine.cpp.o: \
  /usr/include/c++/16/pstl/glue_algorithm_defs.h \
  /usr/include/c++/16/chrono /usr/include/c++/16/utility \
  /usr/include/c++/16/bits/stl_relops.h \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/thirdparty/readerwriterqueue-1.0.6/readerwriterqueue.h \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/build/thirdparty/readerwriterqueue-1.0.6/atomicops.h \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/build/thirdparty/readerwriterqueue-1.0.6/readerwriterqueue.h \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/build/thirdparty/readerwriterqueue-1.0.6/atomicops.h \
  /usr/include/c++/16/cassert /usr/include/assert.h \
  /usr/include/semaphore.h /usr/include/bits/semaphore.h \
  /usr/include/c++/16/stdexcept \
  /usr/include/c++/16/bits/stdexcept_except.h \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/modules.hpp \
- /home/ayakiro/Documents/Проекты/BCI/NerveGears_Engine/core/src/log_hook.hpp
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/modules.hpp \
+ /home/ayakiro/Documents/Проекты/BCI/Qualia\ Engine/core/src/log_hook.hpp
