@@ -1,12 +1,19 @@
 import 'package:bci_engine/app.dart';
+import 'package:bci_engine/core/logging/app_logger.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bci_engine/core/theme/app_palette.dart';
+import 'package:bci_engine/core/theme/app_theme.dart';
 import 'package:bci_engine/features/common/widgets.dart';
+import 'package:bci_engine/features/shell/app_shell.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets('app shell renders top bar and dashboard', (
     WidgetTester tester,
   ) async {
@@ -18,7 +25,7 @@ void main() {
     expect(find.byTooltip('user&dev switcher'), findsOneWidget);
     expect(find.text('Потребитель'), findsNothing);
     // Dashboard header.
-    expect(find.text('Обзор'), findsWidgets);
+    expect(find.text('Dashboard'), findsWidgets);
   });
 
   testWidgets('mode switch panel reveals researcher mode', (
@@ -32,12 +39,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Change mode'), findsNothing);
     await tester.tap(
-      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Исследователь'), findsNothing);
-    expect(find.byTooltip('Modules'), findsOneWidget);
+    expect(find.byTooltip('Workspace'), findsOneWidget);
     expect(find.text('No active workspace items'), findsOneWidget);
     expect(find.text('ACTIVE MODULES'), findsNothing);
     expect(find.text('MODULE CATALOG'), findsNothing);
@@ -53,7 +60,7 @@ void main() {
     await tester.tap(find.byTooltip('user&dev switcher'));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
     );
     await tester.pumpAndSettle();
 
@@ -216,7 +223,7 @@ void main() {
     expect(find.text('Integrations'), findsNothing);
     expect(find.text('Coding'), findsNothing);
     expect(find.text('ACTIVE MODULES'), findsNothing);
-    expect(find.byTooltip('Modules'), findsNothing);
+    expect(find.byTooltip('Workspace'), findsNothing);
     await tester.tap(find.text('Back to app'));
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(20, 20));
@@ -238,7 +245,7 @@ void main() {
     }
     await tester.tap(find.text('About Us'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.4.3'), findsOneWidget);
+    expect(find.textContaining('Version 0.4.6'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
@@ -259,6 +266,16 @@ void main() {
     expect(find.text('WORKSPACE'), findsOneWidget);
     expect(find.text('INTERFACE'), findsOneWidget);
     expect(find.text('Edit shortcuts'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('shortcut edit action')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey<String>('shortcut edit action')))
+          .width,
+      lessThanOrEqualTo(152),
+    );
     await tester.tap(find.text('Edit shortcuts'));
     await tester.pump();
     expect(find.text('Done'), findsOneWidget);
@@ -285,7 +302,7 @@ void main() {
     expect(find.text('New workspace'), findsNothing);
   });
 
-  testWidgets('notification button shows unread state and notification panel', (
+  testWidgets('notification button shows the empty notification panel', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -295,25 +312,10 @@ void main() {
     expect(button, findsOneWidget);
     expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Modules'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Add module').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.notifications_active_outlined), findsOneWidget);
-
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Module added'), findsOneWidget);
-    expect(find.text('Mark all as read'), findsOneWidget);
-
-    await tester.tap(find.text('Mark all as read'));
-    await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.notifications_active_outlined), findsNothing);
-    expect(find.text('Mark all as read'), findsNothing);
+    expect(find.text('No notifications'), findsOneWidget);
   });
 
   testWidgets('View menu changes between system, dark and white themes', (
@@ -321,6 +323,12 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
+
+    AppPalette paletteOf() =>
+        AppThemeScope.of(tester.element(find.byType(AppShell)));
+
+    // Dark-first default.
+    expect(paletteOf().brightness, Brightness.dark);
 
     Future<void> chooseTheme(String label) async {
       await tester.tap(find.byKey(const ValueKey<String>('View menu button')));
@@ -332,26 +340,44 @@ void main() {
       expect(find.text('Dark'), findsOneWidget);
       expect(find.text('White'), findsOneWidget);
       await tester.tap(find.text(label));
-      await tester.pumpAndSettle();
+      // Run the frame that applies the mode change and starts the ticker,
+      // so callers can observe the cross-fade mid-flight.
+      await tester.pump();
     }
 
+    // The switch to White cross-fades: mid-flight the palette is neither
+    // endpoint, and it settles on the light tokens afterwards.
     await chooseTheme('White');
     expect(
       tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
       ThemeMode.light,
     );
+    await tester.pump(const Duration(milliseconds: 40));
+    final AppPalette midTransition = paletteOf();
+    expect(midTransition.background, isNot(AppPalette.light.background));
+    expect(midTransition.background, isNot(AppPalette.dark.background));
+    await tester.pumpAndSettle();
+    expect(paletteOf().background, AppPalette.light.background);
+    expect(paletteOf().brightness, Brightness.light);
+    expect(find.byType(ColorFiltered), findsNothing);
 
     await chooseTheme('Dark');
+    await tester.pumpAndSettle();
     expect(
       tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
       ThemeMode.dark,
     );
+    expect(paletteOf().background, AppPalette.dark.background);
+    expect(paletteOf().brightness, Brightness.dark);
 
+    // System mode resolves through the test platform brightness (light).
     await chooseTheme('System');
+    await tester.pumpAndSettle();
     expect(
       tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
       ThemeMode.system,
     );
+    expect(paletteOf().brightness, Brightness.light);
   });
 
   testWidgets('rail buttons navigate to sections outside the current mode', (
@@ -360,15 +386,15 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    await tester.tap(find.byTooltip('Modules'));
+    await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
 
     expect(find.text('Исследователь'), findsNothing);
     expect(find.text('MODULE CATALOG'), findsOneWidget);
-    expect(find.byTooltip('Modules'), findsOneWidget);
+    expect(find.byTooltip('Workspace'), findsOneWidget);
   });
 
-  testWidgets('rail exposes extensions and configs with fast tooltips', (
+  testWidgets('rail exposes Marketplace with shared tooltips', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -376,26 +402,25 @@ void main() {
 
     final railTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
     final extensions = railTooltips.firstWhere(
-      (tooltip) => tooltip.message == 'extensions',
+      (tooltip) => tooltip.message == 'Marketplace',
     );
     expect(extensions.waitDuration, const Duration(seconds: 1));
 
-    expect(find.byTooltip('extensions'), findsOneWidget);
-    await tester.tap(find.byTooltip('extensions'));
+    expect(find.byTooltip('Marketplace'), findsOneWidget);
+    await tester.tap(find.byTooltip('Marketplace'));
     await tester.pumpAndSettle();
-    expect(find.text('EXPLORER'), findsOneWidget);
-    expect(find.text('Signal Tools'), findsOneWidget);
+    expect(find.text('EXPLORER'), findsNothing);
+    expect(find.byTooltip('Filters'), findsOneWidget);
 
-    await tester.tap(
+    expect(
       find.byKey(const ValueKey<String>('toggle extension inspector')),
+      findsNothing,
     );
-    await tester.pumpAndSettle();
-    expect(find.text('EXTENSION INSPECTOR'), findsOneWidget);
 
     await tester.tap(find.byTooltip('user&dev switcher'));
     await tester.pumpAndSettle();
     expect(
-      find.byTooltip('Исследователь: Датасеты, спектрограммы, эксперименты'),
+      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
       findsOneWidget,
     );
   });
@@ -415,28 +440,23 @@ void main() {
     expect(find.text('Signal Tools'), findsNothing);
   });
 
-  testWidgets('extensions section list and tab controls are interactive', (
+  testWidgets('Marketplace replaces Explorer and active zone with catalog', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byTooltip('extensions'));
+    await tester.tap(find.byTooltip('Marketplace'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Signal Tools'), findsWidgets);
-    expect(find.text('Session Notes'), findsOneWidget);
-    expect(find.text('Downloaded'), findsNothing);
-    expect(find.text('Active'), findsNothing);
-    expect(find.text('All'), findsNothing);
-
-    await tester.tap(find.text('Signal Tools').first);
+    expect(find.text('EXPLORER'), findsNothing);
+    expect(find.byTooltip('Create new tab'), findsNothing);
+    expect(find.text('Extensions'), findsOneWidget);
+    expect(find.text('Modules'), findsOneWidget);
+    expect(find.text('Themes'), findsOneWidget);
+    await tester.tap(find.text('Themes'));
     await tester.pumpAndSettle();
-    expect(find.text('Extension details'), findsOneWidget);
-    expect(find.byTooltip('Close tab'), findsWidgets);
-
-    await tester.tap(find.byTooltip('Close tab').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Select an extension'), findsOneWidget);
+    expect(find.text('Qualia Dark'), findsOneWidget);
+    expect(find.text('Sort by'), findsNothing);
   });
 
   testWidgets('activity rail resizes on Profile, Extensions and Bug Report', (
@@ -448,7 +468,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     for (final destination in const [
-      'extensions',
+      'Marketplace',
       'User profile button',
       'bug report',
     ]) {
@@ -470,58 +490,40 @@ void main() {
     });
   });
 
-  testWidgets(
-    'extensions use vertical collapsible sections and resizable pane',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1400, 800);
-      tester.view.devicePixelRatio = 1;
-      await tester.pumpWidget(const ProviderScope(child: BciApp()));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byTooltip('extensions'));
-      await tester.pumpAndSettle();
+  testWidgets('Marketplace adapts without an Explorer pane', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 800);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Marketplace'));
+    await tester.pumpAndSettle();
 
-      final explorer = find.byKey(
-        const ValueKey<String>('extensions explorer pane'),
-      );
-      final handle = find.byKey(
-        const ValueKey<String>('extensions resize handle'),
-      );
-      final initialWidth = tester.getSize(explorer).width;
-      expect(find.text('Signal Tools'), findsOneWidget);
-      expect(find.text('Neuro Dashboard'), findsNothing);
-      expect(find.byIcon(Icons.chevron_right), findsOneWidget);
-
-      await tester.tap(find.text('Installed'));
-      await tester.pumpAndSettle();
-      expect(find.text('Signal Tools'), findsNothing);
-
-      await tester.tapAt(const Offset(5, 500));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Recommended'));
-      await tester.pumpAndSettle();
-      expect(find.text('Neuro Dashboard'), findsOneWidget);
-      expect(find.text('Signal Tools'), findsNothing);
-
-      await tester.tap(find.text('Installed'));
-      await tester.pumpAndSettle();
-      expect(find.text('Signal Tools'), findsOneWidget);
-
-      await tester.drag(handle, const Offset(80, 0));
-      await tester.pumpAndSettle();
-      expect(tester.getSize(explorer).width, greaterThan(initialWidth));
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-    },
-  );
+    expect(
+      find.byKey(const ValueKey<String>('extensions explorer pane')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('extensions resize handle')),
+      findsNothing,
+    );
+    await tester.tap(find.text('Modules'));
+    await tester.pumpAndSettle();
+    expect(find.text('Signal Source · Preview'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  });
 
   testWidgets('module explorer groups collapse vertically', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byTooltip('Modules'));
+    await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
 
     expect(
@@ -547,65 +549,68 @@ void main() {
     );
   });
 
-  testWidgets(
-    'extensions separate installed and recommended settings actions',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(const ProviderScope(child: BciApp()));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.tap(find.byTooltip('extensions'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Installed'), findsOneWidget);
-      expect(find.text('Recommended'), findsOneWidget);
-      expect(find.text('Signal Tools'), findsOneWidget);
-      expect(find.text('Neuro Dashboard'), findsNothing);
-
-      await tester.tap(find.byTooltip('Extension settings').first);
-      await tester.pumpAndSettle();
-      for (final action in const [
-        'Disable/enable',
-        'Autoupdate',
-        'Uninstall',
-        'Copy link',
-        'Copy name',
-        'Keyboard',
-        'Profiles operate',
-        'Shortcuts',
-      ]) {
-        expect(find.text(action), findsOneWidget);
-      }
-
-      await tester.tapAt(const Offset(5, 500));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Recommended'));
-      await tester.pumpAndSettle();
-      expect(find.text('Signal Tools'), findsOneWidget);
-      expect(find.text('Neuro Dashboard'), findsOneWidget);
-      await tester.tap(find.text('Installed'));
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Extension settings'), findsNothing);
-    },
-  );
-
-  testWidgets('extension settings action creates a real notification', (
+  testWidgets('Rail settings can hide individual sections', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byTooltip('extensions'));
+    await tester.tap(find.byTooltip('Rail settings'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Extension settings').first);
+    final workspace = find.byKey(const ValueKey('rail setting Workspace'));
+    await tester.scrollUntilVisible(
+      workspace,
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('rail settings scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await Scrollable.ensureVisible(tester.element(workspace), alignment: .5);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Autoupdate'));
+    await tester.tap(workspace);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Workspace'), findsNothing);
+  });
+
+  testWidgets('built-in theme can be applied from Marketplace', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Marketplace'));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('notifications button')),
+    await tester.tap(find.text('Themes'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Qualia Light'),
+      180,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Qualia Light')),
+      alignment: .5,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Extension changed'), findsOneWidget);
-    expect(find.text('Signal Tools: Autoupdate selected.'), findsOneWidget);
+    await tester.tap(find.text('Qualia Light'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apply theme'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.light,
+    );
   });
 
   testWidgets('preferences replace the shell sidebars from the rail', (
@@ -623,6 +628,8 @@ void main() {
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
 
+    await tester.ensureVisible(find.text('Keyboard shortcuts').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Keyboard shortcuts').last);
     await tester.pumpAndSettle();
     expect(find.text('Keyboard shortcuts'), findsWidgets);
@@ -638,9 +645,7 @@ void main() {
     await tester.tap(find.byTooltip('User profile button'));
     await tester.pumpAndSettle();
     expect(find.text('Log in with:'), findsOneWidget);
-    expect(find.text('Github'), findsOneWidget);
-    expect(find.text('Google'), findsOneWidget);
-    expect(find.text('Gmail'), findsOneWidget);
+    expect(find.text('GitHub'), findsOneWidget);
     expect(find.byTooltip('User profile button'), findsOneWidget);
     expect(find.text('EXPLORER'), findsNothing);
     await tester.tap(find.text('Back to app'));
@@ -654,7 +659,7 @@ void main() {
 
     await tester.tap(find.text('Back to app'));
     await tester.pumpAndSettle();
-    expect(find.text('Обзор'), findsWidgets);
+    expect(find.text('Dashboard'), findsWidgets);
   });
 
   testWidgets('global search focuses, toggles its menu, and closes outside', (
@@ -707,7 +712,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    await tester.tap(find.byTooltip('Открыть терминал отладки'));
+    await tester.tap(find.byTooltip('Open debug terminal'));
     await tester.pumpAndSettle();
     expect(launched, isTrue);
     expect(find.text('Debug terminal'), findsNothing);
@@ -718,7 +723,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byTooltip('Modules'));
+    await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
 
     expect(
@@ -734,6 +739,7 @@ void main() {
     await tester.pump();
     expect(find.text('No active modules found'), findsOneWidget);
     expect(find.text('No modules found'), findsNothing);
+    expect(find.text('Signal Source · Preview'), findsOneWidget);
   });
 
   testWidgets('editor tabs can be created, selected, and closed', (
@@ -743,11 +749,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byTooltip('Create new tab'), findsOneWidget);
+    final createTab = find.byKey(
+      const ValueKey<String>('create new tab button'),
+    );
+    expect(tester.getSize(createTab), const Size(30, 30));
+    expect(find.byTooltip('Create new tab'), findsOneWidget);
     await tester.tap(find.byTooltip('Create new tab'));
     await tester.pumpAndSettle();
     expect(find.text('New tab'), findsOneWidget);
 
-    await tester.tap(find.text('Устройства'));
+    await tester.tap(find.text('Devices'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Close tab'), findsWidgets);
 
@@ -756,6 +767,102 @@ void main() {
     await tester.tap(find.byTooltip('Close tab').first);
     await tester.pumpAndSettle();
     expect(find.text('No open tabs'), findsOneWidget);
+  });
+
+  testWidgets('hover highlights fade in over the shared hover duration', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pumpAndSettle();
+
+    // The rail highlight is painted by the DecoratedBox the AnimatedContainer
+    // renders, so its color reflects the in-flight animation rather than the
+    // target the widget configuration already carries.
+    BoxDecoration railHighlight(Finder tooltip) =>
+        tester
+                .widget<DecoratedBox>(
+                  find
+                      .descendant(
+                        of: tooltip,
+                        matching: find.byType(DecoratedBox),
+                      )
+                      .first,
+                )
+                .decoration
+            as BoxDecoration;
+
+    final button = find.byTooltip('bug report');
+    final start = railHighlight(button).color;
+
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(tester.getCenter(button));
+    await tester.pump();
+    final early = railHighlight(button).color;
+    await tester.pump(AppTheme.hoverDuration ~/ 2);
+    final midway = railHighlight(button).color;
+    await tester.pump(AppTheme.hoverDuration);
+    final settled = railHighlight(button).color;
+
+    expect(early, start);
+    expect(midway, isNot(start));
+    expect(midway, isNot(settled));
+    expect(settled, AppPalette.dark.hover);
+  });
+
+  testWidgets('titlebar controls align to its center and window edge', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pumpAndSettle();
+
+    final titlebar = find.byKey(const ValueKey<String>('shell titlebar'));
+    final fileMenu = find.byKey(const ValueKey<String>('File menu button'));
+    final closeButton = find.byTooltip('Close window');
+    final barRect = tester.getRect(titlebar);
+    final menuRect = tester.getRect(fileMenu);
+    final closeRect = tester.getRect(closeButton);
+
+    expect((menuRect.center.dy - barRect.center.dy).abs(), lessThan(0.5));
+    expect((barRect.right - closeRect.right).abs(), closeTo(3.6, 0.5));
+  });
+
+  testWidgets('user actions land in the debug log with their source', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pumpAndSettle();
+
+    // Tab creation through the tab strip plus button.
+    final int beforeTabs = AppLogger.instance.length;
+    await tester.tap(find.byTooltip('Create new tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devices').last);
+    await tester.pumpAndSettle();
+    expect(
+      AppLogger.instance
+          .snapshot()
+          .skip(beforeTabs)
+          .any((e) => e.source == 'shell' && e.message.contains('таб открыт')),
+      isTrue,
+    );
+
+    // Theme switch through the View menu.
+    final int beforeTheme = AppLogger.instance.length;
+    await tester.tap(find.byKey(const ValueKey<String>('View menu button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Theme'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('White'));
+    await tester.pumpAndSettle();
+    expect(
+      AppLogger.instance
+          .snapshot()
+          .skip(beforeTheme)
+          .any((e) => e.source == 'ui' && e.message.contains('тема')),
+      isTrue,
+    );
   });
 
   testWidgets(

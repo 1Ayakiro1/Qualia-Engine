@@ -93,7 +93,7 @@ TEST_CASE("channel mismatch is rejected", "[engine]") {
   bci_engine_destroy(engine);
 }
 
-TEST_CASE("module registry exposes system modules", "[modules]") {
+TEST_CASE("module registry contains only implemented core processors", "[modules]") {
   void* engine = bci_engine_create();
   REQUIRE(engine != nullptr);
 
@@ -102,9 +102,10 @@ TEST_CASE("module registry exposes system modules", "[modules]") {
 
   REQUIRE(bci_engine_start(engine, 250, 2) == BCI_OK);
   const int live_count = bci_engine_module_count(engine);
-  REQUIRE(live_count == 6);
+  REQUIRE(live_count == 4);
 
   bool saw_gain = false;
+  bool saw_diagnostics = false;
   for (int i = 0; i < live_count; ++i) {
     const char* json = bci_engine_module_json(engine, i);
     REQUIRE(json != nullptr);
@@ -113,8 +114,14 @@ TEST_CASE("module registry exposes system modules", "[modules]") {
     if (text.find("core.gain") != std::string::npos) {
       saw_gain = true;
     }
+    if (text.find("core.diagnostics") != std::string::npos) {
+      saw_diagnostics = true;
+    }
+    REQUIRE(text.find("event_markers") == std::string::npos);
+    REQUIRE(text.find("storage_recorder") == std::string::npos);
   }
   REQUIRE(saw_gain);
+  REQUIRE(saw_diagnostics);
 
   REQUIRE(bci_engine_stop(engine) == BCI_OK);
   bci_engine_destroy(engine);

@@ -1,0 +1,2464 @@
+{
+  "@@locale": "en",
+  "workspaceSelect": "Select",
+  "workspaceSelectAll": "Select all",
+  "workspaceDeselect": "Deselect all",
+  "workspaceDeleteSelected": "Delete selected",
+  "workspaceZoomIn": "Zoom in",
+  "workspaceZoomOut": "Zoom out",
+  "workspaceActualSize": "Actual size (100%)",
+  "workspaceFrameSelection": "Frame selection",
+  "workspaceResizeNode": "Drag to resize module",
+  "workspaceSelectHint": "Shift + click to select multiple modules",
+  "textSupabaseAuthIsUnavailable0": "Supabase Auth is unavailable.",
+  "@textSupabaseAuthIsUnavailable0": {
+    "description": "Host UI: Supabase Auth is unavailable."
+  },
+  "textSignInWithGitHubBeforeCreatingA1": "Sign in with GitHub before creating a module.",
+  "@textSignInWithGitHubBeforeCreatingA1": {
+    "description": "Host UI: Sign in with GitHub before creating a module."
+  },
+  "textSignInWithGitHubToManageYour2": "Sign in with GitHub to manage your modules.",
+  "@textSignInWithGitHubToManageYour2": {
+    "description": "Host UI: Sign in with GitHub to manage your modules."
+  },
+  "textOnlyUnpublishedModuleDraftsCanBeRemoved3": "Only unpublished module drafts can be removed.",
+  "@textOnlyUnpublishedModuleDraftsCanBeRemoved3": {
+    "description": "Host UI: Only unpublished module drafts can be removed."
+  },
+  "textDebug4": "Debug",
+  "@textDebug4": {
+    "description": "Host UI: Отладка"
+  },
+  "textInfo5": "Info",
+  "@textInfo5": {
+    "description": "Host UI: Инфо"
+  },
+  "textWarnings6": "Warnings",
+  "@textWarnings6": {
+    "description": "Host UI: Предупреждения"
+  },
+  "textErrors7": "Errors",
+  "@textErrors7": {
+    "description": "Host UI: Ошибки"
+  },
+  "textSearchSourceAndText8": "Search source and text…",
+  "@textSearchSourceAndText8": {
+    "description": "Host UI: Поиск по источнику и тексту…"
+  },
+  "textLEVELS9": "LEVELS",
+  "@textLEVELS9": {
+    "description": "Host UI: LEVELS"
+  },
+  "textTheLatestLogFileHasNotBeen10": "The latest.log file has not been created yet.",
+  "@textTheLatestLogFileHasNotBeen10": {
+    "description": "Host UI: Файл latest.log пока не создан."
+  },
+  "textOpenTheApplicationWorkspace11": "Open the application workspace.",
+  "@textOpenTheApplicationWorkspace11": {
+    "description": "Host UI: Запустите рабочую область приложения."
+  },
+  "textRetry12": "Retry",
+  "@textRetry12": {
+    "description": "Host UI: Повторить"
+  },
+  "textDebugTerminal13": "Debug terminal",
+  "@textDebugTerminal13": {
+    "description": "Host UI: Debug terminal"
+  },
+  "textResume14": "Resume",
+  "@textResume14": {
+    "description": "Host UI: Продолжить"
+  },
+  "textPause15": "Pause",
+  "@textPause15": {
+    "description": "Host UI: Пауза"
+  },
+  "textAutoScroll16": "Auto-scroll",
+  "@textAutoScroll16": {
+    "description": "Host UI: Автопрокрутка"
+  },
+  "textSaveVisibleEntries17": "Save visible entries",
+  "@textSaveVisibleEntries17": {
+    "description": "Host UI: Сохранить видимое"
+  },
+  "textClearView18": "Clear view",
+  "@textClearView18": {
+    "description": "Host UI: Очистить вид"
+  },
+  "textCloseWindow19": "Close window",
+  "@textCloseWindow19": {
+    "description": "Host UI: Закрыть окно"
+  },
+  "textSupabaseAuthIsNotInitialized20": "Supabase Auth is not initialized.",
+  "@textSupabaseAuthIsNotInitialized20": {
+    "description": "Host UI: Supabase Auth is not initialized."
+  },
+  "textCouldNotOpenTheGitHubSignIn21": "Could not open the GitHub sign-in page.",
+  "@textCouldNotOpenTheGitHubSignIn21": {
+    "description": "Host UI: Could not open the GitHub sign-in page."
+  },
+  "textUnsupportedWorkspacePresetFormat22": "Unsupported workspace preset format.",
+  "@textUnsupportedWorkspacePresetFormat22": {
+    "description": "Host UI: Unsupported workspace preset format."
+  },
+  "textAPresetNeedsANameAndA23": "A preset needs a name and a list of module IDs.",
+  "@textAPresetNeedsANameAndA23": {
+    "description": "Host UI: A preset needs a name and a list of module IDs."
+  },
+  "textAPresetSupportsUpTo500Modules24": "A preset supports up to 500 modules.",
+  "@textAPresetSupportsUpTo500Modules24": {
+    "description": "Host UI: A preset supports up to 500 modules."
+  },
+  "textAModuleIsMissing25": "A module is missing.",
+  "@textAModuleIsMissing25": {
+    "description": "Host UI: A module is missing."
+  },
+  "textAModuleCannotConnectToItself26": "A module cannot connect to itself.",
+  "@textAModuleCannotConnectToItself26": {
+    "description": "Host UI: A module cannot connect to itself."
+  },
+  "textAPortIsMissing27": "A port is missing.",
+  "@textAPortIsMissing27": {
+    "description": "Host UI: A port is missing."
+  },
+  "textThisConnectionWouldCreateAProcessingCycle28": "This connection would create a processing cycle.",
+  "@textThisConnectionWouldCreateAProcessingCycle28": {
+    "description": "Host UI: This connection would create a processing cycle."
+  },
+  "textLibbciEngineCoreWasNotFoundBeside29": "libbci_engine_core was not found beside the executable",
+  "@textLibbciEngineCoreWasNotFoundBeside29": {
+    "description": "Host UI: libbci_engine_core не найдена рядом с исполняемым файлом"
+  },
+  "textConsumer30": "Consumer",
+  "@textConsumer30": {
+    "description": "Host UI: Потребитель"
+  },
+  "textResearcher31": "Researcher",
+  "@textResearcher31": {
+    "description": "Host UI: Исследователь"
+  },
+  "textDeveloper32": "Developer",
+  "@textDeveloper32": {
+    "description": "Host UI: Разработчик"
+  },
+  "textPersonalAndMedicalMode33": "Personal and medical mode",
+  "@textPersonalAndMedicalMode33": {
+    "description": "Host UI: Личный и медицинский режим"
+  },
+  "textDatasetsSpectrogramsExperiments34": "Datasets, spectrograms, experiments",
+  "@textDatasetsSpectrogramsExperiments34": {
+    "description": "Host UI: Датасеты, спектрограммы, эксперименты"
+  },
+  "textModulesAPILowLevelAccess35": "Modules, API, low-level access",
+  "@textModulesAPILowLevelAccess35": {
+    "description": "Host UI: Модули, API, низкоуровневый доступ"
+  },
+  "textDashboard36": "Dashboard",
+  "@textDashboard36": {
+    "description": "Host UI: Обзор"
+  },
+  "textSystemStatus37": "System status",
+  "@textSystemStatus37": {
+    "description": "Host UI: Состояние системы"
+  },
+  "textDevices38": "Devices",
+  "@textDevices38": {
+    "description": "Host UI: Устройства"
+  },
+  "textHALBoardConnections39": "HAL, board connections",
+  "@textHALBoardConnections39": {
+    "description": "Host UI: HAL, подключение плат"
+  },
+  "textSession40": "Session",
+  "@textSession40": {
+    "description": "Host UI: Сессия"
+  },
+  "textRecordingAndLiveMetrics41": "Recording and live metrics",
+  "@textRecordingAndLiveMetrics41": {
+    "description": "Host UI: Запись и live-метрики"
+  },
+  "textPipeline42": "Pipeline",
+  "@textPipeline42": {
+    "description": "Host UI: Конвейер"
+  },
+  "textSignalProcessingModuleChain43": "Signal-processing module chain",
+  "@textSignalProcessingModuleChain43": {
+    "description": "Host UI: Цепочка модулей обработки"
+  },
+  "textSpectrogram44": "Spectrogram",
+  "@textSpectrogram44": {
+    "description": "Host UI: Спектрограмма"
+  },
+  "textRealTimeVisualization45": "Real-time visualization",
+  "@textRealTimeVisualization45": {
+    "description": "Host UI: Real-time визуализация"
+  },
+  "textModuleProcessingCanvas46": "Module processing canvas",
+  "@textModuleProcessingCanvas46": {
+    "description": "Host UI: Канвас обработки модулей"
+  },
+  "textEntity47": "Entity",
+  "@textEntity47": {
+    "description": "Host UI: Entity"
+  },
+  "textNeuralNetworkEntities48": "Neural network entities",
+  "@textNeuralNetworkEntities48": {
+    "description": "Host UI: Neural network entities"
+  },
+  "textDatasets49": "Datasets",
+  "@textDatasets49": {
+    "description": "Host UI: Датасеты"
+  },
+  "textImportAndComparison50": "Import and comparison",
+  "@textImportAndComparison50": {
+    "description": "Host UI: Загрузка и сравнение"
+  },
+  "textModels51": "Models",
+  "@textModels51": {
+    "description": "Host UI: Модели"
+  },
+  "textTrainingAndModelRegistry52": "Training and model registry",
+  "@textTrainingAndModelRegistry52": {
+    "description": "Host UI: Обучение и реестр моделей"
+  },
+  "textCoreFFIConsole53": "Core FFI console",
+  "@textCoreFFIConsole53": {
+    "description": "Host UI: FFI-консоль ядра"
+  },
+  "textMarketplace54": "Marketplace",
+  "@textMarketplace54": {
+    "description": "Host UI: Marketplace"
+  },
+  "textCommunityExtensions55": "Community extensions",
+  "@textCommunityExtensions55": {
+    "description": "Host UI: Пользовательские расширения"
+  },
+  "textBugReport56": "Bug report",
+  "@textBugReport56": {
+    "description": "Host UI: Bug report"
+  },
+  "textReportAProblem57": "Report a problem",
+  "@textReportAProblem57": {
+    "description": "Host UI: Сообщить о проблеме"
+  },
+  "textSettings58": "Settings",
+  "@textSettings58": {
+    "description": "Host UI: Настройки"
+  },
+  "textModesBuildLicenses59": "Modes, build, licenses",
+  "@textModesBuildLicenses59": {
+    "description": "Host UI: Режимы, сборка, лицензии"
+  },
+  "textFile60": "File",
+  "@textFile60": {
+    "description": "Host UI: File"
+  },
+  "textEdit61": "Edit",
+  "@textEdit61": {
+    "description": "Host UI: Edit"
+  },
+  "textView62": "View",
+  "@textView62": {
+    "description": "Host UI: View"
+  },
+  "textHelp63": "Help",
+  "@textHelp63": {
+    "description": "Host UI: Help"
+  },
+  "textCoreSessionActive64": "Core: session active",
+  "@textCoreSessionActive64": {
+    "description": "Host UI: Ядро: активна сессия"
+  },
+  "textCoreOnline65": "Core: online",
+  "@textCoreOnline65": {
+    "description": "Host UI: Ядро: онлайн"
+  },
+  "textCoreOffline66": "Core: offline",
+  "@textCoreOffline66": {
+    "description": "Host UI: Ядро: офлайн"
+  },
+  "textUsageMode67": "Usage mode",
+  "@textUsageMode67": {
+    "description": "Host UI: Режим использования"
+  },
+  "textGeneral68": "General",
+  "@textGeneral68": {
+    "description": "Host UI: General"
+  },
+  "textPresetNotImported69": "Preset not imported",
+  "@textPresetNotImported69": {
+    "description": "Host UI: Preset not imported"
+  },
+  "textPresetCatalogUnavailable70": "Preset catalog unavailable",
+  "@textPresetCatalogUnavailable70": {
+    "description": "Host UI: Preset catalog unavailable"
+  },
+  "textArg0ThePresetRemainsLoaded71": "{arg0}. The preset remains loaded.",
+  "@textArg0ThePresetRemainsLoaded71": {
+    "description": "Host UI: {arg0}. The preset remains loaded.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textMissingWorkspaceModules72": "Missing workspace modules",
+  "@textMissingWorkspaceModules72": {
+    "description": "Host UI: Missing workspace modules"
+  },
+  "textArg0Arg1ThePresetIsSavedFind73": "{arg0}: {arg1}. The preset is saved; find the missing modules in Marketplace.",
+  "@textArg0Arg1ThePresetIsSavedFind73": {
+    "description": "Host UI: {arg0}: {arg1}. The preset is saved; find the missing modules in Marketplace.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textMissingModulesArg074": "Missing modules: {arg0}",
+  "@textMissingModulesArg074": {
+    "description": "Host UI: Missing modules: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textProfile75": "Profile",
+  "@textProfile75": {
+    "description": "Host UI: Profile"
+  },
+  "textNewTab76": "New tab",
+  "@textNewTab76": {
+    "description": "Host UI: New tab"
+  },
+  "textPreviewModule77": "Preview module",
+  "@textPreviewModule77": {
+    "description": "Host UI: Preview module"
+  },
+  "textDragThisPlaceholderToTheCanvasTo78": "Drag this placeholder to the canvas to change instance parameters. It is not a publishable draft.",
+  "@textDragThisPlaceholderToTheCanvasTo78": {
+    "description": "Host UI: Drag this placeholder to the canvas to change instance parameters. It is not a publishable draft."
+  },
+  "textSignInRequired79": "Sign in required",
+  "@textSignInRequired79": {
+    "description": "Host UI: Sign in required"
+  },
+  "textModuleNotSaved80": "Module not saved",
+  "@textModuleNotSaved80": {
+    "description": "Host UI: Module not saved"
+  },
+  "textModuleAdded81": "Module added",
+  "@textModuleAdded81": {
+    "description": "Host UI: Module added"
+  },
+  "textModuleUpdated82": "Module updated",
+  "@textModuleUpdated82": {
+    "description": "Host UI: Module updated"
+  },
+  "textArg0IsNowAvailableInWorkspace83": "{arg0} is now available in Workspace.",
+  "@textArg0IsNowAvailableInWorkspace83": {
+    "description": "Host UI: {arg0} is now available in Workspace.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textModulesUnavailable84": "Modules unavailable",
+  "@textModulesUnavailable84": {
+    "description": "Host UI: Modules unavailable"
+  },
+  "textCouldNotLoadModulesFromYourAccount85": "Could not load modules from your account.",
+  "@textCouldNotLoadModulesFromYourAccount85": {
+    "description": "Host UI: Could not load modules from your account."
+  },
+  "textEntityAdded86": "Entity added",
+  "@textEntityAdded86": {
+    "description": "Host UI: Entity added"
+  },
+  "textEntityUpdated87": "Entity updated",
+  "@textEntityUpdated87": {
+    "description": "Host UI: Entity updated"
+  },
+  "textArg0IsNowAvailableInEntity88": "{arg0} is now available in Entity.",
+  "@textArg0IsNowAvailableInEntity88": {
+    "description": "Host UI: {arg0} is now available in Entity.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textEntityRemoved89": "Entity removed",
+  "@textEntityRemoved89": {
+    "description": "Host UI: Entity removed"
+  },
+  "textArg0WasRemovedFromEntity90": "{arg0} was removed from Entity.",
+  "@textArg0WasRemovedFromEntity90": {
+    "description": "Host UI: {arg0} was removed from Entity.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textEntityUninstalled91": "Entity uninstalled",
+  "@textEntityUninstalled91": {
+    "description": "Host UI: Entity uninstalled"
+  },
+  "textEntityInstalled92": "Entity installed",
+  "@textEntityInstalled92": {
+    "description": "Host UI: Entity installed"
+  },
+  "textThesePlaceholdersBelongToTheLocalUI93": "These placeholders belong to the local UI playground. Canvas instances can be deleted with right-click → Delete.",
+  "@textThesePlaceholdersBelongToTheLocalUI93": {
+    "description": "Host UI: These placeholders belong to the local UI playground. Canvas instances can be deleted with right-click → Delete."
+  },
+  "textModuleNotRemoved94": "Module not removed",
+  "@textModuleNotRemoved94": {
+    "description": "Host UI: Module not removed"
+  },
+  "textDocumentation95": "Documentation",
+  "@textDocumentation95": {
+    "description": "Host UI: Documentation"
+  },
+  "textLearnHowToConfigureWorkspacesDevicesSessions96": "Learn how to configure workspaces, devices, sessions and modules in Qualia Engine.",
+  "@textLearnHowToConfigureWorkspacesDevicesSessions96": {
+    "description": "Host UI: Learn how to configure workspaces, devices, sessions and modules in Qualia Engine."
+  },
+  "textAboutUs97": "About Us",
+  "@textAboutUs97": {
+    "description": "Host UI: About Us"
+  },
+  "textArg0VersionArg1BuiltByArg2For98": "{arg0}\nVersion {arg1}\n\nBuilt by {arg2} for focused brain-computer interface workflows.",
+  "@textArg0VersionArg1BuiltByArg2For98": {
+    "description": "Host UI: {arg0}\nVersion {arg1}\n\nBuilt by {arg2} for focused brain-computer interface workflows.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "textWelcomeToQualiaEngine99": "Welcome to Qualia Engine",
+  "@textWelcomeToQualiaEngine99": {
+    "description": "Host UI: Welcome to Qualia Engine"
+  },
+  "textQualiaEngineIsADesktopWorkspaceFor100": "Qualia Engine is a desktop workspace for exploring BCI data, sessions and modular signal-processing pipelines.",
+  "@textQualiaEngineIsADesktopWorkspaceFor100": {
+    "description": "Host UI: Qualia Engine is a desktop workspace for exploring BCI data, sessions and modular signal-processing pipelines."
+  },
+  "textTutorials101": "Tutorials",
+  "@textTutorials101": {
+    "description": "Host UI: Tutorials"
+  },
+  "textStartWithTheDashboardConnectADevice102": "Start with the Dashboard, connect a device, create a session and open Modules to build your processing workflow.",
+  "@textStartWithTheDashboardConnectADevice102": {
+    "description": "Host UI: Start with the Dashboard, connect a device, create a session and open Modules to build your processing workflow."
+  },
+  "textLicense103": "License",
+  "@textLicense103": {
+    "description": "Host UI: License"
+  },
+  "textQualiaEngineIsDistributedUnderTheProject104": "Qualia Engine is distributed under the project license. See the repository license file for the complete terms.",
+  "@textQualiaEngineIsDistributedUnderTheProject104": {
+    "description": "Host UI: Qualia Engine is distributed under the project license. See the repository license file for the complete terms."
+  },
+  "textCheckUpdates105": "Check updates",
+  "@textCheckUpdates105": {
+    "description": "Host UI: Check updates"
+  },
+  "textYouAreRunningQualiaEngineArg0Update106": "You are running Qualia Engine {arg0}. Update checking will be connected to the release channel in a future build.",
+  "@textYouAreRunningQualiaEngineArg0Update106": {
+    "description": "Host UI: You are running Qualia Engine {arg0}. Update checking will be connected to the release channel in a future build.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textOurYoutube107": "Our Youtube",
+  "@textOurYoutube107": {
+    "description": "Host UI: Our Youtube"
+  },
+  "textVideoTutorialsAndProjectUpdatesWillBe108": "Video tutorials and project updates will be available on the Qualia Engine YouTube channel.",
+  "@textVideoTutorialsAndProjectUpdatesWillBe108": {
+    "description": "Host UI: Video tutorials and project updates will be available on the Qualia Engine YouTube channel."
+  },
+  "textThisHelpActionIsNotAvailableYet109": "This help action is not available yet.",
+  "@textThisHelpActionIsNotAvailableYet109": {
+    "description": "Host UI: This help action is not available yet."
+  },
+  "textClose110": "Close",
+  "@textClose110": {
+    "description": "Host UI: Close"
+  },
+  "textBuild111": "Build",
+  "@textBuild111": {
+    "description": "Host UI: Build"
+  },
+  "textInterfaceScaleCtrlCtrl112": "Interface scale (Ctrl + / Ctrl -)",
+  "@textInterfaceScaleCtrlCtrl112": {
+    "description": "Host UI: Масштаб интерфейса (Ctrl + / Ctrl -)"
+  },
+  "textNotifications113": "Notifications",
+  "@textNotifications113": {
+    "description": "Host UI: Notifications"
+  },
+  "textJustNow114": "Just now",
+  "@textJustNow114": {
+    "description": "Host UI: Just now"
+  },
+  "textArg0MinAgo115": "{arg0} min ago",
+  "@textArg0MinAgo115": {
+    "description": "Host UI: {arg0} min ago",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textArg0HAgo116": "{arg0} h ago",
+  "@textArg0HAgo116": {
+    "description": "Host UI: {arg0} h ago",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textArg0DAgo117": "{arg0} d ago",
+  "@textArg0DAgo117": {
+    "description": "Host UI: {arg0} d ago",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textMarkAllAsRead118": "Mark all as read",
+  "@textMarkAllAsRead118": {
+    "description": "Host UI: Mark all as read"
+  },
+  "textNoNotifications119": "No notifications",
+  "@textNoNotifications119": {
+    "description": "Host UI: No notifications"
+  },
+  "textOpenDebugTerminal120": "Open debug terminal",
+  "@textOpenDebugTerminal120": {
+    "description": "Host UI: Открыть терминал отладки"
+  },
+  "textMinimizeWindow121": "Minimize window",
+  "@textMinimizeWindow121": {
+    "description": "Host UI: Свернуть окно"
+  },
+  "textRestoreWindow122": "Restore window",
+  "@textRestoreWindow122": {
+    "description": "Host UI: Восстановить окно"
+  },
+  "textMaximizeWindow123": "Maximize window",
+  "@textMaximizeWindow123": {
+    "description": "Host UI: Развернуть окно"
+  },
+  "textAddWorkspacePreset124": "Add Workspace Preset",
+  "@textAddWorkspacePreset124": {
+    "description": "Host UI: Add Workspace Preset"
+  },
+  "textNewWorkspace125": "New workspace",
+  "@textNewWorkspace125": {
+    "description": "Host UI: New workspace"
+  },
+  "textOpenProject126": "Open project",
+  "@textOpenProject126": {
+    "description": "Host UI: Open project"
+  },
+  "textImportModuleSoon127": "Import module (soon)",
+  "@textImportModuleSoon127": {
+    "description": "Host UI: Import module (soon)"
+  },
+  "textPreferences128": "Preferences",
+  "@textPreferences128": {
+    "description": "Host UI: Preferences"
+  },
+  "textRailSettings129": "Rail settings",
+  "@textRailSettings129": {
+    "description": "Host UI: Rail settings"
+  },
+  "textUndo130": "Undo",
+  "@textUndo130": {
+    "description": "Host UI: Undo"
+  },
+  "textRedo131": "Redo",
+  "@textRedo131": {
+    "description": "Host UI: Redo"
+  },
+  "textPreferencesSoon132": "Preferences (soon)",
+  "@textPreferencesSoon132": {
+    "description": "Host UI: Preferences (soon)"
+  },
+  "textExplorer133": "Explorer",
+  "@textExplorer133": {
+    "description": "Host UI: Explorer"
+  },
+  "textTerminal134": "Terminal",
+  "@textTerminal134": {
+    "description": "Host UI: Terminal"
+  },
+  "textCustomizeLayoutSoon135": "Customize layout (soon)",
+  "@textCustomizeLayoutSoon135": {
+    "description": "Host UI: Customize layout (soon)"
+  },
+  "textTheme136": "Theme",
+  "@textTheme136": {
+    "description": "Host UI: Theme"
+  },
+  "textSystem137": "System",
+  "@textSystem137": {
+    "description": "Host UI: System"
+  },
+  "textDark138": "Dark",
+  "@textDark138": {
+    "description": "Host UI: Dark"
+  },
+  "textWhite139": "White",
+  "@textWhite139": {
+    "description": "Host UI: White"
+  },
+  "textWelcome140": "Welcome",
+  "@textWelcome140": {
+    "description": "Host UI: Welcome"
+  },
+  "textReportIssue141": "Report Issue",
+  "@textReportIssue141": {
+    "description": "Host UI: Report Issue"
+  },
+  "textBuildProject142": "Build project",
+  "@textBuildProject142": {
+    "description": "Host UI: Build project"
+  },
+  "textRunSession143": "Run session",
+  "@textRunSession143": {
+    "description": "Host UI: Run session"
+  },
+  "textBuildTasksSoon144": "Build tasks (soon)",
+  "@textBuildTasksSoon144": {
+    "description": "Host UI: Build tasks (soon)"
+  },
+  "textArg0Menu145": "{arg0} menu",
+  "@textArg0Menu145": {
+    "description": "Host UI: {arg0} menu",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textQUICKACTIONS146": "QUICK ACTIONS",
+  "@textQUICKACTIONS146": {
+    "description": "Host UI: QUICK ACTIONS"
+  },
+  "textFindModule147": "Find module",
+  "@textFindModule147": {
+    "description": "Host UI: Find module"
+  },
+  "textKEYBOARDSHORTCUTS148": "KEYBOARD SHORTCUTS",
+  "@textKEYBOARDSHORTCUTS148": {
+    "description": "Host UI: KEYBOARD SHORTCUTS"
+  },
+  "textIncreaseInterfaceScale149": "Increase interface scale",
+  "@textIncreaseInterfaceScale149": {
+    "description": "Host UI: Increase interface scale"
+  },
+  "textDecreaseInterfaceScale150": "Decrease interface scale",
+  "@textDecreaseInterfaceScale150": {
+    "description": "Host UI: Decrease interface scale"
+  },
+  "textShortcuts151": "Shortcuts",
+  "@textShortcuts151": {
+    "description": "Host UI: Shortcuts"
+  },
+  "textSearchFilesSymbolsCtrlP152": "Search files, symbols...  (Ctrl+P)",
+  "@textSearchFilesSymbolsCtrlP152": {
+    "description": "Host UI: Search files, symbols...  (Ctrl+P)"
+  },
+  "textUserProfileButton153": "User profile button",
+  "@textUserProfileButton153": {
+    "description": "Host UI: User profile button"
+  },
+  "textBugReport154": "bug report",
+  "@textBugReport154": {
+    "description": "Host UI: bug report"
+  },
+  "textUserDevSwitcher155": "user&dev switcher",
+  "@textUserDevSwitcher155": {
+    "description": "Host UI: user&dev switcher"
+  },
+  "textConfigs156": "configs",
+  "@textConfigs156": {
+    "description": "Host UI: configs"
+  },
+  "textEXPLORER157": "EXPLORER",
+  "@textEXPLORER157": {
+    "description": "Host UI: EXPLORER"
+  },
+  "textAddModule158": "Add module",
+  "@textAddModule158": {
+    "description": "Host UI: Add module"
+  },
+  "textRemoveModule159": "Remove module",
+  "@textRemoveModule159": {
+    "description": "Host UI: Remove module"
+  },
+  "textEditModule160": "Edit module",
+  "@textEditModule160": {
+    "description": "Host UI: Edit module"
+  },
+  "textAddEntity161": "Add entity",
+  "@textAddEntity161": {
+    "description": "Host UI: Add entity"
+  },
+  "textRemoveEntity162": "Remove entity",
+  "@textRemoveEntity162": {
+    "description": "Host UI: Remove entity"
+  },
+  "textEditEntity163": "Edit entity",
+  "@textEditEntity163": {
+    "description": "Host UI: Edit entity"
+  },
+  "textWORKSPACEPRESETS164": "WORKSPACE PRESETS",
+  "@textWORKSPACEPRESETS164": {
+    "description": "Host UI: WORKSPACE PRESETS"
+  },
+  "textImportWorkspacePreset165": "Import Workspace Preset",
+  "@textImportWorkspacePreset165": {
+    "description": "Host UI: Import Workspace Preset"
+  },
+  "textExportArg0166": "Export {arg0}",
+  "@textExportArg0166": {
+    "description": "Host UI: Export {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textMissingArg0167": "Missing: {arg0}",
+  "@textMissingArg0167": {
+    "description": "Host UI: Missing: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textACTIVEMODULES168": "ACTIVE MODULES",
+  "@textACTIVEMODULES168": {
+    "description": "Host UI: ACTIVE MODULES"
+  },
+  "textSearchActiveModules169": "Search active modules...",
+  "@textSearchActiveModules169": {
+    "description": "Host UI: Search active modules..."
+  },
+  "textNoActiveModulesFound170": "No active modules found",
+  "@textNoActiveModulesFound170": {
+    "description": "Host UI: No active modules found"
+  },
+  "textMODULECATALOG171": "MODULE CATALOG",
+  "@textMODULECATALOG171": {
+    "description": "Host UI: MODULE CATALOG"
+  },
+  "textSearchModules172": "Search modules...",
+  "@textSearchModules172": {
+    "description": "Host UI: Search modules..."
+  },
+  "textNoModulesFound173": "No modules found",
+  "@textNoModulesFound173": {
+    "description": "Host UI: No modules found"
+  },
+  "textINSTALLEDENTITIES174": "INSTALLED ENTITIES",
+  "@textINSTALLEDENTITIES174": {
+    "description": "Host UI: INSTALLED ENTITIES"
+  },
+  "textENTITYCATALOG175": "ENTITY CATALOG",
+  "@textENTITYCATALOG175": {
+    "description": "Host UI: ENTITY CATALOG"
+  },
+  "textInstalled176": "Installed",
+  "@textInstalled176": {
+    "description": "Host UI: Installed"
+  },
+  "textRecommended177": "Recommended",
+  "@textRecommended177": {
+    "description": "Host UI: Recommended"
+  },
+  "textNoActiveWorkspaceItems178": "No active workspace items",
+  "@textNoActiveWorkspaceItems178": {
+    "description": "Host UI: No active workspace items"
+  },
+  "textClearModuleSearch179": "Clear module search",
+  "@textClearModuleSearch179": {
+    "description": "Host UI: Clear module search"
+  },
+  "textCreateNewTab180": "Create new tab",
+  "@textCreateNewTab180": {
+    "description": "Host UI: Create new tab"
+  },
+  "textHideExplorer181": "Hide Explorer",
+  "@textHideExplorer181": {
+    "description": "Host UI: Hide Explorer"
+  },
+  "textShowExplorer182": "Show Explorer",
+  "@textShowExplorer182": {
+    "description": "Host UI: Show Explorer"
+  },
+  "textCloseTab183": "Close tab",
+  "@textCloseTab183": {
+    "description": "Host UI: Close tab"
+  },
+  "textNoOpenTabs184": "No open tabs",
+  "@textNoOpenTabs184": {
+    "description": "Host UI: No open tabs"
+  },
+  "textCreateANewTabToContinue185": "Create a new tab to continue",
+  "@textCreateANewTabToContinue185": {
+    "description": "Host UI: Create a new tab to continue"
+  },
+  "textNewModule186": "New module",
+  "@textNewModule186": {
+    "description": "Host UI: New module"
+  },
+  "textCustomModuleDescription187": "Custom module description.",
+  "@textCustomModuleDescription187": {
+    "description": "Host UI: Custom module description."
+  },
+  "textID188": "ID",
+  "@textID188": {
+    "description": "Host UI: ID"
+  },
+  "textName189": "Name",
+  "@textName189": {
+    "description": "Host UI: Name"
+  },
+  "textCategory190": "Category",
+  "@textCategory190": {
+    "description": "Host UI: Category"
+  },
+  "textDescription191": "Description",
+  "@textDescription191": {
+    "description": "Host UI: Description"
+  },
+  "textMarketplaceCover192": "Marketplace cover",
+  "@textMarketplaceCover192": {
+    "description": "Host UI: Marketplace cover"
+  },
+  "textYourImageURLHTTPSOptional193": "Your image URL (HTTPS, optional)",
+  "@textYourImageURLHTTPSOptional193": {
+    "description": "Host UI: Your image URL (HTTPS, optional)"
+  },
+  "textBackgroundContour194": "Background contour",
+  "@textBackgroundContour194": {
+    "description": "Host UI: Background contour"
+  },
+  "textCenterIcon195": "Center icon",
+  "@textCenterIcon195": {
+    "description": "Host UI: Center icon"
+  },
+  "textDeclarativeManifestUISchemaJSON196": "Declarative manifest / UI schema (JSON)",
+  "@textDeclarativeManifestUISchemaJSON196": {
+    "description": "Host UI: Declarative manifest / UI schema (JSON)"
+  },
+  "textCoverAndUIMetadataAreSavedLocally197": "Cover and UI metadata are saved locally for drafts. Published releases supply the manifest to Marketplace.",
+  "@textCoverAndUIMetadataAreSavedLocally197": {
+    "description": "Host UI: Cover and UI metadata are saved locally for drafts. Published releases supply the manifest to Marketplace."
+  },
+  "textCancel198": "Cancel",
+  "@textCancel198": {
+    "description": "Host UI: Cancel"
+  },
+  "textArg0MustBeAnArray199": "{arg0} must be an array",
+  "@textArg0MustBeAnArray199": {
+    "description": "Host UI: {arg0} must be an array",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textCoverImageMustUseHTTPS200": "Cover image must use HTTPS",
+  "@textCoverImageMustUseHTTPS200": {
+    "description": "Host UI: Cover image must use HTTPS"
+  },
+  "textInvalidSchemaArg0201": "Invalid schema: {arg0}",
+  "@textInvalidSchemaArg0201": {
+    "description": "Host UI: Invalid schema: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textCustom202": "Custom",
+  "@textCustom202": {
+    "description": "Host UI: Custom"
+  },
+  "textSave203": "Save",
+  "@textSave203": {
+    "description": "Host UI: Save"
+  },
+  "textNewNeuralEntity204": "New neural entity",
+  "@textNewNeuralEntity204": {
+    "description": "Host UI: New neural entity"
+  },
+  "textNeuralNetworkDescription205": "Neural network description.",
+  "@textNeuralNetworkDescription205": {
+    "description": "Host UI: Neural network description."
+  },
+  "textFramework206": "Framework",
+  "@textFramework206": {
+    "description": "Host UI: Framework"
+  },
+  "textVersion207": "Version",
+  "@textVersion207": {
+    "description": "Host UI: Version"
+  },
+  "textUnknown208": "Unknown",
+  "@textUnknown208": {
+    "description": "Host UI: Unknown"
+  },
+  "textExtensionSettings209": "Extension settings",
+  "@textExtensionSettings209": {
+    "description": "Host UI: Extension settings"
+  },
+  "textDisableEnable210": "Disable/enable",
+  "@textDisableEnable210": {
+    "description": "Host UI: Disable/enable"
+  },
+  "textAutoupdate211": "Autoupdate",
+  "@textAutoupdate211": {
+    "description": "Host UI: Autoupdate"
+  },
+  "textUninstall212": "Uninstall",
+  "@textUninstall212": {
+    "description": "Host UI: Uninstall"
+  },
+  "textCopyLink213": "Copy link",
+  "@textCopyLink213": {
+    "description": "Host UI: Copy link"
+  },
+  "textCopyName214": "Copy name",
+  "@textCopyName214": {
+    "description": "Host UI: Copy name"
+  },
+  "textKeyboard215": "Keyboard",
+  "@textKeyboard215": {
+    "description": "Host UI: Keyboard"
+  },
+  "textProfilesOperate216": "Profiles operate",
+  "@textProfilesOperate216": {
+    "description": "Host UI: Profiles operate"
+  },
+  "textExtensionChanged217": "Extension changed",
+  "@textExtensionChanged217": {
+    "description": "Host UI: Extension changed"
+  },
+  "textArg0Arg1Selected218": "{arg0}: {arg1} selected.",
+  "@textArg0Arg1Selected218": {
+    "description": "Host UI: {arg0}: {arg1} selected.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textTERMINAL219": "TERMINAL",
+  "@textTERMINAL219": {
+    "description": "Host UI: TERMINAL"
+  },
+  "textOUTPUT220": "OUTPUT",
+  "@textOUTPUT220": {
+    "description": "Host UI: OUTPUT"
+  },
+  "textCloseRailSettings221": "Close rail settings",
+  "@textCloseRailSettings221": {
+    "description": "Host UI: Close rail settings"
+  },
+  "textVisibility222": "Visibility",
+  "@textVisibility222": {
+    "description": "Host UI: Visibility"
+  },
+  "textShowRail223": "Show rail",
+  "@textShowRail223": {
+    "description": "Host UI: Show rail"
+  },
+  "textWhenHiddenContentUsesTheFullWidth224": "When hidden, content uses the full width.\nRestore it with Edit → Rail settings.",
+  "@textWhenHiddenContentUsesTheFullWidth224": {
+    "description": "Host UI: When hidden, content uses the full width.\nRestore it with Edit → Rail settings."
+  },
+  "textSections225": "Sections",
+  "@textSections225": {
+    "description": "Host UI: Sections"
+  },
+  "textExtensionSections226": "Extension sections",
+  "@textExtensionSections226": {
+    "description": "Host UI: Extension sections"
+  },
+  "textAddAnExtensionFromTheCatalogTo227": "Add an extension from the catalog to configure its rail entry here.",
+  "@textAddAnExtensionFromTheCatalogTo227": {
+    "description": "Host UI: Add an extension from the catalog to configure its rail entry here."
+  },
+  "textChangesAreSavedAutomatically228": "Changes are saved automatically",
+  "@textChangesAreSavedAutomatically228": {
+    "description": "Host UI: Changes are saved automatically"
+  },
+  "textDone229": "Done",
+  "@textDone229": {
+    "description": "Host UI: Done"
+  },
+  "textArg0Arg1230": "{arg0} {arg1}",
+  "@textArg0Arg1230": {
+    "description": "Host UI: {arg0} {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textHide231": "Hide",
+  "@textHide231": {
+    "description": "Host UI: Hide"
+  },
+  "textShow232": "Show",
+  "@textShow232": {
+    "description": "Host UI: Show"
+  },
+  "textBack233": "Back",
+  "@textBack233": {
+    "description": "Host UI: Back"
+  },
+  "textExtensionContextMenu234": "Extension context menu",
+  "@textExtensionContextMenu234": {
+    "description": "Host UI: Extension context menu"
+  },
+  "textEngineStatusAndQuickStart235": "Engine status and quick start",
+  "@textEngineStatusAndQuickStart235": {
+    "description": "Host UI: Состояние движка и быстрый старт"
+  },
+  "textInterfaceUpdatedWorkspaceReady236": "Interface updated · workspace ready",
+  "@textInterfaceUpdatedWorkspaceReady236": {
+    "description": "Host UI: Интерфейс обновлён · рабочая область готова"
+  },
+  "textConfigure237": "Configure",
+  "@textConfigure237": {
+    "description": "Host UI: Настроить"
+  },
+  "textCoreCFFI238": "Core (C++ / FFI)",
+  "@textCoreCFFI238": {
+    "description": "Host UI: Ядро (C++ / FFI)"
+  },
+  "textOnline239": "online",
+  "@textOnline239": {
+    "description": "Host UI: онлайн"
+  },
+  "textOffline240": "offline",
+  "@textOffline240": {
+    "description": "Host UI: офлайн"
+  },
+  "textCoreVersion241": "Core version",
+  "@textCoreVersion241": {
+    "description": "Host UI: Версия ядра"
+  },
+  "textArg0ExpectedArg1242": "{arg0} (expected {arg1})",
+  "@textArg0ExpectedArg1242": {
+    "description": "Host UI: {arg0} (ожидается {arg1})",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textLibrary243": "Library",
+  "@textLibrary243": {
+    "description": "Host UI: Библиотека"
+  },
+  "textNotFound244": "not found",
+  "@textNotFound244": {
+    "description": "Host UI: не найдена"
+  },
+  "textModulesInPipeline245": "Modules in pipeline",
+  "@textModulesInPipeline245": {
+    "description": "Host UI: Модулей в конвейере"
+  },
+  "textError246": "Error",
+  "@textError246": {
+    "description": "Host UI: Ошибка"
+  },
+  "textQuickStart247": "Quick start",
+  "@textQuickStart247": {
+    "description": "Host UI: Быстрый старт"
+  },
+  "textStartATestSession248": "Start a test session",
+  "@textStartATestSession248": {
+    "description": "Host UI: Запустить тестовую сессию"
+  },
+  "textSpectrogramDemo249": "Spectrogram (demo)",
+  "@textSpectrogramDemo249": {
+    "description": "Host UI: Спектрограмма (demo)"
+  },
+  "textModuleRegistry250": "Module registry",
+  "@textModuleRegistry250": {
+    "description": "Host UI: Реестр модулей"
+  },
+  "text2409Test251": "24.09 · test",
+  "@text2409Test251": {
+    "description": "Host UI: 24.09 · тест"
+  },
+  "textSimulator0032Quality086252": "Simulator · 00:32 · quality 0.86",
+  "@textSimulator0032Quality086252": {
+    "description": "Host UI: Симулятор · 00:32 · качество 0.86"
+  },
+  "text2309Calibration253": "23.09 · calibration",
+  "@text2309Calibration253": {
+    "description": "Host UI: 23.09 · калибровка"
+  },
+  "textSimulator0312Complete254": "Simulator · 03:12 · complete",
+  "@textSimulator0312Complete254": {
+    "description": "Host UI: Симулятор · 03:12 · готово"
+  },
+  "text2209Sleep255": "22.09 · sleep",
+  "@text2209Sleep255": {
+    "description": "Host UI: 22.09 · сон"
+  },
+  "textSimulator0105Quality071256": "Simulator · 01:05 · quality 0.71",
+  "@textSimulator0105Quality071256": {
+    "description": "Host UI: Симулятор · 01:05 · качество 0.71"
+  },
+  "textSessionStorageWillBeImplementedInStorage257": "Session storage will be implemented in Storage Service (v0.2).",
+  "@textSessionStorageWillBeImplementedInStorage257": {
+    "description": "Host UI: Хранение сессий будет реализовано в Storage Service (v0.2)."
+  },
+  "textEEGSimulator258": "EEG simulator",
+  "@textEEGSimulator258": {
+    "description": "Host UI: Симулятор ЭЭГ"
+  },
+  "textADS1299CompatibleBoard259": "ADS1299-compatible board",
+  "@textADS1299CompatibleBoard259": {
+    "description": "Host UI: ADS1299-совместимая плата"
+  },
+  "textLSLSource260": "LSL source",
+  "@textLSLSource260": {
+    "description": "Host UI: LSL-источник"
+  },
+  "textConnectToAnyLabStreamingLayerStream261": "Connect to any Lab Streaming Layer stream on the network.",
+  "@textConnectToAnyLabStreamingLayerStream261": {
+    "description": "Host UI: Подключение к любому Lab Streaming Layer-потоку в сети."
+  },
+  "textHardwareAbstractionLayerV01VirtualSources262": "Hardware Abstraction Layer · v0.1 — virtual sources",
+  "@textHardwareAbstractionLayerV01VirtualSources262": {
+    "description": "Host UI: Hardware Abstraction Layer · v0.1 — виртуальные источники"
+  },
+  "textHALRoadmapV02263": "HAL roadmap (v0.2)",
+  "@textHALRoadmapV02263": {
+    "description": "Host UI: Планы HAL (v0.2)"
+  },
+  "textNormalization264": "Normalization",
+  "@textNormalization264": {
+    "description": "Host UI: Нормализация"
+  },
+  "textRawSignalVBoardScale265": "raw signal → μV, board scale",
+  "@textRawSignalVBoardScale265": {
+    "description": "Host UI: сырой сигнал → μV, масштаб платы"
+  },
+  "textImpedance266": "Impedance",
+  "@textImpedance266": {
+    "description": "Host UI: Импеданс"
+  },
+  "textContactCalibrationProcedure267": "contact calibration procedure",
+  "@textContactCalibrationProcedure267": {
+    "description": "Host UI: процедура калибровки контактов"
+  },
+  "textHotPlug268": "Hot-plug",
+  "@textHotPlug268": {
+    "description": "Host UI: Hot-plug"
+  },
+  "textConnectionDisconnectionDetection269": "connection/disconnection detection",
+  "@textConnectionDisconnectionDetection269": {
+    "description": "Host UI: детекция подключения/отключения"
+  },
+  "textRateChannels270": "Rate/channels",
+  "@textRateChannels270": {
+    "description": "Host UI: Частота/каналы"
+  },
+  "textBoardConfigurationManagement271": "board configuration management",
+  "@textBoardConfigurationManagement271": {
+    "description": "Host UI: управление конфигурацией платы"
+  },
+  "textCouldNotStartTheCoreCodeArg0272": "Could not start the core (code {arg0})",
+  "@textCouldNotStartTheCoreCodeArg0272": {
+    "description": "Host UI: Не удалось запустить ядро (код {arg0})",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textStreamingThroughTheCCorePushPipeline273": "Streaming through the C++ core (push → pipeline → pop)",
+  "@textStreamingThroughTheCCorePushPipeline273": {
+    "description": "Host UI: Поток идёт через C++-ядро (push → pipeline → pop)"
+  },
+  "textCoreOfflineLocalDartSimulation274": "Core offline — local Dart simulation",
+  "@textCoreOfflineLocalDartSimulation274": {
+    "description": "Host UI: Ядро офлайн — локальная симуляция в Dart"
+  },
+  "textSessionRunning275": "Session running",
+  "@textSessionRunning275": {
+    "description": "Host UI: Сессия идёт"
+  },
+  "textTestSession276": "Test session",
+  "@textTestSession276": {
+    "description": "Host UI: Тестовая сессия"
+  },
+  "textThroughCore277": "through core",
+  "@textThroughCore277": {
+    "description": "Host UI: через ядро"
+  },
+  "textDartSimulation278": "Dart simulation",
+  "@textDartSimulation278": {
+    "description": "Host UI: Dart-симуляция"
+  },
+  "textTime279": "Time",
+  "@textTime279": {
+    "description": "Host UI: Время"
+  },
+  "textFrames280": "Frames",
+  "@textFrames280": {
+    "description": "Host UI: Кадров"
+  },
+  "textPeakHz281": "Peak, Hz",
+  "@textPeakHz281": {
+    "description": "Host UI: Пик, Гц"
+  },
+  "textQuality282": "Quality",
+  "@textQuality282": {
+    "description": "Host UI: Качество"
+  },
+  "textStart283": "Start",
+  "@textStart283": {
+    "description": "Host UI: Старт"
+  },
+  "textStop284": "Stop",
+  "@textStop284": {
+    "description": "Host UI: Стоп"
+  },
+  "textSimulator256Hz1ChannelBlockOf285": "Simulator 256 Hz · 1 channel · block of {arg0} frames",
+  "@textSimulator256Hz1ChannelBlockOf285": {
+    "description": "Host UI: Симулятор 256 Гц · 1 канал · блок {arg0} кадров",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textSessionHistoryInMemoryV01286": "Session history (in memory, v0.1)",
+  "@textSessionHistoryInMemoryV01286": {
+    "description": "Host UI: История сессий (в памяти, v0.1)"
+  },
+  "textNoSessionsYetStartASession287": "No sessions yet — start a session.",
+  "@textNoSessionsYetStartASession287": {
+    "description": "Host UI: Пока пусто — запустите сессию."
+  },
+  "textCore288": "core",
+  "@textCore288": {
+    "description": "Host UI: ядро"
+  },
+  "textDeviceRawBufferPreprocessingFeaturesOutput289": "Device → Raw Buffer → Preprocessing → Features → Output",
+  "@textDeviceRawBufferPreprocessingFeaturesOutput289": {
+    "description": "Host UI: Device → Raw Buffer → Preprocessing → Features → Output"
+  },
+  "textActiveCorePipeline290": "Active core pipeline",
+  "@textActiveCorePipeline290": {
+    "description": "Host UI: Активная цепочка ядра"
+  },
+  "textUnavailable291": "unavailable",
+  "@textUnavailable291": {
+    "description": "Host UI: недоступно"
+  },
+  "textArg0Modules292": "{arg0} modules",
+  "@textArg0Modules292": {
+    "description": "Host UI: {arg0} модулей",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textModulesRetrievedFromTheCoreViaBci293": "Modules retrieved from the core via bci_engine_module_json():",
+  "@textModulesRetrievedFromTheCoreViaBci293": {
+    "description": "Host UI: Модули получены из ядра через bci_engine_module_json():"
+  },
+  "textAdd294": "Add",
+  "@textAdd294": {
+    "description": "Host UI: Add"
+  },
+  "textReplaceModule295": "Replace module",
+  "@textReplaceModule295": {
+    "description": "Host UI: Replace module"
+  },
+  "textDelete296": "Delete",
+  "@textDelete296": {
+    "description": "Host UI: Delete"
+  },
+  "textConnectAnOutputToAnInput297": "Connect an output to an input.",
+  "@textConnectAnOutputToAnInput297": {
+    "description": "Host UI: Connect an output to an input."
+  },
+  "textArg0ModulesArg1Connections298": "{arg0} modules · {arg1} connections",
+  "@textArg0ModulesArg1Connections298": {
+    "description": "Host UI: {arg0} modules · {arg1} connections",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textAddModuleToCanvas299": "Add module to canvas",
+  "@textAddModuleToCanvas299": {
+    "description": "Host UI: Add module to canvas"
+  },
+  "textFrameAllF300": "Frame all (F)",
+  "@textFrameAllF300": {
+    "description": "Host UI: Frame all (F)"
+  },
+  "textModuleSettings301": "Module settings",
+  "@textModuleSettings301": {
+    "description": "Host UI: Module settings"
+  },
+  "textBuildYourWorkspace302": "Build your workspace",
+  "@textBuildYourWorkspace302": {
+    "description": "Host UI: Build your workspace"
+  },
+  "textDragAModuleFromExplorerOrRight303": "Drag a module from Explorer or right-click → Add",
+  "@textDragAModuleFromExplorerOrRight303": {
+    "description": "Host UI: Drag a module from Explorer or right-click → Add"
+  },
+  "textReturnToModules304": "Return to modules",
+  "@textReturnToModules304": {
+    "description": "Host UI: Return to modules"
+  },
+  "textMMBDragToPanWheelToZoom305": "MMB / drag to pan · wheel to zoom · F to frame",
+  "@textMMBDragToPanWheelToZoom305": {
+    "description": "Host UI: MMB / drag to pan · wheel to zoom · F to frame"
+  },
+  "textSelectAnOppositePortEscToCancel306": "Select an opposite port · Esc to cancel",
+  "@textSelectAnOppositePortEscToCancel306": {
+    "description": "Host UI: Select an opposite port · Esc to cancel"
+  },
+  "textInput307": "+ Input",
+  "@textInput307": {
+    "description": "Host UI: + Input"
+  },
+  "textOutput308": "+ Output",
+  "@textOutput308": {
+    "description": "Host UI: + Output"
+  },
+  "textOpen309": "Open",
+  "@textOpen309": {
+    "description": "Host UI: Open"
+  },
+  "textMODULESETTINGS310": "MODULE SETTINGS",
+  "@textMODULESETTINGS310": {
+    "description": "Host UI: MODULE SETTINGS"
+  },
+  "textCloseModuleSettings311": "Close module settings",
+  "@textCloseModuleSettings311": {
+    "description": "Host UI: Close module settings"
+  },
+  "textSelectAModuleOnTheCanvas312": "Select a module on the canvas.",
+  "@textSelectAModuleOnTheCanvas312": {
+    "description": "Host UI: Select a module on the canvas."
+  },
+  "textNoAdditionalSettingsHaveBeenDeclaredBy313": "No additional settings have been declared by the author.",
+  "@textNoAdditionalSettingsHaveBeenDeclaredBy313": {
+    "description": "Host UI: No additional settings have been declared by the author."
+  },
+  "textConnections314": "Connections",
+  "@textConnections314": {
+    "description": "Host UI: Connections"
+  },
+  "textDisconnectPorts315": "Disconnect ports",
+  "@textDisconnectPorts315": {
+    "description": "Host UI: Disconnect ports"
+  },
+  "textNoConnections316": "No connections",
+  "@textNoConnections316": {
+    "description": "Host UI: No connections"
+  },
+  "textSearchAvailableModules317": "Search available modules...",
+  "@textSearchAvailableModules317": {
+    "description": "Host UI: Search available modules..."
+  },
+  "textNoAvailableModulesAddADraftOr318": "No available modules.\nAdd a draft or find modules in Marketplace.",
+  "@textNoAvailableModulesAddADraftOr318": {
+    "description": "Host UI: No available modules.\nAdd a draft or find modules in Marketplace."
+  },
+  "textModuleInterface319": "Module interface",
+  "@textModuleInterface319": {
+    "description": "Host UI: Module interface"
+  },
+  "textThisModuleHasNotDeclaredAnActive320": "This module has not declared an active-area UI schema yet. Its graph ports and host settings remain available in Workspace.",
+  "@textThisModuleHasNotDeclaredAnActive320": {
+    "description": "Host UI: This module has not declared an active-area UI schema yet. Its graph ports and host settings remain available in Workspace."
+  },
+  "textModuleIDArg0321": "Module ID: {arg0}",
+  "@textModuleIDArg0321": {
+    "description": "Host UI: Module ID: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textGraphEditingIsAvailableExecutingExternalPackages322": "Graph editing is available. Executing external packages requires the signed sandbox runtime.",
+  "@textGraphEditingIsAvailableExecutingExternalPackages322": {
+    "description": "Host UI: Graph editing is available. Executing external packages requires the signed sandbox runtime."
+  },
+  "textWorkspacePreset323": "Workspace preset",
+  "@textWorkspacePreset323": {
+    "description": "Host UI: Workspace preset"
+  },
+  "textPresetFileIsTooLarge324": "Preset file is too large.",
+  "@textPresetFileIsTooLarge324": {
+    "description": "Host UI: Preset file is too large."
+  },
+  "textPresetName325": "Preset name",
+  "@textPresetName325": {
+    "description": "Host UI: Preset name"
+  },
+  "textAdditionalMarketplaceModuleIDs326": "Additional Marketplace module IDs",
+  "@textAdditionalMarketplaceModuleIDs326": {
+    "description": "Host UI: Additional Marketplace module IDs"
+  },
+  "textOneIDPerLineOrSeparatedBy327": "One ID per line or separated by commas",
+  "@textOneIDPerLineOrSeparatedBy327": {
+    "description": "Host UI: One ID per line or separated by commas"
+  },
+  "textYouCanCreateAnEmptyPresetOr328": "You can create an empty preset or list Marketplace module IDs above.",
+  "@textYouCanCreateAnEmptyPresetOr328": {
+    "description": "Host UI: You can create an empty preset or list Marketplace module IDs above."
+  },
+  "textSTFT256Hop32Simulator256Hz329": "STFT 256 / hop 32 · simulator 256 Hz · event markers",
+  "@textSTFT256Hop32Simulator256Hz329": {
+    "description": "Host UI: STFT 256 / hop 32 · симулятор 256 Гц · маркеры событий"
+  },
+  "textAddMarker330": "Add marker",
+  "@textAddMarker330": {
+    "description": "Host UI: Добавить маркер"
+  },
+  "textClear331": "Clear",
+  "@textClear331": {
+    "description": "Host UI: Очистить"
+  },
+  "text0Hz332": "0 Hz",
+  "@text0Hz332": {
+    "description": "Host UI: 0 Гц"
+  },
+  "text127Hz333": "~127 Hz",
+  "@text127Hz333": {
+    "description": "Host UI: ~127 Гц"
+  },
+  "textMarkers334": "Markers",
+  "@textMarkers334": {
+    "description": "Host UI: Маркеры"
+  },
+  "textSecArg0335": "sec ≈ {arg0}",
+  "@textSecArg0335": {
+    "description": "Host UI: сек ≈ {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textParameters336": "Parameters",
+  "@textParameters336": {
+    "description": "Host UI: Параметры"
+  },
+  "textSensitivityArg0337": "Sensitivity ×{arg0}",
+  "@textSensitivityArg0337": {
+    "description": "Host UI: Чувствительность ×{arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textAboutVersions338": "About versions",
+  "@textAboutVersions338": {
+    "description": "Host UI: О версиях"
+  },
+  "textCoreNotLoaded339": "core not loaded",
+  "@textCoreNotLoaded339": {
+    "description": "Host UI: ядро не загружено"
+  },
+  "textEngineCreated340": "engine created",
+  "@textEngineCreated340": {
+    "description": "Host UI: engine создан"
+  },
+  "textCreateFailed341": "create failed",
+  "@textCreateFailed341": {
+    "description": "Host UI: create не удался"
+  },
+  "textEngineStarted256Hz1342": "engine started (256 Hz × 1)",
+  "@textEngineStarted256Hz1342": {
+    "description": "Host UI: engine стартовал (256 Гц × 1)"
+  },
+  "textStartCodeArg0343": "start → code {arg0}",
+  "@textStartCodeArg0343": {
+    "description": "Host UI: start → код {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textNoCore344": "no core",
+  "@textNoCore344": {
+    "description": "Host UI: ядра нет"
+  },
+  "textStopCodeArg0345": "stop → code {arg0}",
+  "@textStopCodeArg0345": {
+    "description": "Host UI: stop → код {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textEngineNotCreated346": "engine not created",
+  "@textEngineNotCreated346": {
+    "description": "Host UI: engine не создан"
+  },
+  "textStartCodeArg0347": "start → code {arg0}",
+  "@textStartCodeArg0347": {
+    "description": "Host UI: start → код {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textModulesUnavailableARunningEngineIsRequired348": "modules unavailable (a running engine is required)",
+  "@textModulesUnavailableARunningEngineIsRequired348": {
+    "description": "Host UI: модули недоступны (нужен запущенный engine)"
+  },
+  "textCoreFFIConsoleBciEngineCAPI349": "Core FFI console · bci_engine_* C API",
+  "@textCoreFFIConsoleBciEngineCAPI349": {
+    "description": "Host UI: FFI-консоль ядра · bci_engine_* C API"
+  },
+  "textCreateEngine350": "Create engine",
+  "@textCreateEngine350": {
+    "description": "Host UI: Создать engine"
+  },
+  "textEchoTest351": "Echo test",
+  "@textEchoTest351": {
+    "description": "Host UI: Echo-тест"
+  },
+  "textModulesJSON352": "Modules (JSON)",
+  "@textModulesJSON352": {
+    "description": "Host UI: Модули (JSON)"
+  },
+  "textLibraryArg0353": "Library: {arg0}",
+  "@textLibraryArg0353": {
+    "description": "Host UI: Библиотека: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textCoreLibraryNotFoundBuildTheCore354": "Core library not found — build the core (scripts/build.sh).",
+  "@textCoreLibraryNotFoundBuildTheCore354": {
+    "description": "Host UI: Библиотека ядра не найдена — соберите ядро (scripts/build.sh)."
+  },
+  "textResetInterfaceScale355": "Reset interface scale",
+  "@textResetInterfaceScale355": {
+    "description": "Host UI: Reset interface scale"
+  },
+  "textWORKSPACE356": "WORKSPACE",
+  "@textWORKSPACE356": {
+    "description": "Host UI: WORKSPACE"
+  },
+  "textINTERFACE357": "INTERFACE",
+  "@textINTERFACE357": {
+    "description": "Host UI: INTERFACE"
+  },
+  "textKeyboardShortcuts358": "Keyboard shortcuts",
+  "@textKeyboardShortcuts358": {
+    "description": "Host UI: Keyboard shortcuts"
+  },
+  "textEditShortcuts359": "Edit shortcuts",
+  "@textEditShortcuts359": {
+    "description": "Host UI: Edit shortcuts"
+  },
+  "textPressKeys360": "Press keys",
+  "@textPressKeys360": {
+    "description": "Host UI: Press keys"
+  },
+  "textImport361": "Import",
+  "@textImport361": {
+    "description": "Host UI: Import"
+  },
+  "textAppearance362": "Appearance",
+  "@textAppearance362": {
+    "description": "Host UI: Appearance"
+  },
+  "textVoice363": "Voice",
+  "@textVoice363": {
+    "description": "Host UI: Voice"
+  },
+  "textConfiguration364": "Configuration",
+  "@textConfiguration364": {
+    "description": "Host UI: Configuration"
+  },
+  "textPersonalization365": "Personalization",
+  "@textPersonalization365": {
+    "description": "Host UI: Personalization"
+  },
+  "textAccount366": "Account",
+  "@textAccount366": {
+    "description": "Host UI: Account"
+  },
+  "textSearch367": "Search",
+  "@textSearch367": {
+    "description": "Host UI: Search"
+  },
+  "textPersonal368": "Personal",
+  "@textPersonal368": {
+    "description": "Host UI: Personal"
+  },
+  "textArchived369": "Archived",
+  "@textArchived369": {
+    "description": "Host UI: Archived"
+  },
+  "textBackToApp370": "Back to app",
+  "@textBackToApp370": {
+    "description": "Host UI: Back to app"
+  },
+  "textPermissions371": "Permissions",
+  "@textPermissions371": {
+    "description": "Host UI: Permissions"
+  },
+  "textDefaultPermissions372": "Default permissions",
+  "@textDefaultPermissions372": {
+    "description": "Host UI: Default permissions"
+  },
+  "textByDefaultAyakiroCanReadAndEdit373": "By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed",
+  "@textByDefaultAyakiroCanReadAndEdit373": {
+    "description": "Host UI: By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed"
+  },
+  "textFullAccess374": "Full access",
+  "@textFullAccess374": {
+    "description": "Host UI: Full access"
+  },
+  "textWhenAyakiroRunsWithFullAccessIt375": "When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.",
+  "@textWhenAyakiroRunsWithFullAccessIt375": {
+    "description": "Host UI: When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior."
+  },
+  "textLearnMoreAboutElevatedRisks376": "Learn more about elevated risks.",
+  "@textLearnMoreAboutElevatedRisks376": {
+    "description": "Host UI: Learn more about elevated risks."
+  },
+  "textProjectlessTaskFolder377": "Projectless task folder",
+  "@textProjectlessTaskFolder377": {
+    "description": "Host UI: Projectless task folder"
+  },
+  "textTheLocationWhereTasksStartedOutsideOf378": "The location where tasks started outside of projects store their data by default.",
+  "@textTheLocationWhereTasksStartedOutsideOf378": {
+    "description": "Host UI: The location where tasks started outside of projects store their data by default."
+  },
+  "textChange379": "Change",
+  "@textChange379": {
+    "description": "Host UI: Change"
+  },
+  "textDefaultFileOpenDestination380": "Default file open destination",
+  "@textDefaultFileOpenDestination380": {
+    "description": "Host UI: Default file open destination"
+  },
+  "textWhereFilesAndFoldersOpenByDefault381": "Where files and folders open by default",
+  "@textWhereFilesAndFoldersOpenByDefault381": {
+    "description": "Host UI: Where files and folders open by default"
+  },
+  "textLanguage382": "Language",
+  "@textLanguage382": {
+    "description": "Host UI: Language"
+  },
+  "textLanguageForTheAppUI383": "Language for the app UI",
+  "@textLanguageForTheAppUI383": {
+    "description": "Host UI: Language for the app UI"
+  },
+  "textAutoDetect384": "Auto detect",
+  "@textAutoDetect384": {
+    "description": "Host UI: Auto detect"
+  },
+  "textBottomPanel385": "Bottom panel",
+  "@textBottomPanel385": {
+    "description": "Host UI: Bottom panel"
+  },
+  "textShowTheBottomPanelControlInThe386": "Show the bottom panel control in the app header",
+  "@textShowTheBottomPanelControlInThe386": {
+    "description": "Host UI: Show the bottom panel control in the app header"
+  },
+  "textPreventSleepWhileRunning387": "Prevent sleep while running",
+  "@textPreventSleepWhileRunning387": {
+    "description": "Host UI: Prevent sleep while running"
+  },
+  "textKeepYourComputerAwakeWhileAyakiroIs388": "Keep your computer awake while Ayakiro is running a task",
+  "@textKeepYourComputerAwakeWhileAyakiroIs388": {
+    "description": "Host UI: Keep your computer awake while Ayakiro is running a task"
+  },
+  "textOpenSourceLicenses389": "Open source licenses",
+  "@textOpenSourceLicenses389": {
+    "description": "Host UI: Open source licenses"
+  },
+  "textThirdPartySoftwareUsedByAyakiroBCI390": "Third-party software used by Ayakiro BCI Engine",
+  "@textThirdPartySoftwareUsedByAyakiroBCI390": {
+    "description": "Host UI: Third-party software used by Ayakiro BCI Engine"
+  },
+  "textCurrentApplicationBuild391": "Current application build",
+  "@textCurrentApplicationBuild391": {
+    "description": "Host UI: Current application build"
+  },
+  "textArg0LocalOfflineFirstMode392": "{arg0} · local offline-first mode",
+  "@textArg0LocalOfflineFirstMode392": {
+    "description": "Host UI: {arg0} · local offline-first mode",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textImportCreationAndComparisonOfRecordings393": "Import, creation and comparison of recordings",
+  "@textImportCreationAndComparisonOfRecordings393": {
+    "description": "Host UI: Загрузка, формирование и сравнение записей"
+  },
+  "textYourDatasetsWillAppearHere394": "Your datasets will appear here",
+  "@textYourDatasetsWillAppearHere394": {
+    "description": "Host UI: Здесь появятся ваши датасеты"
+  },
+  "textNoCodeTrainingAndModelRegistry395": "No-code training and model registry",
+  "@textNoCodeTrainingAndModelRegistry395": {
+    "description": "Host UI: Обучение без кода и реестр моделей"
+  },
+  "textTheModelRegistryIsEmpty396": "The model registry is empty",
+  "@textTheModelRegistryIsEmpty396": {
+    "description": "Host UI: Реестр моделей пуст"
+  },
+  "textSignInWithGitHub397": "Sign in with GitHub",
+  "@textSignInWithGitHub397": {
+    "description": "Host UI: Sign in with GitHub"
+  },
+  "textGitHubSignInIsIncompleteReturnTo398": "GitHub sign-in is incomplete. Return to the app after authorization.",
+  "@textGitHubSignInIsIncompleteReturnTo398": {
+    "description": "Host UI: GitHub вход не завершён. Вернитесь в приложение после авторизации."
+  },
+  "textCouldNotCompleteTheActionCheckYour399": "Could not complete the action. Check your connection and OAuth settings.",
+  "@textCouldNotCompleteTheActionCheckYour399": {
+    "description": "Host UI: Не удалось выполнить действие. Проверьте подключение и настройки OAuth."
+  },
+  "textLogInWith400": "Log in with:",
+  "@textLogInWith400": {
+    "description": "Host UI: Log in with:"
+  },
+  "textConnectingToGitHub401": "Connecting to GitHub…",
+  "@textConnectingToGitHub401": {
+    "description": "Host UI: Connecting to GitHub…"
+  },
+  "textSigningOut402": "Signing out…",
+  "@textSigningOut402": {
+    "description": "Host UI: Signing out…"
+  },
+  "textSignOut403": "Sign out",
+  "@textSignOut403": {
+    "description": "Host UI: Sign out"
+  },
+  "textFiltersAndSignalInspectionHelpersForLive404": "Filters and signal inspection helpers for live sessions.",
+  "@textFiltersAndSignalInspectionHelpersForLive404": {
+    "description": "Host UI: Filters and signal inspection helpers for live sessions."
+  },
+  "textAddStructuredNotesAndMarkersWhileRecording405": "Add structured notes and markers while recording a session.",
+  "@textAddStructuredNotesAndMarkersWhileRecording405": {
+    "description": "Host UI: Add structured notes and markers while recording a session."
+  },
+  "textACompactDashboardForCustomBCIMetrics406": "A compact dashboard for custom BCI metrics and signals.",
+  "@textACompactDashboardForCustomBCIMetrics406": {
+    "description": "Host UI: A compact dashboard for custom BCI metrics and signals."
+  },
+  "textExportRecordingsAndDerivedDataToCommon407": "Export recordings and derived data to common formats.",
+  "@textExportRecordingsAndDerivedDataToCommon407": {
+    "description": "Host UI: Export recordings and derived data to common formats."
+  },
+  "textArg0Arg1Selected408": "{arg0}: {arg1} selected.",
+  "@textArg0Arg1Selected408": {
+    "description": "Host UI: {arg0}: {arg1} selected.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textEXTENSIONINSPECTOR409": "EXTENSION INSPECTOR",
+  "@textEXTENSIONINSPECTOR409": {
+    "description": "Host UI: EXTENSION INSPECTOR"
+  },
+  "textSelectAnExtension410": "Select an extension",
+  "@textSelectAnExtension410": {
+    "description": "Host UI: Select an extension"
+  },
+  "textCategoryArg0411": "Category  {arg0}",
+  "@textCategoryArg0411": {
+    "description": "Host UI: Category  {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textDisable412": "Disable",
+  "@textDisable412": {
+    "description": "Host UI: Disable"
+  },
+  "textEnable413": "Enable",
+  "@textEnable413": {
+    "description": "Host UI: Enable"
+  },
+  "textSettings414": "Settings",
+  "@textSettings414": {
+    "description": "Host UI: Settings"
+  },
+  "textExtensionDetails415": "Extension details",
+  "@textExtensionDetails415": {
+    "description": "Host UI: Extension details"
+  },
+  "textCategoryArg0416": "Category  {arg0}",
+  "@textCategoryArg0416": {
+    "description": "Host UI: Category  {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textChooseAnExtensionFromTheSidebarTo417": "Choose an extension from the sidebar to open a tab.",
+  "@textChooseAnExtensionFromTheSidebarTo417": {
+    "description": "Host UI: Choose an extension from the sidebar to open a tab."
+  },
+  "textClassifiesLeftAndRightHandMotorImagery418": "Classifies left- and right-hand motor imagery from EEG.",
+  "@textClassifiesLeftAndRightHandMotorImagery418": {
+    "description": "Host UI: Classifies left- and right-hand motor imagery from EEG."
+  },
+  "textEstimatesAttentionAndFocusFromLiveSignal419": "Estimates attention and focus from live signal windows.",
+  "@textEstimatesAttentionAndFocusFromLiveSignal419": {
+    "description": "Host UI: Estimates attention and focus from live signal windows."
+  },
+  "textDetectsCommonEyeBlinkAndMuscleArtifacts420": "Detects common eye-blink and muscle artifacts in EEG.",
+  "@textDetectsCommonEyeBlinkAndMuscleArtifacts420": {
+    "description": "Host UI: Detects common eye-blink and muscle artifacts in EEG."
+  },
+  "textSelectANeuralEntity421": "Select a neural entity",
+  "@textSelectANeuralEntity421": {
+    "description": "Host UI: Select a neural entity"
+  },
+  "textInstall422": "Install",
+  "@textInstall422": {
+    "description": "Host UI: Install"
+  },
+  "textENTITY423": "ENTITY",
+  "@textENTITY423": {
+    "description": "Host UI: ENTITY"
+  },
+  "textCatalog424": "Catalog",
+  "@textCatalog424": {
+    "description": "Host UI: Catalog"
+  },
+  "textNoEntitiesYet425": "No entities yet",
+  "@textNoEntitiesYet425": {
+    "description": "Host UI: No entities yet"
+  },
+  "textCommunity426": "Community",
+  "@textCommunity426": {
+    "description": "Host UI: Community"
+  },
+  "textExtensions427": "Extensions",
+  "@textExtensions427": {
+    "description": "Host UI: Extensions"
+  },
+  "textModules428": "Modules",
+  "@textModules428": {
+    "description": "Host UI: Modules"
+  },
+  "textThemes429": "Themes",
+  "@textThemes429": {
+    "description": "Host UI: Themes"
+  },
+  "textTheEngineSNeutralDarkFirstAppearance430": "The engine’s neutral, dark-first appearance. A quiet workspace for focused research.",
+  "@textTheEngineSNeutralDarkFirstAppearance430": {
+    "description": "Host UI: The engine’s neutral, dark-first appearance. A quiet workspace for focused research."
+  },
+  "textBuiltIn431": "Built-in",
+  "@textBuiltIn431": {
+    "description": "Host UI: Built-in"
+  },
+  "textACleanWhiteAppearanceWithTheSame432": "A clean white appearance with the same hierarchy and unified controls.",
+  "@textACleanWhiteAppearanceWithTheSame432": {
+    "description": "Host UI: A clean white appearance with the same hierarchy and unified controls."
+  },
+  "textLight433": "Light",
+  "@textLight433": {
+    "description": "Host UI: Light"
+  },
+  "textAll434": "All",
+  "@textAll434": {
+    "description": "Host UI: All"
+  },
+  "textAllTime435": "All time",
+  "@textAllTime435": {
+    "description": "Host UI: All time"
+  },
+  "textRelevance436": "Relevance",
+  "@textRelevance436": {
+    "description": "Host UI: Relevance"
+  },
+  "textGrid437": "Grid",
+  "@textGrid437": {
+    "description": "Host UI: Grid"
+  },
+  "textTheCatalogCouldNotBeLoadedCheck438": "The catalog could not be loaded. Check your connection and try again.",
+  "@textTheCatalogCouldNotBeLoadedCheck438": {
+    "description": "Host UI: The catalog could not be loaded. Check your connection and try again."
+  },
+  "textThisWeek439": "This week",
+  "@textThisWeek439": {
+    "description": "Host UI: This week"
+  },
+  "textThisMonth440": "This month",
+  "@textThisMonth440": {
+    "description": "Host UI: This month"
+  },
+  "textNewest441": "Newest",
+  "@textNewest441": {
+    "description": "Host UI: Newest"
+  },
+  "textRecentlyUpdated442": "Recently updated",
+  "@textRecentlyUpdated442": {
+    "description": "Host UI: Recently updated"
+  },
+  "textMostDownloaded443": "Most downloaded",
+  "@textMostDownloaded443": {
+    "description": "Host UI: Most downloaded"
+  },
+  "textMostLiked444": "Most liked",
+  "@textMostLiked444": {
+    "description": "Host UI: Most liked"
+  },
+  "textByArg0445": "by {arg0}",
+  "@textByArg0445": {
+    "description": "Host UI: by {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textLicenseArg0446": "License: {arg0}",
+  "@textLicenseArg0446": {
+    "description": "Host UI: License: {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textLocalUIPlaceholderOnlyThisEntryIs447": "Local UI placeholder only. This entry is not published or executable. License labels are examples for filter testing.",
+  "@textLocalUIPlaceholderOnlyThisEntryIs447": {
+    "description": "Host UI: Local UI placeholder only. This entry is not published or executable. License labels are examples for filter testing."
+  },
+  "textAddThisPublishedManifestToTheWorkspace448": "Add this published manifest to the Workspace library. Package download and execution are not enabled until the signed sandbox runtime is available.",
+  "@textAddThisPublishedManifestToTheWorkspace448": {
+    "description": "Host UI: Add this published manifest to the Workspace library. Package download and execution are not enabled until the signed sandbox runtime is available."
+  },
+  "textApplyTheme449": "Apply theme",
+  "@textApplyTheme449": {
+    "description": "Host UI: Apply theme"
+  },
+  "textAddToWorkspace450": "Add to Workspace",
+  "@textAddToWorkspace450": {
+    "description": "Host UI: Add to Workspace"
+  },
+  "textAddedToWorkspace451": "Added to Workspace",
+  "@textAddedToWorkspace451": {
+    "description": "Host UI: Added to Workspace"
+  },
+  "textArg0IsAvailableInExplorerPackageExecution452": "{arg0} is available in Explorer. Package execution is not enabled.",
+  "@textArg0IsAvailableInExplorerPackageExecution452": {
+    "description": "Host UI: {arg0} is available in Explorer. Package execution is not enabled.",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textFilters453": "Filters",
+  "@textFilters453": {
+    "description": "Host UI: Filters"
+  },
+  "textSearchArg0454": "Search {arg0}...",
+  "@textSearchArg0454": {
+    "description": "Host UI: Search {arg0}...",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textClearSearch455": "Clear search",
+  "@textClearSearch455": {
+    "description": "Host UI: Clear search"
+  },
+  "textSortBy456": "Sort by",
+  "@textSortBy456": {
+    "description": "Host UI: Sort by"
+  },
+  "textList457": "List",
+  "@textList457": {
+    "description": "Host UI: List"
+  },
+  "textRetry458": "Retry",
+  "@textRetry458": {
+    "description": "Host UI: Retry"
+  },
+  "textNoPublishedArg0Yet459": "No published {arg0} yet",
+  "@textNoPublishedArg0Yet459": {
+    "description": "Host UI: No published {arg0} yet",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textNoMatchingItems460": "No matching items",
+  "@textNoMatchingItems460": {
+    "description": "Host UI: No matching items"
+  },
+  "textPublishedCatalogEntriesWillAppearHereAutomatically461": "Published catalog entries will appear here automatically.",
+  "@textPublishedCatalogEntriesWillAppearHereAutomatically461": {
+    "description": "Host UI: Published catalog entries will appear here automatically."
+  },
+  "textArg0Arg1462": "{arg0}: {arg1}",
+  "@textArg0Arg1462": {
+    "description": "Host UI: {arg0}: {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textResetFilters463": "Reset filters",
+  "@textResetFilters463": {
+    "description": "Host UI: Reset filters"
+  },
+  "textToggleFilters464": "Toggle filters",
+  "@textToggleFilters464": {
+    "description": "Host UI: Toggle filters"
+  },
+  "textPublished465": "Published",
+  "@textPublished465": {
+    "description": "Host UI: Published"
+  },
+  "textAvailability466": "Availability",
+  "@textAvailability466": {
+    "description": "Host UI: Availability"
+  },
+  "textBuiltInConnected467": "Built-in / connected",
+  "@textBuiltInConnected467": {
+    "description": "Host UI: Built-in / connected"
+  },
+  "textInWorkspace468": "In Workspace",
+  "@textInWorkspace468": {
+    "description": "Host UI: In Workspace"
+  },
+  "textPreviewEntriesAreLocalUIPlaceholdersNot469": "Preview entries are local UI placeholders, not published packages.",
+  "@textPreviewEntriesAreLocalUIPlaceholdersNot469": {
+    "description": "Host UI: Preview entries are local UI placeholders, not published packages."
+  },
+  "textLikeArg0470": "Like {arg0}",
+  "@textLikeArg0470": {
+    "description": "Host UI: Like {arg0}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "textCreatedArg0UpdatedArg1471": "Created: {arg0}\nUpdated: {arg1}",
+  "@textCreatedArg0UpdatedArg1471": {
+    "description": "Host UI: Created: {arg0}\nUpdated: {arg1}",
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "textEnabled472": "Enabled",
+  "@textEnabled472": {
+    "description": "Host UI: Enabled"
+  },
+  "textInstanceLabel473": "Instance label",
+  "@textInstanceLabel473": {
+    "description": "Host UI: Instance label"
+  },
+  "textProprietary474": "Proprietary",
+  "@textProprietary474": {
+    "description": "Host UI: Proprietary"
+  },
+  "textUnspecified475": "Unspecified",
+  "@textUnspecified475": {
+    "description": "Host UI: Unspecified"
+  },
+  "chooseLanguage": "Choose the language for the app interface. Changes apply immediately and are saved for the next launch.",
+  "russianLanguage": "Russian",
+  "englishLanguage": "English",
+  "workspace": "Workspace",
+  "@workspace": {
+    "description": "Application-owned UI text"
+  },
+  "recentSessions": "Recent sessions",
+  "@recentSessions": {
+    "description": "Application-owned UI text"
+  },
+  "simulatorNotice": "No device is connected yet — the session will use the built-in signal simulator (256 Hz, 1 channel).",
+  "@simulatorNotice": {
+    "description": "Application-owned UI text"
+  },
+  "deviceSimulatorDescription": "Built-in signal generator (256 Hz, 8 channels). Used for development without hardware.",
+  "@deviceSimulatorDescription": {
+    "description": "Application-owned UI text"
+  },
+  "deviceBoardDescription": "The first real HAL driver (USB/serial). Requires streaming firmware.",
+  "@deviceBoardDescription": {
+    "description": "Application-owned UI text"
+  },
+  "pipelineOfflineNotice": "Core offline: the pipeline initializes when a session starts. Start a test session on the Session screen.",
+  "@pipelineOfflineNotice": {
+    "description": "Application-owned UI text"
+  },
+  "markerInstructions": "Add a marker with the flag in the toolbar — it will attach to the current signal time.",
+  "@markerInstructions": {
+    "description": "Application-owned UI text"
+  },
+  "spectrogramVersionNotice": "STFT is currently computed in Dart for demonstration. In v0.2 the spectrogram will use native core data (core.diagnostics) with the same UI.",
+  "@spectrogramVersionNotice": {
+    "description": "Application-owned UI text"
+  },
+  "datasetsRoadmap": "v0.2: import sessions and external files (EDF/CSV), group by experiments, tag and compare datasets and sessions — all without writing code.",
+  "@datasetsRoadmap": {
+    "description": "Application-owned UI text"
+  },
+  "modelsRoadmap": "v0.2: train models on datasets (batches, spectrogram clusters), integrate trained models as Entities, export/import ONNX through Model Registry & Runtime.",
+  "@modelsRoadmap": {
+    "description": "Application-owned UI text"
+  },
+  "logSaved": "Saved: {path}",
+  "@logSaved": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "logSaveFailed": "Could not save: {error}",
+  "@logSaveFailed": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "logPausedCount": "Paused — new entries are not loaded ({count})",
+  "@logPausedCount": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logVisibleCount": "Entries: {visible} / {total} · file: latest.log (refresh 0.4 s)",
+  "@logVisibleCount": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "visible": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionHistoryDetails": "{backend} · {seconds} s · {frames} frames · RMS {rms}",
+  "@sessionHistoryDetails": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      },
+      "frames": {
+        "type": "int"
+      },
+      "rms": {
+        "type": "String"
+      }
+    }
+  },
+  "workspaceCounts": "{modules, plural, =0{0 modules} one{1 module} other{{modules} modules}} · {connections, plural, =0{0 connections} one{1 connection} other{{connections} connections}}",
+  "@workspaceCounts": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "modules": {
+        "type": "int"
+      },
+      "connections": {
+        "type": "int"
+      }
+    }
+  },
+  "versionLabel": "{app} {version} · core {core} (ABI {abi})",
+  "@versionLabel": {
+    "description": "Application-owned UI text",
+    "placeholders": {
+      "app": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      },
+      "core": {
+        "type": "String"
+      },
+      "abi": {
+        "type": "int"
+      }
+    }
+  },
+  "previewSignalSource": "Signal Source",
+  "@previewSignalSource": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewBandpassFilter": "Bandpass Filter",
+  "@previewBandpassFilter": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewNotchFilter": "Notch Filter",
+  "@previewNotchFilter": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewChannelMixer": "Channel Mixer",
+  "@previewChannelMixer": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewFftAnalyzer": "FFT Analyzer",
+  "@previewFftAnalyzer": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewFeatureExtractor": "Feature Extractor",
+  "@previewFeatureExtractor": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewArtifactDetector": "Artifact Detector",
+  "@previewArtifactDetector": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewSignalViewer": "Signal Viewer",
+  "@previewSignalViewer": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewSignalNotes": "Signal Notes",
+  "@previewSignalNotes": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewSessionBrowser": "Session Browser",
+  "@previewSessionBrowser": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewDatasetTools": "Dataset Tools",
+  "@previewDatasetTools": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewResearchDashboard": "Research Dashboard",
+  "@previewResearchDashboard": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewAcquisition": "Acquisition",
+  "@previewAcquisition": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewDsp": "DSP",
+  "@previewDsp": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewRouting": "Routing",
+  "@previewRouting": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewAnalysis": "Analysis",
+  "@previewAnalysis": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewMl": "ML",
+  "@previewMl": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewVisualization": "Visualization",
+  "@previewVisualization": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewNotes": "Notes",
+  "@previewNotes": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewWorkflow": "Workflow",
+  "@previewWorkflow": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewData": "Data",
+  "@previewData": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewBadge": "Preview",
+  "@previewBadge": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewDescription": "Local placeholder for testing the canvas, ports and author UI. No signal processing or package execution.",
+  "@previewDescription": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewExtensionDescription": "Local extension placeholder for catalog and rail layout testing. No external code runs.",
+  "@previewExtensionDescription": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewSummary": "Preview {category} module for UI and Drag & Drop testing.",
+  "@previewSummary": {
+    "description": "Local preview fixture or host authoring control",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "previewNotice": "Preview interface — controls store local values only. No executable module is installed.",
+  "@previewNotice": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewExtensionNotice": "Preview extension area for layout testing.",
+  "@previewExtensionNotice": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewGain": "Gain",
+  "@previewGain": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewMode": "Mode",
+  "@previewMode": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewStandard": "Standard",
+  "@previewStandard": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewLowLatency": "Low latency",
+  "@previewLowLatency": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "previewHighPrecision": "High precision",
+  "@previewHighPrecision": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "shapeWaves": "waves",
+  "@shapeWaves": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "shapeContours": "contours",
+  "@shapeContours": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "shapeGrid": "grid",
+  "@shapeGrid": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconModule": "module",
+  "@iconModule": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconSignal": "signal",
+  "@iconSignal": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconBrain": "brain",
+  "@iconBrain": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconChart": "chart",
+  "@iconChart": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconTerrain": "terrain",
+  "@iconTerrain": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconNotes": "notes",
+  "@iconNotes": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconMoon": "moon",
+  "@iconMoon": {
+    "description": "Local preview fixture or host authoring control"
+  },
+  "iconSun": "sun",
+  "@iconSun": {
+    "description": "Local preview fixture or host authoring control"
+  }
+}

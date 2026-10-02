@@ -1,6 +1,8 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_palette.dart';
 import '../common/widgets.dart';
 
 enum ExtensionSection { installed, recommended }
@@ -86,89 +88,22 @@ class ExtensionsScreen extends StatefulWidget {
 }
 
 class _ExtensionsScreenState extends State<ExtensionsScreen> {
-  String? _activeExtensionId;
-  final List<UserExtension> _tabs = <UserExtension>[];
-
-  @override
-  void initState() {
-    super.initState();
-    final selectedId = widget.selectedExtensionId;
-    if (selectedId == null) return;
-    for (final extension in kUserExtensions) {
-      if (extension.id == selectedId) {
-        _activeExtensionId = extension.id;
-        _tabs.add(extension);
-        break;
-      }
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant ExtensionsScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final selectedId = widget.selectedExtensionId;
-    if (selectedId != null && selectedId != _activeExtensionId) {
-      final extension = kUserExtensions.firstWhere(
-        (item) => item.id == selectedId,
-        orElse: () => kUserExtensions.first,
-      );
-      _openExtension(extension, notifyParent: false);
-    }
-  }
-
   UserExtension? get _activeExtension {
-    for (final extension in _tabs) {
-      if (extension.id == _activeExtensionId) return extension;
+    final selectedId = widget.selectedExtensionId;
+    if (selectedId == null) return null;
+    for (final extension in kUserExtensions) {
+      if (extension.id == selectedId) return extension;
     }
     return null;
-  }
-
-  void _openExtension(UserExtension extension, {bool notifyParent = true}) {
-    setState(() {
-      if (!_tabs.any((tab) => tab.id == extension.id)) {
-        _tabs.add(extension);
-      }
-      _activeExtensionId = extension.id;
-    });
-    if (notifyParent) widget.onSelectExtension?.call(extension);
-  }
-
-  void _closeExtension(UserExtension extension) {
-    setState(() {
-      final index = _tabs.indexWhere((tab) => tab.id == extension.id);
-      if (index < 0) return;
-      _tabs.removeAt(index);
-      if (_activeExtensionId == extension.id) {
-        _activeExtensionId = _tabs.isEmpty
-            ? null
-            : _tabs[index < _tabs.length ? index : _tabs.length - 1].id;
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final active = _activeExtension;
     return ColoredBox(
-      color: AppTheme.background,
+      color: context.palette.background,
       child: Column(
         children: [
-          _ExtensionTabs(
-            tabs: _tabs,
-            activeId: _activeExtensionId,
-            onSelected: _openExtension,
-            onClosed: _closeExtension,
-            onCreate:
-                kUserExtensions
-                    .where((extension) => extension.downloaded)
-                    .isEmpty
-                ? null
-                : () => _openExtension(
-                    kUserExtensions.firstWhere(
-                      (extension) => extension.downloaded,
-                    ),
-                  ),
-          ),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,8 +114,11 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
                       : _ExtensionDetails(
                           extension: active,
                           onAction: (action) => widget.onNotification?.call(
-                            'Extension changed',
-                            '${active.name}: $action selected.',
+                            context.hostLabel('Extension changed'),
+                            context.l10n.textArg0Arg1Selected408(
+                              active.name,
+                              action,
+                            ),
                             Icons.auto_awesome_mosaic_outlined,
                           ),
                         ),
@@ -208,16 +146,16 @@ class _ExtensionInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: AppTheme.panel,
+    color: context.palette.panel,
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'EXTENSION INSPECTOR',
+          Text(
+            context.l10n.textEXTENSIONINSPECTOR409,
             style: TextStyle(
-              color: AppTheme.mutedText,
+              color: context.palette.mutedText,
               fontSize: 11,
               letterSpacing: 1,
               fontWeight: FontWeight.bold,
@@ -225,145 +163,43 @@ class _ExtensionInspector extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           if (extension == null)
-            const Expanded(
+            Expanded(
               child: Center(
                 child: Text(
-                  'Select an extension',
-                  style: TextStyle(color: AppTheme.mutedText),
+                  context.l10n.textSelectAnExtension410,
+                  style: TextStyle(color: context.palette.mutedText),
                 ),
               ),
             )
           else ...[
-            Icon(extension!.icon, size: 26, color: AppTheme.text),
+            Icon(extension!.icon, size: 26, color: context.palette.text),
             const SizedBox(height: 12),
             Text(
               extension!.name,
-              style: const TextStyle(
-                color: AppTheme.text,
+              style: TextStyle(
+                color: context.palette.text,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              extension!.description,
-              style: const TextStyle(color: AppTheme.mutedText, height: 1.4),
+              context.hostLabel(extension!.description),
+              style: TextStyle(color: context.palette.mutedText, height: 1.4),
             ),
             const Spacer(),
             Text(
               'ID  ${extension!.id}',
-              style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+              style: TextStyle(color: context.palette.mutedText, fontSize: 12),
             ),
             Text(
-              'Category  ${extension!.category}',
-              style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+              context.l10n.textCategoryArg0411(
+                (extension!.category).toString(),
+              ),
+              style: TextStyle(color: context.palette.mutedText, fontSize: 12),
             ),
           ],
         ],
-      ),
-    ),
-  );
-}
-
-class _ExtensionTabs extends StatelessWidget {
-  const _ExtensionTabs({
-    required this.tabs,
-    required this.activeId,
-    required this.onSelected,
-    required this.onClosed,
-    required this.onCreate,
-  });
-
-  final List<UserExtension> tabs;
-  final String? activeId;
-  final ValueChanged<UserExtension> onSelected;
-  final ValueChanged<UserExtension> onClosed;
-  final VoidCallback? onCreate;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 35,
-    color: AppTheme.background,
-    child: Row(
-      children: [
-        Expanded(
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.zero,
-            children: [
-              for (final extension in tabs)
-                _ExtensionTab(
-                  extension: extension,
-                  selected: extension.id == activeId,
-                  onSelected: () => onSelected(extension),
-                  onClosed: () => onClosed(extension),
-                ),
-              DesktopIconButton(
-                icon: Icons.add,
-                tooltip: 'Create extension tab',
-                onPressed: onCreate,
-                size: 30,
-                iconSize: 17,
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _ExtensionTab extends StatelessWidget {
-  const _ExtensionTab({
-    required this.extension,
-    required this.selected,
-    required this.onSelected,
-    required this.onClosed,
-  });
-
-  final UserExtension extension;
-  final bool selected;
-  final VoidCallback onSelected;
-  final VoidCallback onClosed;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: selected ? AppTheme.panel : AppTheme.background,
-    child: InkWell(
-      onTap: onSelected,
-      hoverColor: AppTheme.border,
-      child: SizedBox(
-        width: 205,
-        height: 35,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(extension.icon, size: 15),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  extension.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.all(4),
-                child: DesktopIconButton(
-                  icon: Icons.close,
-                  tooltip: 'Close tab',
-                  onPressed: onClosed,
-                  size: 22,
-                  iconSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     ),
   );
@@ -385,29 +221,29 @@ class _ExtensionDetails extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(extension.icon, size: 28, color: AppTheme.text),
+              Icon(extension.icon, size: 28, color: context.palette.text),
               const SizedBox(width: 13),
               Expanded(
                 child: Text(
                   extension.name,
-                  style: const TextStyle(
-                    color: AppTheme.text,
+                  style: TextStyle(
+                    color: context.palette.text,
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
               if (extension.downloaded)
-                const Icon(
+                Icon(
                   Icons.download_done_outlined,
-                  color: AppTheme.mutedText,
+                  color: context.palette.mutedText,
                 ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            extension.description,
-            style: const TextStyle(color: AppTheme.mutedText, height: 1.45),
+            context.hostLabel(extension.description),
+            style: TextStyle(color: context.palette.mutedText, height: 1.45),
           ),
           const SizedBox(height: 24),
           Wrap(
@@ -415,31 +251,33 @@ class _ExtensionDetails extends StatelessWidget {
             runSpacing: 8,
             children: [
               _ExtensionAction(
-                label: extension.active ? 'Disable' : 'Enable',
+                label: extension.active
+                    ? context.l10n.textDisable412
+                    : context.l10n.textEnable413,
                 icon: extension.active ? Icons.pause : Icons.play_arrow,
                 onPressed: () =>
                     onAction(extension.active ? 'Disable' : 'Enable'),
               ),
               _ExtensionAction(
-                label: 'Settings',
+                label: context.l10n.textSettings414,
                 icon: Icons.settings_outlined,
                 onPressed: () => onAction('Settings'),
               ),
             ],
           ),
           const SizedBox(height: 30),
-          const Text(
-            'Extension details',
-            style: TextStyle(color: AppTheme.text, fontSize: 16),
+          Text(
+            context.l10n.textExtensionDetails415,
+            style: TextStyle(color: context.palette.text, fontSize: 16),
           ),
           const SizedBox(height: 12),
           Text(
             'ID  ${extension.id}',
-            style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+            style: TextStyle(color: context.palette.mutedText, fontSize: 12),
           ),
           Text(
-            'Category  ${extension.category}',
-            style: const TextStyle(color: AppTheme.mutedText, fontSize: 12),
+            context.l10n.textCategoryArg0416((extension.category).toString()),
+            style: TextStyle(color: context.palette.mutedText, fontSize: 12),
           ),
         ],
       ),
@@ -475,30 +313,31 @@ class _EmptyExtensions extends StatelessWidget {
       if (constraints.maxWidth < 80 || constraints.maxHeight < 100) {
         return const SizedBox.shrink();
       }
-      final narrow = constraints.maxWidth < 260;
+      final narrow = constraints.maxWidth < 260 || constraints.maxHeight < 200;
+      final compactHeight = constraints.maxHeight < 200;
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(compactHeight ? 8 : 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.extension_outlined,
-                size: 40,
-                color: AppTheme.mutedText,
+                size: compactHeight ? 30 : 40,
+                color: context.palette.mutedText,
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Select an extension',
+              SizedBox(height: compactHeight ? 6 : 12),
+              Text(
+                context.l10n.textSelectAnExtension410,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.text),
+                style: TextStyle(color: context.palette.text),
               ),
               if (!narrow) ...[
                 const SizedBox(height: 5),
-                const Text(
-                  'Choose an extension from the sidebar to open a tab.',
+                Text(
+                  context.l10n.textChooseAnExtensionFromTheSidebarTo417,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.mutedText),
+                  style: TextStyle(color: context.palette.mutedText),
                 ),
               ],
             ],

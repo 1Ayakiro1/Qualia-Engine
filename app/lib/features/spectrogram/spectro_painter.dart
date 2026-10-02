@@ -36,8 +36,12 @@ class SpectroPainter extends CustomPainter {
         }
         paint.color = spectroColor(v);
         canvas.drawRect(
-          Rect.fromLTWH(x, size.height - (b + 1) * cellH, cellW + 0.5,
-              cellH + 0.5),
+          Rect.fromLTWH(
+            x,
+            size.height - (b + 1) * cellH,
+            cellW + 0.5,
+            cellH + 0.5,
+          ),
           paint,
         );
       }

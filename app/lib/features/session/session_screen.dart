@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:math' as math;
@@ -78,15 +80,23 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   void _start() {
     final bool viaCore = _coreOnline;
     if (viaCore) {
-      final int? code =
-          ref.read(engineProvider.notifier).start(sampleRate: 256, channels: 1);
+      final int? code = ref
+          .read(engineProvider.notifier)
+          .start(sampleRate: 256, channels: 1);
       if (code == null || code != 0) {
-        AppLogger.instance.log('session', 'старт не удался (код ${code ?? 'null'})',
-            level: LogLevel.error);
+        AppLogger.instance.log(
+          LogSource.session,
+          'старт не удался (код ${code ?? 'null'})',
+          level: LogLevel.error,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text('Не удалось запустить ядро (код ${code ?? 'null'})')),
+            content: Text(
+              context.l10n.textCouldNotStartTheCoreCodeArg0272(
+                (code ?? 'null').toString(),
+              ),
+            ),
+          ),
         );
         return;
       }
@@ -94,8 +104,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       _inBuffer = controller.allocateSamples(_blockFrames);
       _outBuffer = controller.allocateSamples(_popWindow);
     } else {
-      AppLogger.instance
-          .log('session', 'сессия стартовала в Dart-симуляции (ядро офлайн)');
+      AppLogger.instance.log(
+        LogSource.session,
+        'сессия стартовала в Dart-симуляции (ядро офлайн)',
+      );
     }
 
     _signal.reset();
@@ -171,8 +183,10 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         viaCore: wasCore,
       ),
     );
-    AppLogger.instance.log('session',
-        'сессия завершена: $_frames кадров за ${DateTime.now().difference(startedAt).inSeconds} с (RMS ${(_metricSamples > 0 ? _rmsSum / _metricSamples : 0).toStringAsFixed(3)})');
+    AppLogger.instance.log(
+      LogSource.session,
+      'сессия завершена: $_frames кадров за ${DateTime.now().difference(startedAt).inSeconds} с (RMS ${(_metricSamples > 0 ? _rmsSum / _metricSamples : 0).toStringAsFixed(3)})',
+    );
     if (_coreOnline) {
       ref.read(engineProvider.notifier).stop();
     }
@@ -199,7 +213,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     return '$minutes:$seconds';
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -208,18 +221,23 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     return ListView(
       children: [
         ScreenHeader(
-          title: 'Сессия',
+          title: context.l10n.textSession40,
           subtitle: viaCore
-              ? 'Поток идёт через C++-ядро (push → pipeline → pop)'
-              : 'Ядро офлайн — локальная симуляция в Dart',
+              ? context.l10n.textStreamingThroughTheCCorePushPipeline273
+              : context.l10n.textCoreOfflineLocalDartSimulation274,
         ),
         InfoCard(
-          title: _running ? 'Сессия идёт' : 'Тестовая сессия',
+          title: _running
+              ? context.l10n.textSessionRunning275
+              : context.l10n.textTestSession276,
           headerIcon: Icons.monitor_heart_outlined,
           trailing: StatusChip(
-            label: viaCore ? 'через ядро' : 'Dart-симуляция',
-            color:
-                viaCore ? theme.colorScheme.primary : theme.colorScheme.outline,
+            label: viaCore
+                ? context.l10n.textThroughCore277
+                : context.l10n.textDartSimulation278,
+            color: viaCore
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
             icon: viaCore ? Icons.memory : Icons.timer,
           ),
           children: [
@@ -227,12 +245,20 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                MetricTile(label: 'Время', value: _elapsed()),
-                MetricTile(label: 'Кадров', value: '$_frames'),
-                MetricTile(label: 'RMS', value: _rms.toStringAsFixed(4)),
-                MetricTile(label: 'Пик, Гц', value: _peakHz.toStringAsFixed(1)),
+                MetricTile(label: context.l10n.textTime279, value: _elapsed()),
                 MetricTile(
-                    label: 'Качество', value: _quality.toStringAsFixed(2)),
+                  label: context.l10n.textFrames280,
+                  value: '$_frames',
+                ),
+                MetricTile(label: 'RMS', value: _rms.toStringAsFixed(4)),
+                MetricTile(
+                  label: context.l10n.textPeakHz281,
+                  value: _peakHz.toStringAsFixed(1),
+                ),
+                MetricTile(
+                  label: context.l10n.textQuality282,
+                  value: _quality.toStringAsFixed(2),
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -242,33 +268,37 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                   FilledButton.icon(
                     onPressed: _start,
                     icon: const Icon(Icons.play_arrow),
-                    label: const Text('Старт'),
+                    label: Text(context.l10n.textStart283),
                   )
                 else
                   FilledButton.icon(
                     onPressed: _stop,
                     icon: const Icon(Icons.stop),
-                    label: const Text('Стоп'),
+                    label: Text(context.l10n.textStop284),
                   ),
                 const SizedBox(width: 12),
                 Text(
-                  'Симулятор 256 Гц · 1 канал · блок $_blockFrames кадров',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  context.l10n.textSimulator256Hz1ChannelBlockOf285(
+                    (_blockFrames).toString(),
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ],
         ),
         InfoCard(
-          title: 'История сессий (в памяти, v0.1)',
+          title: context.l10n.textSessionHistoryInMemoryV01286,
           headerIcon: Icons.history,
           children: [
             if (_history.isEmpty)
               Text(
-                'Пока пусто — запустите сессию.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                context.l10n.textNoSessionsYetStartASession287,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               )
             else
               for (final _SessionRecord r in _history)
@@ -276,9 +306,12 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                   keyLabel:
                       '${r.startedAt.day.toString().padLeft(2, '0')}.${r.startedAt.month.toString().padLeft(2, '0')} '
                       '${r.startedAt.hour.toString().padLeft(2, '0')}:${r.startedAt.minute.toString().padLeft(2, '0')}',
-                  value:
-                      '${r.viaCore ? 'ядро' : 'Dart'} · ${r.duration.inSeconds} c · '
-                      '${r.frames} кадров · RMS ${r.avgRms.toStringAsFixed(3)}',
+                  value: context.l10n.sessionHistoryDetails(
+                    r.viaCore ? context.hostLabel('ядро') : 'Dart',
+                    r.duration.inSeconds,
+                    r.frames,
+                    r.avgRms.toStringAsFixed(3),
+                  ),
                 ),
           ],
         ),
@@ -286,4 +319,3 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     );
   }
 }
-

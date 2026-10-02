@@ -1,123 +1,96 @@
-/// System module catalog.
+/// A module authored by a signed-in user and stored in the remote catalog.
 ///
-/// Mirrors the C++ core modules (see core/src/modules.cpp) and lists planned
-/// ones that will be implemented per feature. The Pipeline and Modules
-/// screens read from here; when the native core is online the active chain
-/// is cross-checked against bci_engine_module_json().
+/// The name is retained while existing workspace widgets are migrated away
+/// from their old local system-module stubs.
 class SystemModule {
   const SystemModule({
     required this.id,
     required this.name,
     required this.category,
     required this.description,
+    this.summary = '',
     this.version = '0.1.0',
-    this.active = true,
-    this.stage = '',
+    this.active = false,
+    this.stage = 'Workspace',
+    this.databaseId,
+    this.authorId,
+    this.reviewState = 'draft',
+    this.manifest = const {},
+    this.createdAt,
+    this.updatedAt,
+    this.publisher,
+    this.releaseId,
   });
 
+  /// Catalog slug (unique, user-authored id).
   final String id;
   final String name;
   final String category;
   final String description;
+  final String summary;
   final String version;
-
-  /// true — реализован в ядре v0.1; false — запланирован.
   final bool active;
-
-  /// Этап конвейера (Data Flow из ТЗ).
   final String stage;
-}
+  final String? databaseId;
+  final String? authorId;
+  final String reviewState;
+  final Map<String, dynamic> manifest;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? publisher;
+  final String? releaseId;
 
-const List<SystemModule> kSystemModules = <SystemModule>[
-  SystemModule(
-    id: 'core.acquisition_passthrough',
-    name: 'Прохождение сырого сигнала',
-    category: 'acquisition',
-    stage: 'Raw Buffer',
-    description:
-        'Точка входа сырых кадров HAL в конвейер. В v0.1 просто пропускает '
-        'данные, в v0.2 здесь появится нормализация каналов от HAL.',
-  ),
-  SystemModule(
-    id: 'core.gain',
-    name: 'Усиление',
-    category: 'dsp',
-    stage: 'Preprocessing',
-    description:
-        'Масштабирование сигнала на коэффициент усиления (Preprocessing).',
-  ),
-  SystemModule(
-    id: 'core.smoothing',
-    name: 'Сглаживание (EMA)',
-    category: 'dsp',
-    stage: 'Preprocessing',
-    description:
-        'Экспоненциальное сглаживание по каналам; снижает высокочастотный '
-        'шум. Полноценная очистка (фильтр 50/60 Гц, ICA) — следующий шаг.',
-  ),
-  SystemModule(
-    id: 'core.diagnostics',
-    name: 'Диагностика сигнала',
-    category: 'feature',
-    stage: 'Feature Extraction',
-    description:
-        'RMS, доминирующая частота спектра (FFT 256 c окном Ханна) и '
-        'эвристическое качество сигнала.',
-  ),
-  SystemModule(
-    id: 'core.event_markers',
-    name: 'Маркеры событий',
-    category: 'utility',
-    stage: 'Event Markers',
-    description:
-        'Заготовка системы меток, привязанных к событиям парадигмы '
-        '(ERP-разметка).',
-  ),
-  SystemModule(
-    id: 'core.storage_recorder',
-    name: 'Рекордер сессий',
-    category: 'output',
-    stage: 'Storage',
-    description: 'Заготовка записи потока в локальное хранилище сессий.',
-  ),
-  // These modules are exposed in the active workspace while their individual
-  // controls are being implemented incrementally.
-  SystemModule(
-    id: 'future.spectrogram_tools',
-    name: 'Инструменты спектрограммы',
-    category: 'feature',
-    stage: 'Visualization',
-    description:
-        'Обрезка, заметки, маркировка, экспорт спектрограмм. Реализуется '
-        'на экране «Спектрограмма».',
-    active: true,
-  ),
-  SystemModule(
-    id: 'future.ml_training',
-    name: 'Обучение моделей',
-    category: 'inference',
-    stage: 'Inference',
-    description:
-        'Обучение нейросетевых моделей без кода: батчи, кластеры '
-        'спектрограмм, экспорт в ONNX.',
-    active: true,
-  ),
-  SystemModule(
-    id: 'future.pattern_detection',
-    name: 'Обнаружение паттернов',
-    category: 'inference',
-    stage: 'Post-processing',
-    description:
-        'Обнаружение паттернов заболеваний и автопометка (медицинский '
-        'режим, под контролем прав).',
-    active: true,
-  ),
-  SystemModule(
-    id: 'future.topomap',
-    name: 'Топографические карты',
-    category: 'feature',
-    stage: 'Visualization',
-    description: 'Топокарты и 3D-визуализация активации ЭЭГ.',
-    active: true,
-  ),
-];
+  SystemModule withManifest(Map<String, dynamic> value) => SystemModule(
+    id: id,
+    name: name,
+    category: category,
+    description: description,
+    summary: summary,
+    version: version,
+    active: active,
+    stage: stage,
+    databaseId: databaseId,
+    authorId: authorId,
+    reviewState: reviewState,
+    manifest: value,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    publisher: publisher,
+    releaseId: releaseId,
+  );
+
+  Map<String, dynamic> toWorkspaceJson() => {
+    'slug': id,
+    'name': name,
+    'category': category,
+    'description': description,
+    'summary': summary,
+    'version': version,
+    'id': databaseId,
+    'author_id': authorId,
+    'review_state': reviewState,
+    'manifest': manifest,
+    'publisher': publisher,
+    'release_id': releaseId,
+    'created_at': createdAt?.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+  };
+
+  factory SystemModule.fromJson(Map<String, dynamic> json) => SystemModule(
+    id: json['slug'] as String,
+    name: json['name'] as String,
+    category: json['category'] as String,
+    description: (json['description'] as String?) ?? '',
+    summary: (json['summary'] as String?) ?? '',
+    active: json['review_state'] == 'published',
+    databaseId: json['id'] as String?,
+    authorId: json['author_id'] as String?,
+    reviewState: (json['review_state'] as String?) ?? 'draft',
+    version: (json['version'] as String?) ?? '0.1.0',
+    manifest: Map<String, dynamic>.from(json['manifest'] as Map? ?? {}),
+    createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
+    updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
+    publisher: json['publisher'] as String?,
+    releaseId: json['release_id'] as String?,
+  );
+}

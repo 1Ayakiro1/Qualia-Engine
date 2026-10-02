@@ -1,78 +1,134 @@
 import 'package:flutter/material.dart';
 
+import 'app_palette.dart';
+
 /// Shared visual language of the engine shell (dark-first, minimal).
+///
+/// Both appearances are generated from a single [AppPalette], so Material
+/// widgets (dialogs, text fields, chips) and the hand-drawn shell surfaces
+/// never drift apart when the theme changes.
 class AppTheme {
   const AppTheme._();
 
-  static const Color background = Color(0xFF141414);
-  static const Color panel = Color(0xFF181818);
-  static const Color border = Color(0xFF272727);
-  static const Color text = Color(0xFFBDBDBD);
-  static const Color mutedText = Color(0xFF858585);
-  static const Color accent = text;
-  static const Color accentSecondary = text;
+  /// Duration and curve shared by the MaterialApp theme animation and the
+  /// palette cross-fade, keeping every surface in sync during a switch.
+  static const Duration transitionDuration = Duration(milliseconds: 260);
+  static const Curve transitionCurve = Curves.easeOutCubic;
 
-  static ThemeData dark() => _base(Brightness.dark);
+  /// Shared hover transition: every interactive element cross-fades its
+  /// hover highlight over the same short interval, so nothing snaps in.
+  static const Duration hoverDuration = Duration(milliseconds: 140);
+  static const Curve hoverCurve = Curves.easeOut;
 
-  /// The light appearance is rendered by inverting this same neutral palette.
-  /// Keeping the source palette identical prevents explicit shell colors and
-  /// Material overlays (dialogs, menus and tooltips) from drifting apart.
-  static ThemeData light() => _base(Brightness.dark);
+  static final ThemeData _darkTheme = _build(AppPalette.dark);
+  static final ThemeData _lightTheme = _build(AppPalette.light);
 
-  static ThemeData _base(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: text,
-      brightness: brightness,
-    );
-    final dark = brightness == Brightness.dark;
-    return ThemeData(
-      useMaterial3: true,
+  static ThemeData dark() => _darkTheme;
+
+  static ThemeData light() => _lightTheme;
+
+  static ThemeData _build(AppPalette palette) {
+    final base = ThemeData(brightness: palette.brightness, useMaterial3: true);
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: palette.text,
+          brightness: palette.brightness,
+        ).copyWith(
+          primary: palette.text,
+          onPrimary: palette.background,
+          secondary: palette.mutedText,
+          onSecondary: palette.background,
+          surface: palette.panel,
+          onSurface: palette.text,
+          onSurfaceVariant: palette.mutedText,
+          surfaceContainerLowest: palette.background,
+          surfaceContainerLow: palette.panel,
+          surfaceContainer: palette.panel,
+          surfaceContainerHigh: palette.panel,
+          surfaceContainerHighest: palette.panel,
+          outline: palette.hover,
+          outlineVariant: palette.hover,
+          inverseSurface: palette.panel,
+          onInverseSurface: palette.text,
+        );
+    return base.copyWith(
       colorScheme: scheme,
-      scaffoldBackgroundColor: dark ? background : null,
-      canvasColor: dark ? background : null,
-      dividerColor: dark ? border : null,
-      textTheme: ThemeData.dark().textTheme.apply(
-        bodyColor: text,
-        displayColor: text,
+      scaffoldBackgroundColor: palette.background,
+      canvasColor: palette.background,
+      dividerColor: palette.hover,
+      scrollbarTheme: ScrollbarThemeData(
+        thickness: const WidgetStatePropertyAll(3),
+        radius: const Radius.circular(3),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        thumbColor: WidgetStatePropertyAll(palette.mutedText.withAlpha(100)),
+      ),
+      textTheme: base.textTheme.apply(
+        bodyColor: palette.text,
+        displayColor: palette.text,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: dark ? background : scheme.surface,
+        backgroundColor: palette.background,
+        foregroundColor: palette.text,
         scrolledUnderElevation: 0,
         centerTitle: false,
         toolbarHeight: 36,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: dark ? panel : scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: BorderSide(
-            color: dark ? border : scheme.outlineVariant.withAlpha(80),
-          ),
-        ),
+        color: palette.panel,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: dark ? background : scheme.surface,
-        selectedIconTheme: const IconThemeData(color: text),
-        selectedLabelTextStyle: const TextStyle(color: text),
-        indicatorColor: panel,
+      dialogTheme: DialogThemeData(
+        backgroundColor: palette.panel,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        titleTextStyle: TextStyle(
+          color: palette.text,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+        contentTextStyle: TextStyle(color: palette.text, fontSize: 14),
       ),
-      chipTheme: ChipThemeData(
-        side: BorderSide(color: scheme.outlineVariant.withAlpha(80)),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: palette.background,
+        selectedIconTheme: IconThemeData(color: palette.text),
+        selectedLabelTextStyle: TextStyle(color: palette.text),
+        indicatorColor: palette.panel,
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        backgroundColor: palette.panel,
+        labelStyle: TextStyle(color: palette.text),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        // Borderless filled fields: the fill contrast replaces outlines.
+        filled: true,
+        fillColor: palette.background,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: dark ? border : scheme.outline),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
         ),
         isDense: true,
-        hintStyle: TextStyle(color: dark ? mutedText : null, fontSize: 12),
+        hintStyle: TextStyle(color: palette.mutedText, fontSize: 12),
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: palette.text,
+        selectionColor: palette.text.withAlpha(60),
+        selectionHandleColor: palette.text,
       ),
       tooltipTheme: TooltipThemeData(
         waitDuration: const Duration(seconds: 1),
         showDuration: const Duration(seconds: 4),
-        textStyle: const TextStyle(color: text, fontSize: 14),
+        textStyle: TextStyle(color: palette.text, fontSize: 14),
       ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,

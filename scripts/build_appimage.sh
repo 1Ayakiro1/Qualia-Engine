@@ -7,9 +7,10 @@ BUNDLE="${ROOT_DIR}/app/build/linux/x64/release/bundle"
 [ -d "${BUNDLE}" ] || die "bundle не найден — сначала scripts/build_linux.sh"
 
 ARCH="${ARCH:-x86_64}"
-APPDIR="${ROOT_DIR}/build/appimage/AppDir"
 mkdir_dist_out
-rm -rf "${ROOT_DIR}/build/appimage"
+APPIMAGE_WORK="$(mktemp -d "${DIST_OUT}/.appimage-XXXXXX")"
+trap 'rm -rf "${APPIMAGE_WORK}"' EXIT
+APPDIR="${APPIMAGE_WORK}/AppDir"
 mkdir -p "${APPDIR}"
 
 # Bundle already contains: bci_engine, lib/, data/.

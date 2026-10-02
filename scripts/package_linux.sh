@@ -7,19 +7,21 @@ BUNDLE="${ROOT_DIR}/app/build/linux/x64/release/bundle"
 [ -d "${BUNDLE}" ] || die "bundle не найден — сначала scripts/build_linux.sh"
 
 mkdir_dist_out
-STAGE="${DIST_OUT}/stage/${APP_NAME}-${VERSION}"
-rm -rf "${DIST_OUT}/stage"
+STAGING_ROOT="$(mktemp -d "${DIST_OUT}/.package-XXXXXX")"
+trap 'rm -rf "${STAGING_ROOT}"' EXIT
+STAGE="${STAGING_ROOT}/${APP_NAME}-${VERSION}"
 mkdir -p "${STAGE}"
 cp -a "${BUNDLE}/." "${STAGE}/"
-tar -C "${DIST_OUT}/stage" -czf \
+tar -C "${STAGING_ROOT}" -czf \
   "${DIST_OUT}/${APP_NAME}-${VERSION}-linux-x64.tar.gz" \
   "$(basename "${STAGE}")"
-rm -rf "${DIST_OUT}/stage"
 
 # Also keep a ready-to-run raw binary bundle right in builds/binary/
 # (bci_engine + lib/ + data/ — no unpacking needed for the user).
 BIN_DIR="${DIST_OUT}/binary"
-rm -rf "${BIN_DIR}"
+if [ -e "${BIN_DIR}" ]; then
+  mv "${BIN_DIR}" "${DIST_OUT}/binary-previous-$(date +%Y%m%d-%H%M%S)"
+fi
 mkdir -p "${BIN_DIR}"
 cp -a "${BUNDLE}/." "${BIN_DIR}/"
 log "тарбол: ${DIST_OUT}/${APP_NAME}-${VERSION}-linux-x64.tar.gz"

@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
 import 'log_window.dart';
+import '../../l10n/generated/app_localizations.dart';
+import '../../l10n/locale_controller.dart';
 
 /// Standalone application used by the `--debug-terminal` process mode.
 class DebugTerminalApp extends StatefulWidget {
@@ -58,13 +61,29 @@ class _DebugTerminalAppState extends State<DebugTerminalApp>
 
   @override
   Widget build(BuildContext context) => ProviderScope(
-    child: MaterialApp(
-      title: 'Ayakiro Debug Terminal',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
-      home: LogConsoleScreen(
-        onClose: () => unawaited(_close()),
-        onDragStart: () => unawaited(windowManager.startDragging()),
+    child: Consumer(
+      builder: (context, ref, _) => MaterialApp(
+        title: 'Ayakiro Debug Terminal',
+        debugShowCheckedModeBanner: false,
+        locale: ref.watch(localeProvider),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        theme: AppTheme.dark(),
+        builder: (context, child) => AppThemeScope(
+          palette: AppPalette.dark,
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          clipBehavior: Clip.antiAlias,
+          child: ColoredBox(
+            color: AppPalette.dark.background,
+            child: LogConsoleScreen(
+              onClose: () => unawaited(_close()),
+              onDragStart: () => unawaited(windowManager.startDragging()),
+            ),
+          ),
+        ),
       ),
     ),
   );

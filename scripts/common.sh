@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${ROOT_DIR}/VERSION")"
 APP_NAME="Ayakiro_BCI_Engine"
-DIST_OUT="${ROOT_DIR}/builds"
+DIST_OUT="${DIST_OUT:-${ROOT_DIR}/builds}"
 
 log() { printf '\033[1;34m[bci]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[bci]\033[0m %s\n' "$*"; }
@@ -23,8 +23,5 @@ ensure_flutter() {
 
 mkdir_dist_out() {
   mkdir -p "${DIST_OUT}"
-  # Keep only artifacts of the current VERSION: the folder is user-facing
-  # ("open and run"), stale builds of older versions would only confuse.
-  find "${DIST_OUT}" -maxdepth 1 -type f \
-    -name "${APP_NAME}-*" ! -name "*${VERSION}*" -delete 2>/dev/null || true
+  # Earlier builds may belong to the user; packaging must not remove them.
 }

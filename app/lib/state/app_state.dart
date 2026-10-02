@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/logging/app_logger.dart';
+import '../core/logging/log_entry.dart';
 import '../features/shell/nav_registry.dart';
 
 class AppNotification {
@@ -50,6 +52,7 @@ class NotificationController extends Notifier<List<AppNotification>> {
       ),
       ...state,
     ];
+    logI(LogSource.shell, 'уведомление: $title — $message');
   }
 
   void markRead(String id) {
@@ -75,7 +78,17 @@ class ThemeModeController extends Notifier<ThemeMode> {
   @override
   ThemeMode build() => ThemeMode.dark;
 
-  void setThemeMode(ThemeMode mode) => state = mode;
+  void setThemeMode(ThemeMode mode) {
+    if (state == mode) {
+      return;
+    }
+    state = mode;
+    logI(LogSource.ui, switch (mode) {
+      ThemeMode.system => 'тема: системная',
+      ThemeMode.dark => 'тема: тёмная',
+      ThemeMode.light => 'тема: светлая',
+    });
+  }
 }
 
 final NotifierProvider<ThemeModeController, ThemeMode> themeModeProvider =
@@ -113,7 +126,11 @@ class AppModeController extends Notifier<AppMode> {
   AppMode build() => AppMode.consumer;
 
   void setMode(AppMode mode) {
+    if (state == mode) {
+      return;
+    }
     state = mode;
+    logI(LogSource.shell, 'режим работы: ${mode.label}');
     // Reset navigation so the shell never points to a hidden section.
     ref.read(navSectionProvider.notifier).resetForMode(mode);
   }
@@ -141,7 +158,14 @@ class NavSectionController extends Notifier<SectionId> {
   @override
   SectionId build() => SectionId.dashboard;
 
-  void select(SectionId section) => state = section;
+  void select(SectionId section) {
+    if (state == section) {
+      return;
+    }
+    state = section;
+    // High-frequency noise: kept at debug level for the action timeline.
+    logD(LogSource.shell, 'раздел: ${section.name}');
+  }
 
   /// Falls back to the first visible section when the mode changes.
   void resetForMode(AppMode mode) {

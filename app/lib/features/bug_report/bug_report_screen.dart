@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_palette.dart';
 
 /// Placeholder workspace reserved for the future bug report flow.
 class BugReportScreen extends StatelessWidget {
@@ -8,5 +8,5 @@ class BugReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const ColoredBox(color: AppTheme.background, child: SizedBox.expand());
+      ColoredBox(color: context.palette.background, child: SizedBox.expand());
 }

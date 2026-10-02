@@ -20,10 +20,7 @@ EngineLibrary? loadEngineLibrary() {
 
   final List<String> candidates;
   if (Platform.isWindows) {
-    candidates = [
-      '$exeDir${sep}bci_engine_core.dll',
-      'bci_engine_core.dll',
-    ];
+    candidates = ['$exeDir${sep}bci_engine_core.dll', 'bci_engine_core.dll'];
   } else if (Platform.isMacOS) {
     candidates = [
       '$exeDir/../Frameworks/libbci_engine_core.dylib',

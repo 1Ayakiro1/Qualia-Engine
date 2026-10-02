@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 
 import '../common/widgets.dart';
@@ -9,10 +11,10 @@ class DatasetsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      children: const <Widget>[
+      children: <Widget>[
         ScreenHeader(
-          title: 'Датасеты',
-          subtitle: 'Загрузка, формирование и сравнение записей',
+          title: context.l10n.textDatasets49,
+          subtitle: context.l10n.textImportCreationAndComparisonOfRecordings393,
         ),
         Card(
           child: Padding(
@@ -21,14 +23,9 @@ class DatasetsScreen extends StatelessWidget {
               children: [
                 Icon(Icons.folder_copy_outlined, size: 48),
                 SizedBox(height: 12),
-                Text('Здесь появятся ваши датасеты'),
+                Text(context.l10n.textYourDatasetsWillAppearHere394),
                 SizedBox(height: 8),
-                Text(
-                  'v0.2: импорт сессий и внешних файлов (EDF/CSV), '
-                  'группировка по экспериментам, теги, сравнение датасетов '
-                  'и сессий — всё без написания кода.',
-                  textAlign: TextAlign.center,
-                ),
+                Text(context.l10n.datasetsRoadmap, textAlign: TextAlign.center),
               ],
             ),
           ),

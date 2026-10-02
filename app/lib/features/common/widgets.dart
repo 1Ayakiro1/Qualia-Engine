@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_strings.dart';
+import 'desktop_menu.dart';
+
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Tooltip used by desktop controls throughout the shell.
@@ -21,14 +25,13 @@ class DesktopTooltip extends StatelessWidget {
     showDuration: const Duration(seconds: 4),
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
     decoration: BoxDecoration(
-      color: AppTheme.panel,
+      color: context.palette.panel,
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: AppTheme.border),
       boxShadow: const [
         BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
       ],
     ),
-    textStyle: const TextStyle(color: AppTheme.text, fontSize: 14),
+    textStyle: TextStyle(color: context.palette.text, fontSize: 14),
     child: child,
   );
 }
@@ -39,21 +42,20 @@ class DesktopPane extends StatelessWidget {
     super.key,
     required this.child,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-    this.color = AppTheme.panel,
-    this.border = true,
+    this.color,
   });
 
   final Widget child;
   final BorderRadius borderRadius;
-  final Color color;
-  final bool border;
+
+  /// Pane fill; defaults to the palette panel color of the current theme.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: color,
+      color: color ?? context.palette.panel,
       borderRadius: borderRadius,
-      border: border ? Border.all(color: AppTheme.border) : null,
     );
     return DecoratedBox(
       decoration: decoration,
@@ -87,17 +89,113 @@ class _DesktopResizeHandleState extends State<DesktopResizeHandle> {
         width: 8,
         child: Center(
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
+            duration: AppTheme.hoverDuration,
+            curve: AppTheme.hoverCurve,
             width: _hovered ? 2 : 1,
             height: _hovered ? 34 : 20,
             decoration: BoxDecoration(
-              color: _hovered ? AppTheme.mutedText : AppTheme.border,
+              color: _hovered
+                  ? context.palette.mutedText
+                  : context.palette.mutedText.withAlpha(110),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
       ),
     ),
+  );
+}
+
+/// Interactive tile with the shell's unified hover behavior.
+///
+/// List rows and menu triggers used to rely on ink highlights that snap in
+/// instantly. This tile cross-fades its background over the shared hover
+/// duration instead, so every interactive element eases in and out equally.
+class DesktopHoverTile extends StatefulWidget {
+  const DesktopHoverTile({
+    super.key,
+    required this.onTap,
+    required this.child,
+    this.selected = false,
+    this.color,
+    this.selectedColor,
+    this.hoverColor,
+    this.borderRadius = const BorderRadius.all(Radius.circular(6)),
+    this.cursor = SystemMouseCursors.click,
+  });
+
+  final VoidCallback? onTap;
+  final Widget child;
+  final bool selected;
+
+  /// Resting fill; defaults to the hover tint faded to zero alpha so the
+  /// transition animates alpha only and never flashes muddy.
+  final Color? color;
+
+  /// Fill of the selected state; defaults to the palette background.
+  final Color? selectedColor;
+
+  /// Fill of the hover state; defaults to the palette hover tint.
+  final Color? hoverColor;
+  final BorderRadius borderRadius;
+  final MouseCursor cursor;
+
+  @override
+  State<DesktopHoverTile> createState() => _DesktopHoverTileState();
+}
+
+class _DesktopHoverTileState extends State<DesktopHoverTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return MouseRegion(
+      cursor: widget.onTap == null ? SystemMouseCursors.basic : widget.cursor,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: AppTheme.hoverDuration,
+          curve: AppTheme.hoverCurve,
+          decoration: BoxDecoration(
+            color: _hovered
+                ? widget.hoverColor ?? palette.hover
+                : widget.selected
+                ? widget.selectedColor ?? palette.background
+                : widget.color ?? palette.hover.withAlpha(0),
+            borderRadius: widget.borderRadius,
+          ),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Cross-fades a color over the shared hover duration.
+///
+/// Used for icon and text colors that follow hover state: they fade together
+/// with the background instead of switching a frame earlier.
+class DesktopColorTransition extends StatelessWidget {
+  const DesktopColorTransition({
+    super.key,
+    required this.color,
+    required this.builder,
+  });
+
+  final Color color;
+  final Widget Function(BuildContext context, Color color) builder;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<Color?>(
+    tween: ColorTween(begin: color, end: color),
+    duration: AppTheme.hoverDuration,
+    curve: AppTheme.hoverCurve,
+    builder: (context, animatedColor, _) =>
+        builder(context, animatedColor ?? color),
   );
 }
 
@@ -112,6 +210,7 @@ class DesktopIconButton extends StatefulWidget {
     this.size = 30,
     this.iconSize = 17,
     this.active = false,
+    this.label,
   });
 
   final IconData icon;
@@ -120,6 +219,7 @@ class DesktopIconButton extends StatefulWidget {
   final double size;
   final double iconSize;
   final bool active;
+  final String? label;
 
   @override
   State<DesktopIconButton> createState() => _DesktopIconButtonState();
@@ -129,49 +229,85 @@ class _DesktopIconButtonState extends State<DesktopIconButton> {
   bool _hovered = false;
 
   @override
-  Widget build(BuildContext context) => DesktopTooltip(
-    message: widget.tooltip,
-    child: MouseRegion(
-      cursor: widget.onPressed == null
-          ? SystemMouseCursors.basic
-          : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Semantics(
-        button: true,
-        enabled: widget.onPressed != null,
-        label: widget.tooltip,
-        child: GestureDetector(
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 110),
-            width: widget.size,
-            height: widget.size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _hovered || widget.active
-                  ? AppTheme.border
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              widget.icon,
-              size: widget.iconSize,
-              color: widget.onPressed == null
-                  ? AppTheme.mutedText.withAlpha(120)
-                  : _hovered || widget.active
-                  ? AppTheme.text
-                  : AppTheme.mutedText,
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final Color iconColor = widget.onPressed == null
+        ? palette.mutedText.withAlpha(120)
+        : _hovered || widget.active
+        ? palette.text
+        : palette.mutedText;
+    final Color labelColor = widget.onPressed == null
+        ? palette.mutedText.withAlpha(120)
+        : palette.text;
+    return DesktopTooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        cursor: widget.onPressed == null
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: Semantics(
+          button: true,
+          enabled: widget.onPressed != null,
+          label: widget.tooltip,
+          child: GestureDetector(
+            onTap: widget.onPressed,
+            child: AnimatedContainer(
+              duration: AppTheme.hoverDuration,
+              curve: AppTheme.hoverCurve,
+              width: widget.label == null ? widget.size : null,
+              height: widget.size,
+              alignment: Alignment.center,
+              padding: widget.label == null
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: _hovered || widget.active
+                    ? palette.hover
+                    : palette.hover.withAlpha(0),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: widget.label == null
+                    ? MainAxisSize.min
+                    : MainAxisSize.max,
+                children: [
+                  DesktopColorTransition(
+                    color: iconColor,
+                    builder: (context, color) =>
+                        Icon(widget.icon, size: widget.iconSize, color: color),
+                  ),
+                  if (widget.label case final label?) ...[
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: DesktopColorTransition(
+                        color: labelColor,
+                        builder: (context, color) => Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Compact vertical explorer section heading with a shared disclosure arrow.
-class ExplorerSectionHeader extends StatelessWidget {
+class ExplorerSectionHeader extends StatefulWidget {
   const ExplorerSectionHeader({
     super.key,
     required this.title,
@@ -184,33 +320,55 @@ class ExplorerSectionHeader extends StatelessWidget {
   final VoidCallback onToggle;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: onToggle,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
-      child: Row(
-        children: [
-          Icon(
-            expanded ? Icons.expand_more : Icons.chevron_right,
-            size: 16,
-            color: AppTheme.text,
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.text,
-                fontSize: 11,
-                letterSpacing: .8,
-                fontWeight: FontWeight.bold,
+  State<ExplorerSectionHeader> createState() => _ExplorerSectionHeaderState();
+}
+
+class _ExplorerSectionHeaderState extends State<ExplorerSectionHeader> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.click,
+    onEnter: (_) => setState(() => _hovered = true),
+    onExit: (_) => setState(() => _hovered = false),
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onToggle,
+      child: AnimatedContainer(
+        duration: AppTheme.hoverDuration,
+        curve: AppTheme.hoverCurve,
+        decoration: BoxDecoration(
+          color: _hovered
+              ? context.palette.hover
+              : context.palette.hover.withAlpha(0),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
+          child: Row(
+            children: [
+              Icon(
+                widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                size: 16,
+                color: context.palette.text,
               ),
-            ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: context.palette.text,
+                    fontSize: 11,
+                    letterSpacing: .8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     ),
   );
@@ -341,39 +499,25 @@ class _DesktopContextMenuState extends State<DesktopContextMenu>
                   ),
                   child: Material(
                     color: Colors.transparent,
-                    child: Container(
-                      width: widget.menuWidth,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.panel,
-                        border: Border.all(color: AppTheme.border),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black54,
-                            blurRadius: 16,
-                            offset: Offset(0, 5),
+                    child: DesktopMenuSurface<String>(
+                      width: desktopMenuWidth(context, [
+                        for (final action in widget.actions)
+                          DesktopMenuEntry(
+                            value: action,
+                            label: context.hostLabel(action),
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final action in widget.actions)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              child: _DesktopContextMenuAction(
-                                label: action,
-                                onTap: () {
-                                  widget.onSelected(action);
-                                  _close();
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
+                      ], widget.menuWidth),
+                      entries: [
+                        for (final action in widget.actions)
+                          DesktopMenuEntry(
+                            value: action,
+                            label: context.hostLabel(action),
+                          ),
+                      ],
+                      onSelected: (entry) {
+                        widget.onSelected(entry.value);
+                        _close();
+                      },
                     ),
                   ),
                 ),
@@ -404,51 +548,10 @@ class _DesktopContextMenuState extends State<DesktopContextMenu>
     link: _layerLink,
     child: DesktopTooltip(
       message: widget.tooltip,
-      child: InkWell(
+      child: DesktopHoverTile(
         onTap: _toggle,
-        hoverColor: AppTheme.border,
-        mouseCursor: SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(6),
         child: widget.child,
-      ),
-    ),
-  );
-}
-
-class _DesktopContextMenuAction extends StatefulWidget {
-  const _DesktopContextMenuAction({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  State<_DesktopContextMenuAction> createState() =>
-      _DesktopContextMenuActionState();
-}
-
-class _DesktopContextMenuActionState extends State<_DesktopContextMenuAction> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 110),
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: _hovered ? AppTheme.border : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Text(
-          widget.label,
-          style: const TextStyle(color: AppTheme.text, fontSize: 13),
-        ),
       ),
     ),
   );

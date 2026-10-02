@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -42,23 +44,25 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ScreenHeader(
-          title: 'Спектрограмма',
-          subtitle: 'STFT 256 / hop 32 · симулятор 256 Гц · маркеры событий',
+          title: context.l10n.textSpectrogram44,
+          subtitle: context.l10n.textSTFT256Hop32Simulator256Hz329,
           actions: [
             IconButton(
-              tooltip: _model.paused ? 'Продолжить' : 'Пауза',
+              tooltip: _model.paused
+                  ? context.l10n.textResume14
+                  : context.l10n.textPause15,
               onPressed: () => setState(() {
                 _model.setPaused(!_model.paused);
               }),
               icon: Icon(_model.paused ? Icons.play_arrow : Icons.pause),
             ),
             IconButton(
-              tooltip: 'Добавить маркер',
+              tooltip: context.l10n.textAddMarker330,
               onPressed: () => setState(_model.addMarker),
               icon: const Icon(Icons.flag_outlined),
             ),
             IconButton(
-              tooltip: 'Очистить',
+              tooltip: context.l10n.textClear331,
               onPressed: () => setState(_model.clear),
               icon: const Icon(Icons.delete_outline),
             ),
@@ -81,32 +85,36 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
                             animation: _model,
                             builder: (BuildContext context, Widget? child) =>
                                 CustomPaint(
-                                    painter: SpectroPainter(model: _model)),
+                                  painter: SpectroPainter(model: _model),
+                                ),
                           ),
                         ),
                         Positioned(
                           left: 8,
                           bottom: 6,
-                          child: Text('0 Гц',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: Colors.white70)),
+                          child: Text(
+                            context.l10n.text0Hz332,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
                         ),
                         Positioned(
                           left: 8,
                           top: 6,
-                          child: Text('~127 Гц',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: Colors.white70)),
+                          child: Text(
+                            context.l10n.text127Hz333,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: Colors.white70,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
-                SizedBox(
-                  width: 280,
-                  child: _SidePanel(model: _model),
-                ),
+                SizedBox(width: 280, child: _SidePanel(model: _model)),
               ],
             ),
           ),
@@ -128,32 +136,37 @@ class _SidePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InfoCard(
-          title: 'Маркеры',
+          title: context.l10n.textMarkers334,
           headerIcon: Icons.flag_outlined,
           children: [
             if (model.markers.isEmpty)
               Text(
-                'Добавьте маркер флагом на панели — он привяжется к текущему '
-                'времени сигнала.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                context.l10n.markerInstructions,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               )
             else
               for (final MapEntry<int, String> m in model.markers.entries)
                 KeyValue(
                   keyLabel: m.value,
-                  value:
-                      'сек ≈ ${(m.key / (model.maxColumns - 1) * 32).toStringAsFixed(1)}',
+                  value: context.l10n.textSecArg0335(
+                    (m.key / (model.maxColumns - 1) * 32).toStringAsFixed(1),
+                  ),
                 ),
           ],
         ),
         const SizedBox(height: 8),
         InfoCard(
-          title: 'Параметры',
+          title: context.l10n.textParameters336,
           headerIcon: Icons.tune,
           children: [
-            Text('Чувствительность ×${model.gain.toStringAsFixed(1)}',
-                style: theme.textTheme.bodySmall),
+            Text(
+              context.l10n.textSensitivityArg0337(
+                (model.gain.toStringAsFixed(1)).toString(),
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
             Slider(
               value: model.gain,
               min: 0.5,
@@ -166,15 +179,14 @@ class _SidePanel extends StatelessWidget {
         const SizedBox(height: 8),
         Expanded(
           child: InfoCard(
-            title: 'О версиях',
+            title: context.l10n.textAboutVersions338,
             headerIcon: Icons.info_outline,
             children: [
               Text(
-                'Сейчас STFT считается в Dart для наглядности. В v0.2 '
-                'спектрограмма перейдёт на данные нативного ядра '
-                '(core.diagnostics) с тем же UI.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                context.l10n.spectrogramVersionNotice,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

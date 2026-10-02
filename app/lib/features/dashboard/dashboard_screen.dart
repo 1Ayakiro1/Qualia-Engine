@@ -1,8 +1,10 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_palette.dart';
 import '../../state/engine_provider.dart';
 import '../../state/engine_state.dart';
 import '../../state/app_state.dart';
@@ -20,18 +22,17 @@ class DashboardScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 34, 34, 70),
       children: [
-        const ScreenHeader(
-          title: 'Обзор',
-          subtitle: 'Состояние движка и быстрый старт',
+        ScreenHeader(
+          title: context.l10n.textDashboard36,
+          subtitle: context.l10n.textEngineStatusAndQuickStart235,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.panel,
+              color: context.palette.panel,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: AppTheme.border),
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -45,9 +46,9 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Интерфейс обновлён · рабочая область готова',
+                      context.l10n.textInterfaceUpdatedWorkspaceReady236,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.mutedText,
+                        color: context.palette.mutedText,
                       ),
                     ),
                   ],
@@ -57,7 +58,7 @@ class DashboardScreen extends ConsumerWidget {
                       .read(navSectionProvider.notifier)
                       .select(SectionId.settings),
                   icon: const Icon(Icons.settings_outlined, size: 17),
-                  label: const Text('Настроить'),
+                  label: Text(context.l10n.textConfigure237),
                 );
 
                 if (compact) {
@@ -112,17 +113,19 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
         InfoCard(
-          title: 'Ядро (C++ / FFI)',
+          title: context.l10n.textCoreCFFI238,
           headerIcon: Icons.memory,
           trailing: StatusChip(
-            label: engine.isOnline ? 'онлайн' : 'офлайн',
+            label: engine.isOnline
+                ? context.l10n.textOnline239
+                : context.l10n.textOffline240,
             color: engine.isOnline
                 ? Colors.greenAccent
                 : theme.colorScheme.outline,
           ),
           children: [
             KeyValue(
-              keyLabel: 'Версия ядра',
+              keyLabel: context.hostLabel('Версия ядра'),
               value: engine.coreVersion.isEmpty ? '—' : engine.coreVersion,
             ),
             KeyValue(
@@ -131,21 +134,24 @@ class DashboardScreen extends ConsumerWidget {
                   '${engine.abiVersion} (ожидается ${AppInfo.expectedCoreAbi})',
             ),
             KeyValue(
-              keyLabel: 'Библиотека',
+              keyLabel: context.hostLabel('Библиотека'),
               value: engine.libraryPath.isEmpty
                   ? 'не найдена'
                   : engine.libraryPath,
             ),
             KeyValue(
-              keyLabel: 'Модулей в конвейере',
+              keyLabel: context.hostLabel('Модулей в конвейере'),
               value: '${engine.moduleCount}',
             ),
             if (engine.lastError.isNotEmpty)
-              KeyValue(keyLabel: 'Ошибка', value: engine.lastError),
+              KeyValue(
+                keyLabel: context.hostLabel('Ошибка'),
+                value: context.hostLabel(engine.lastError),
+              ),
           ],
         ),
         InfoCard(
-          title: 'Быстрый старт',
+          title: context.l10n.textQuickStart247,
           headerIcon: Icons.bolt,
           children: [
             Wrap(
@@ -157,28 +163,27 @@ class DashboardScreen extends ConsumerWidget {
                       .read(navSectionProvider.notifier)
                       .select(SectionId.session),
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Запустить тестовую сессию'),
+                  label: Text(context.l10n.textStartATestSession248),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.spectrogram),
                   icon: const Icon(Icons.graphic_eq),
-                  label: const Text('Спектрограмма (demo)'),
+                  label: Text(context.l10n.textSpectrogramDemo249),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.modules),
                   icon: const Icon(Icons.extension_outlined),
-                  label: const Text('Реестр модулей'),
+                  label: Text(context.l10n.textModuleRegistry250),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Устройство ещё не подключено — сессия запустится на '
-              'встроенном симуляторе сигнала (256 Гц, 1 канал).',
+              context.l10n.simulatorNotice,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -187,23 +192,23 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         InfoCard(
-          title: 'Последние сессии',
+          title: context.l10n.recentSessions,
           headerIcon: Icons.history,
           children: [
-            const KeyValue(
-              keyLabel: '24.09 · тест',
-              value: 'Симулятор · 00:32 · качество 0.86',
+            KeyValue(
+              keyLabel: context.hostLabel('24.09 · тест'),
+              value: context.hostLabel('Симулятор · 00:32 · качество 0.86'),
             ),
-            const KeyValue(
-              keyLabel: '23.09 · калибровка',
-              value: 'Симулятор · 03:12 · готово',
+            KeyValue(
+              keyLabel: context.hostLabel('23.09 · калибровка'),
+              value: context.hostLabel('Симулятор · 03:12 · готово'),
             ),
-            const KeyValue(
-              keyLabel: '22.09 · сон',
-              value: 'Симулятор · 01:05 · качество 0.71',
+            KeyValue(
+              keyLabel: context.hostLabel('22.09 · сон'),
+              value: context.hostLabel('Симулятор · 01:05 · качество 0.71'),
             ),
             Text(
-              'Хранение сессий будет реализовано в Storage Service (v0.2).',
+              context.l10n.textSessionStorageWillBeImplementedInStorage257,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
                 fontStyle: FontStyle.italic,

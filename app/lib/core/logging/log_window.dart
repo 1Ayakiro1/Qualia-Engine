@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -5,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../theme/app_palette.dart';
 import '../theme/app_theme.dart';
 import '../../features/common/widgets.dart';
 import 'app_logger.dart';
@@ -147,10 +150,13 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     }).toList();
   }
 
-  Color _levelColor(LogLevel level, ColorScheme scheme) {
+  Color _levelColor(BuildContext context, LogLevel level, ColorScheme scheme) {
     switch (level) {
       case LogLevel.debug:
-        return scheme.outline;
+        // Grey spectrum one step quieter than INFO. The old scheme.outline
+        // became the near-black hover tint in the borderless palettes and
+        // was unreadable on the terminal background.
+        return context.palette.mutedText;
       case LogLevel.info:
         return scheme.primary;
       case LogLevel.warning:
@@ -180,13 +186,15 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       }
       await sink.close();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Сохранено: ${target.path}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.logSaved(target.path))),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.logSaveFailed(e.toString()))),
+        );
       }
     }
   }
@@ -208,28 +216,26 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     return Theme(
       data: theme,
       child: Scaffold(
+        backgroundColor: context.palette.background,
         body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: _LogHeader(
-                paused: _paused,
-                autoScroll: _autoScroll,
-                onPause: () => setState(() => _paused = !_paused),
-                onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
-                onSave: _saveAs,
-                onClear: () => setState(_entries.clear),
-                onClose: widget.onClose,
-                onDrag: widget.onDrag,
-                onDragStart: widget.onDragStart,
-              ),
+            _LogHeader(
+              paused: _paused,
+              autoScroll: _autoScroll,
+              onPause: () => setState(() => _paused = !_paused),
+              onAutoScroll: () => setState(() => _autoScroll = !_autoScroll),
+              onSave: _saveAs,
+              onClear: () => setState(_entries.clear),
+              onClose: widget.onClose,
+              onDrag: widget.onDrag,
+              onDragStart: widget.onDragStart,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: TextField(
                 controller: _search,
-                decoration: const InputDecoration(
-                  hintText: 'Поиск по источнику и тексту…',
+                decoration: InputDecoration(
+                  hintText: context.l10n.textSearchSourceAndText8,
                   prefixIcon: Icon(Icons.search, size: 20),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 12,
@@ -243,10 +249,10 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
                 children: [
-                  const Text(
-                    'LEVELS',
+                  Text(
+                    context.l10n.textLEVELS9,
                     style: TextStyle(
-                      color: AppTheme.mutedText,
+                      color: context.palette.mutedText,
                       fontSize: 11,
                       letterSpacing: 1,
                       fontWeight: FontWeight.w600,
@@ -277,14 +283,14 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                         children: [
                           const Icon(Icons.hourglass_empty, size: 42),
                           const SizedBox(height: 12),
-                          const Text('Файл latest.log пока не создан.'),
+                          Text(context.l10n.textTheLatestLogFileHasNotBeen10),
                           const SizedBox(height: 4),
-                          const Text('Запустите рабочую область приложения.'),
+                          Text(context.l10n.textOpenTheApplicationWorkspace11),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: _openTail,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Повторить'),
+                            label: Text(context.l10n.textRetry12),
                           ),
                         ],
                       ),
@@ -303,12 +309,13 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                                     .withAlpha(60),
                           child: Text(
                             _paused
-                                ? 'Пауза — новые строки не подгружаются '
-                                      '(${_entries.length})'
-                                : 'Строк: ${visible.length} / ${_entries.length} · '
-                                      'файл: latest.log (обновление 0.4 с)',
+                                ? context.l10n.logPausedCount(_entries.length)
+                                : context.l10n.logVisibleCount(
+                                    visible.length,
+                                    _entries.length,
+                                  ),
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.mutedText,
+                              color: context.palette.mutedText,
                               fontSize: 13,
                             ),
                           ),
@@ -331,6 +338,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                                     fontSize: 13,
                                     height: 1.35,
                                     color: _levelColor(
+                                      context,
                                       e.level,
                                       theme.colorScheme,
                                     ),
@@ -376,68 +384,79 @@ class _LogHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     height: 50,
-    decoration: const BoxDecoration(
-      color: AppTheme.background,
-      border: Border(bottom: BorderSide(color: AppTheme.border)),
-    ),
+    decoration: BoxDecoration(color: context.palette.panel),
     child: Stack(
       children: [
-        Row(
-          children: [
-            const SizedBox(width: 16),
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: onDragStart == null ? null : (_) => onDragStart!(),
-                onPanUpdate: onDrag == null
-                    ? null
-                    : (details) => onDrag!(details.delta),
-                child: const Row(
-                  children: [
-                    Icon(Icons.terminal, size: 19, color: AppTheme.text),
-                    SizedBox(width: 10),
-                    Text(
-                      'Debug terminal',
-                      style: TextStyle(
-                        color: AppTheme.text,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+        Positioned.fill(
+          child: Align(
+            alignment: Alignment.center,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: onDragStart == null
+                        ? null
+                        : (_) => onDragStart!(),
+                    onPanUpdate: onDrag == null
+                        ? null
+                        : (details) => onDrag!(details.delta),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.terminal,
+                          size: 19,
+                          color: context.palette.text,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          context.l10n.textDebugTerminal13,
+                          style: TextStyle(
+                            color: context.palette.text,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                _LogIconButton(
+                  tooltip: paused
+                      ? context.l10n.textResume14
+                      : context.l10n.textPause15,
+                  icon: paused ? Icons.play_arrow : Icons.pause,
+                  onPressed: onPause,
+                ),
+                _LogIconButton(
+                  tooltip: context.l10n.textAutoScroll16,
+                  icon: autoScroll
+                      ? Icons.vertical_align_bottom
+                      : Icons.vertical_align_top,
+                  active: autoScroll,
+                  onPressed: onAutoScroll,
+                ),
+                _LogIconButton(
+                  tooltip: context.l10n.textSaveVisibleEntries17,
+                  icon: Icons.save_outlined,
+                  onPressed: onSave,
+                ),
+                _LogIconButton(
+                  tooltip: context.l10n.textClearView18,
+                  icon: Icons.delete_sweep_outlined,
+                  onPressed: onClear,
+                ),
+                _LogIconButton(
+                  tooltip: context.l10n.textCloseWindow19,
+                  icon: Icons.close,
+                  onPressed: onClose,
+                ),
+                const SizedBox(width: 6),
+              ],
             ),
-            _LogIconButton(
-              tooltip: paused ? 'Продолжить' : 'Пауза',
-              icon: paused ? Icons.play_arrow : Icons.pause,
-              onPressed: onPause,
-            ),
-            _LogIconButton(
-              tooltip: 'Автопрокрутка',
-              icon: autoScroll
-                  ? Icons.vertical_align_bottom
-                  : Icons.vertical_align_top,
-              active: autoScroll,
-              onPressed: onAutoScroll,
-            ),
-            _LogIconButton(
-              tooltip: 'Сохранить видимое',
-              icon: Icons.save_outlined,
-              onPressed: onSave,
-            ),
-            _LogIconButton(
-              tooltip: 'Очистить вид',
-              icon: Icons.delete_sweep_outlined,
-              onPressed: onClear,
-            ),
-            _LogIconButton(
-              tooltip: 'Закрыть окно',
-              icon: Icons.close,
-              onPressed: onClose,
-            ),
-            const SizedBox(width: 6),
-          ],
+          ),
         ),
       ],
     ),
@@ -504,7 +523,7 @@ class _LogLevelButtonState extends State<_LogLevelButton> {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: widget.level.label,
+    message: context.hostLabel(widget.level.label),
     child: MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -512,23 +531,23 @@ class _LogLevelButtonState extends State<_LogLevelButton> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: AppTheme.hoverDuration,
+          curve: AppTheme.hoverCurve,
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 11),
           decoration: BoxDecoration(
             color: widget.selected || _hovered
-                ? AppTheme.border
-                : Colors.transparent,
+                ? context.palette.hover
+                : context.palette.hover.withAlpha(0),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: widget.selected ? AppTheme.text : AppTheme.border,
-            ),
           ),
           child: Center(
             child: Text(
               _shortLabel,
               style: TextStyle(
-                color: widget.selected ? AppTheme.text : AppTheme.mutedText,
+                color: widget.selected
+                    ? context.palette.text
+                    : context.palette.mutedText,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: .3,

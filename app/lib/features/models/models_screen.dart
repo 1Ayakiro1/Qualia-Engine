@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 
 import '../common/widgets.dart';
@@ -9,10 +11,10 @@ class ModelsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      children: const <Widget>[
+      children: <Widget>[
         ScreenHeader(
-          title: 'Модели',
-          subtitle: 'Обучение без кода и реестр моделей',
+          title: context.l10n.textModels51,
+          subtitle: context.l10n.textNoCodeTrainingAndModelRegistry395,
         ),
         Card(
           child: Padding(
@@ -21,14 +23,9 @@ class ModelsScreen extends StatelessWidget {
               children: [
                 Icon(Icons.psychology_outlined, size: 48),
                 SizedBox(height: 12),
-                Text('Реестр моделей пуст'),
+                Text(context.l10n.textTheModelRegistryIsEmpty396),
                 SizedBox(height: 8),
-                Text(
-                  'v0.2: обучение моделей на датасетах (батчи, кластеры '
-                  'спектрограмм), интеграция обученных моделей как Entities, '
-                  'экспорт/загрузка в ONNX через Model Registry & Runtime.',
-                  textAlign: TextAlign.center,
-                ),
+                Text(context.l10n.modelsRoadmap, textAlign: TextAlign.center),
               ],
             ),
           ),

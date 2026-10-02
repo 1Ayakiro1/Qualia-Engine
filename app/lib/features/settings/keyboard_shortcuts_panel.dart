@@ -1,7 +1,11 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/logging/app_logger.dart';
+import '../../core/logging/log_entry.dart';
+import '../../core/theme/app_palette.dart';
 import '../common/widgets.dart';
 
 /// Shared keyboard-shortcuts surface used by Preferences and global search.
@@ -45,9 +49,9 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
           children: [
             Expanded(
               child: Text(
-                'Keyboard shortcuts',
+                context.l10n.textKeyboardShortcuts358,
                 style: TextStyle(
-                  color: AppTheme.text,
+                  color: context.palette.text,
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                 ),
@@ -58,7 +62,7 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
                 onPressed: widget.onClose,
                 icon: Icons.close,
                 iconSize: 17,
-                tooltip: 'Close',
+                tooltip: context.l10n.textClose110,
               ),
           ],
         ),
@@ -74,9 +78,9 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
                     child: Text(
-                      group.key,
-                      style: const TextStyle(
-                        color: AppTheme.mutedText,
+                      context.hostLabel(group.key),
+                      style: TextStyle(
+                        color: context.palette.mutedText,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: .8,
@@ -91,8 +95,13 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
                       label: label,
                       shortcut: _shortcuts[label]!,
                       editing: _editing,
-                      onChanged: (value) =>
-                          setState(() => _shortcuts[label] = value),
+                      onChanged: (value) {
+                        setState(() => _shortcuts[label] = value);
+                        logI(
+                          LogSource.settings,
+                          'горячая клавиша «$label» → $value',
+                        );
+                      },
                     ),
                   ),
               ],
@@ -101,13 +110,15 @@ class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
         ),
       ),
       const SizedBox(height: 8),
-      Container(height: 1, color: AppTheme.border),
       const SizedBox(height: 14),
       Align(
         alignment: Alignment.centerRight,
-        child: _ShortcutEditButton(
-          editing: _editing,
-          onPressed: () => setState(() => _editing = !_editing),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 152),
+          child: _ShortcutEditButton(
+            editing: _editing,
+            onPressed: () => setState(() => _editing = !_editing),
+          ),
         ),
       ),
     ],
@@ -132,15 +143,15 @@ class _ShortcutSettingRow extends StatelessWidget {
     constraints: const BoxConstraints(minHeight: 62),
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
     decoration: BoxDecoration(
-      color: AppTheme.background.withAlpha(90),
+      color: context.palette.background.withAlpha(90),
       borderRadius: BorderRadius.circular(10),
     ),
     child: Row(
       children: [
         Expanded(
           child: Text(
-            label,
-            style: const TextStyle(color: AppTheme.text, fontSize: 14),
+            context.hostLabel(label),
+            style: TextStyle(color: context.palette.text, fontSize: 14),
           ),
         ),
         const SizedBox(width: 14),
@@ -161,19 +172,19 @@ class _ShortcutEditButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
+  Widget build(BuildContext context) => DesktopIconButton(
+    key: const ValueKey<String>('shortcut edit action'),
+    icon: editing ? Icons.check : Icons.edit_outlined,
+    tooltip: editing
+        ? context.l10n.textDone229
+        : context.l10n.textEditShortcuts359,
+    label: editing
+        ? context.l10n.textDone229
+        : context.l10n.textEditShortcuts359,
     onPressed: onPressed,
-    icon: Icon(editing ? Icons.check : Icons.edit_outlined, size: 16),
-    label: Text(editing ? 'Done' : 'Edit shortcuts'),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: AppTheme.text,
-      backgroundColor: editing ? AppTheme.border : AppTheme.panel,
-      side: const BorderSide(color: AppTheme.border),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      minimumSize: const Size(0, 38),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-    ),
+    size: 30,
+    iconSize: 14,
+    active: editing,
   );
 }
 
@@ -267,16 +278,18 @@ class _ShortcutCaptureState extends State<_ShortcutCapture> {
         onTap: widget.editing ? _focusNode.requestFocus : null,
         textAlign: TextAlign.center,
         decoration: InputDecoration(
-          hintText: widget.editing ? 'Press keys' : null,
+          hintText: widget.editing ? context.l10n.textPressKeys360 : null,
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           filled: true,
-          fillColor: widget.editing ? AppTheme.panel : Colors.transparent,
+          fillColor: widget.editing
+              ? context.palette.panel
+              : Colors.transparent,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
         ),
-        style: const TextStyle(
-          color: AppTheme.text,
+        style: TextStyle(
+          color: context.palette.text,
           fontSize: 13,
           fontFamily: 'monospace',
         ),

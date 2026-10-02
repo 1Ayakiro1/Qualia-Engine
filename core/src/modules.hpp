@@ -27,9 +27,8 @@ class IModule {
   virtual void process(SampleBlock& block) = 0;
 };
 
-// Builds the default system pipeline in canonical order:
-// acquisition passthrough -> gain -> smoothing -> diagnostics ->
-// event markers -> storage recorder.
+// Builds the working native processing pipeline:
+// acquisition passthrough -> gain -> smoothing -> diagnostics.
 std::vector<std::unique_ptr<IModule>> create_default_pipeline(
     EngineMetrics& metrics);
 

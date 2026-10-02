@@ -24,60 +24,80 @@ class CoreBindings {
     return CoreBindings._(loaded.library, loaded.path);
   }
 
-  late final int Function() _abiVersion =
-      _lib.lookupFunction<Int32 Function(), int Function()>('bci_engine_abi_version');
+  late final int Function() _abiVersion = _lib
+      .lookupFunction<Int32 Function(), int Function()>(
+        'bci_engine_abi_version',
+      );
 
-  late final Pointer<Utf8> Function() _coreVersion =
-      _lib.lookupFunction<Pointer<Utf8> Function(), Pointer<Utf8> Function()>(
-          'bci_engine_core_version');
+  late final Pointer<Utf8> Function() _coreVersion = _lib
+      .lookupFunction<Pointer<Utf8> Function(), Pointer<Utf8> Function()>(
+        'bci_engine_core_version',
+      );
 
-  late final Pointer<Void> Function() _create =
-      _lib.lookupFunction<Pointer<Void> Function(), Pointer<Void> Function()>(
-          'bci_engine_create');
+  late final Pointer<Void> Function() _create = _lib
+      .lookupFunction<Pointer<Void> Function(), Pointer<Void> Function()>(
+        'bci_engine_create',
+      );
 
-  late final void Function(Pointer<Void>) _destroy =
-      _lib.lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>(
-          'bci_engine_destroy');
+  late final void Function(Pointer<Void>) _destroy = _lib
+      .lookupFunction<
+        Void Function(Pointer<Void>),
+        void Function(Pointer<Void>)
+      >('bci_engine_destroy');
 
-  late final int Function(Pointer<Void>, int, int) _start =
-      _lib.lookupFunction<Int32 Function(Pointer<Void>, Int32, Int32),
-          int Function(Pointer<Void>, int, int)>('bci_engine_start');
+  late final int Function(Pointer<Void>, int, int) _start = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>, Int32, Int32),
+        int Function(Pointer<Void>, int, int)
+      >('bci_engine_start');
 
-  late final int Function(Pointer<Void>) _stop =
-      _lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>(
-          'bci_engine_stop');
+  late final int Function(Pointer<Void>) _stop = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>),
+        int Function(Pointer<Void>)
+      >('bci_engine_stop');
 
-  late final int Function(Pointer<Void>) _isRunning =
-      _lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>(
-          'bci_engine_is_running');
+  late final int Function(Pointer<Void>) _isRunning = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>),
+        int Function(Pointer<Void>)
+      >('bci_engine_is_running');
 
-  late final int Function(Pointer<Void>, Pointer<Float>, int, int) _push =
-      _lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Int32),
-          int Function(Pointer<Void>, Pointer<Float>, int, int)>(
-          'bci_engine_push_samples');
+  late final int Function(Pointer<Void>, Pointer<Float>, int, int) _push = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Int32),
+        int Function(Pointer<Void>, Pointer<Float>, int, int)
+      >('bci_engine_push_samples');
 
-  late final int Function(Pointer<Void>, Pointer<Float>, int, int) _pop =
-      _lib.lookupFunction<
-          Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Int32),
-          int Function(Pointer<Void>, Pointer<Float>, int, int)>(
-          'bci_engine_pop_samples');
+  late final int Function(Pointer<Void>, Pointer<Float>, int, int) _pop = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>, Pointer<Float>, Int32, Int32),
+        int Function(Pointer<Void>, Pointer<Float>, int, int)
+      >('bci_engine_pop_samples');
 
-  late final int Function(Pointer<Void>, Pointer<Float>) _getMetrics =
-      _lib.lookupFunction<Int32 Function(Pointer<Void>, Pointer<Float>),
-          int Function(Pointer<Void>, Pointer<Float>)>('bci_engine_get_metrics');
+  late final int Function(Pointer<Void>, Pointer<Float>) _getMetrics = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>, Pointer<Float>),
+        int Function(Pointer<Void>, Pointer<Float>)
+      >('bci_engine_get_metrics');
 
-  late final int Function(Pointer<Void>) _moduleCount =
-      _lib.lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>(
-          'bci_engine_module_count');
+  late final int Function(Pointer<Void>) _moduleCount = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Void>),
+        int Function(Pointer<Void>)
+      >('bci_engine_module_count');
 
-  late final Pointer<Utf8> Function(Pointer<Void>, int) _moduleJson =
-      _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>, Int32),
-          Pointer<Utf8> Function(Pointer<Void>, int)>('bci_engine_module_json');
+  late final Pointer<Utf8> Function(Pointer<Void>, int) _moduleJson = _lib
+      .lookupFunction<
+        Pointer<Utf8> Function(Pointer<Void>, Int32),
+        Pointer<Utf8> Function(Pointer<Void>, int)
+      >('bci_engine_module_json');
 
-  late final Pointer<Utf8> Function(Pointer<Void>) _lastError =
-      _lib.lookupFunction<Pointer<Utf8> Function(Pointer<Void>),
-          Pointer<Utf8> Function(Pointer<Void>)>('bci_engine_last_error');
+  late final Pointer<Utf8> Function(Pointer<Void>) _lastError = _lib
+      .lookupFunction<
+        Pointer<Utf8> Function(Pointer<Void>),
+        Pointer<Utf8> Function(Pointer<Void>)
+      >('bci_engine_last_error');
 
   // ---- friendly wrappers -------------------------------------------------
 
@@ -97,12 +117,18 @@ class CoreBindings {
   bool isRunning(Pointer<Void> engine) => _isRunning(engine) == 1;
 
   int pushSamples(
-          Pointer<Void> engine, Pointer<Float> samples, int frames, int channels) =>
-      _push(engine, samples, frames, channels);
+    Pointer<Void> engine,
+    Pointer<Float> samples,
+    int frames,
+    int channels,
+  ) => _push(engine, samples, frames, channels);
 
   int popSamples(
-          Pointer<Void> engine, Pointer<Float> out, int frames, int channels) =>
-      _pop(engine, out, frames, channels);
+    Pointer<Void> engine,
+    Pointer<Float> out,
+    int frames,
+    int channels,
+  ) => _pop(engine, out, frames, channels);
 
   /// Returns [rms, peakFreqHz, quality, reserved].
   List<double> metrics(Pointer<Void> engine) {

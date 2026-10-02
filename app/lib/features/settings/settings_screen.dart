@@ -1,10 +1,18 @@
+import '../../l10n/app_strings.dart';
+import '../common/desktop_menu.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
+import '../../core/logging/app_logger.dart';
+import '../../core/logging/log_entry.dart';
+import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
-import '../../state/engine_state.dart';
 import 'keyboard_shortcuts_panel.dart';
+import '../../l10n/locale_controller.dart';
+import '../../state/engine_provider.dart';
+import '../common/widgets.dart';
 
 /// Settings workspace styled as a dedicated, two-column preferences panel.
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -34,7 +42,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final version = ref.watch(versionLabelProvider);
+    final engine = ref.watch(engineProvider);
+    final version = context.l10n.versionLabel(
+      AppInfo.appName,
+      AppInfo.version,
+      engine.coreVersion.isEmpty ? '—' : engine.coreVersion,
+      engine.abiVersion,
+    );
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 860;
@@ -45,7 +59,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               width: compact ? 210 : 280,
               child: _PreferencesSidebar(
                 selected: selectedItem,
-                onSelected: (value) => setState(() => selectedItem = value),
+                onSelected: (value) {
+                  setState(() => selectedItem = value);
+                  logI(LogSource.settings, 'страница настроек: $value');
+                },
                 onBack: widget.onBack,
               ),
             ),
@@ -58,14 +75,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 fullAccess: fullAccess,
                 keepAwake: keepAwake,
                 bottomPanel: bottomPanel,
-                onWorkspaceAccessChanged: (value) =>
-                    setState(() => workspaceAccess = value),
-                onFullAccessChanged: (value) =>
-                    setState(() => fullAccess = value),
-                onKeepAwakeChanged: (value) =>
-                    setState(() => keepAwake = value),
-                onBottomPanelChanged: (value) =>
-                    setState(() => bottomPanel = value),
+                onWorkspaceAccessChanged: (value) {
+                  setState(() => workspaceAccess = value);
+                  logI(
+                    LogSource.settings,
+                    'доступ к рабочему пространству: ${value ? 'вкл' : 'выкл'}',
+                  );
+                },
+                onFullAccessChanged: (value) {
+                  setState(() => fullAccess = value);
+                  logI(
+                    LogSource.settings,
+                    'полный доступ: ${value ? 'вкл' : 'выкл'}',
+                  );
+                },
+                onKeepAwakeChanged: (value) {
+                  setState(() => keepAwake = value);
+                  logI(
+                    LogSource.settings,
+                    'не выключать экран: ${value ? 'вкл' : 'выкл'}',
+                  );
+                },
+                onBottomPanelChanged: (value) {
+                  setState(() => bottomPanel = value);
+                  logI(
+                    LogSource.settings,
+                    'нижняя панель: ${value ? 'вкл' : 'выкл'}',
+                  );
+                },
               ),
             ),
           ],
@@ -90,6 +127,7 @@ class _PreferencesSidebar extends StatelessWidget {
     ('General', Icons.settings_outlined),
     ('Import', Icons.download_outlined),
     ('Appearance', Icons.wb_sunny_outlined),
+    ('Language', Icons.language),
     ('Voice', Icons.mic_none_outlined),
     ('Configuration', Icons.verified_user_outlined),
     ('Personalization', Icons.history_outlined),
@@ -99,7 +137,7 @@ class _PreferencesSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: AppTheme.background,
+    color: context.palette.background,
     child: ScrollConfiguration(
       behavior: const _NoGlow(),
       child: ListView(
@@ -111,9 +149,8 @@ class _PreferencesSidebar extends StatelessWidget {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: AppTheme.panel,
+              color: context.palette.panel,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.border),
             ),
             child: Row(
               children: [
@@ -121,8 +158,8 @@ class _PreferencesSidebar extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    decoration: const InputDecoration.collapsed(
-                      hintText: 'Search',
+                    decoration: InputDecoration.collapsed(
+                      hintText: context.l10n.textSearch367,
                     ),
                   ),
                 ),
@@ -131,13 +168,16 @@ class _PreferencesSidebar extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _SidebarGroup(
-            title: 'Personal',
+            title: context.l10n.textPersonal368,
             items: _personal,
             selected: selected,
             onSelected: onSelected,
           ),
           const SizedBox(height: 22),
-          const Text('Archived', style: TextStyle(color: AppTheme.mutedText)),
+          Text(
+            context.l10n.textArchived369,
+            style: TextStyle(color: context.palette.mutedText),
+          ),
         ],
       ),
     ),
@@ -150,7 +190,7 @@ class _SidebarBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _PreferenceNavButton(
-    label: 'Back to app',
+    label: context.l10n.textBackToApp370,
     icon: Icons.arrow_back,
     onTap: onPressed,
   );
@@ -175,7 +215,7 @@ class _SidebarGroup extends StatelessWidget {
     children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
-        child: Text(title, style: const TextStyle(color: AppTheme.mutedText)),
+        child: Text(title, style: TextStyle(color: context.palette.mutedText)),
       ),
       for (final item in items)
         Padding(
@@ -185,10 +225,10 @@ class _SidebarGroup extends StatelessWidget {
             icon: item.$2,
             selected: selected == item.$1,
             trailing: item.$1 == 'Account'
-                ? const Icon(
+                ? Icon(
                     Icons.north_east,
                     size: 15,
-                    color: AppTheme.mutedText,
+                    color: context.palette.mutedText,
                   )
                 : null,
             onTap: () => onSelected(item.$1),
@@ -198,7 +238,7 @@ class _SidebarGroup extends StatelessWidget {
   );
 }
 
-class _PreferencesContent extends StatelessWidget {
+class _PreferencesContent extends ConsumerWidget {
   const _PreferencesContent({
     required this.version,
     required this.selectedItem,
@@ -224,7 +264,51 @@ class _PreferencesContent extends StatelessWidget {
   final ValueChanged<bool> onBottomPanelChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (selectedItem == 'Language') {
+      final language =
+          ref.watch(localeProvider)?.languageCode ??
+          Localizations.localeOf(context).languageCode;
+      return ListView(
+        padding: const EdgeInsets.all(32),
+        children: [
+          Text(context.l10n.textLanguage382, style: TextStyle(fontSize: 30)),
+          const SizedBox(height: 16),
+          Text(context.l10n.chooseLanguage),
+          const SizedBox(height: 24),
+          DesktopPane(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  for (final item in [
+                    ('ru', context.l10n.russianLanguage),
+                    ('en', context.l10n.englishLanguage),
+                  ])
+                    DesktopHoverTile(
+                      key: ValueKey('language ${item.$1}'),
+                      onTap: () =>
+                          ref.read(localeProvider.notifier).select(item.$1),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.language, size: 18),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(item.$2)),
+                            if (language == item.$1)
+                              const Icon(Icons.check, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     if (selectedItem == 'Keyboard shortcuts') {
       return Padding(
         padding: const EdgeInsets.fromLTRB(48, 42, 48, 38),
@@ -237,8 +321,8 @@ class _PreferencesContent extends StatelessWidget {
     if (selectedItem != 'General') {
       return Center(
         child: Text(
-          '$selectedItem 1',
-          style: const TextStyle(fontSize: 30, color: AppTheme.text),
+          '${context.hostLabel(selectedItem)} 1',
+          style: TextStyle(fontSize: 30, color: context.palette.text),
         ),
       );
     }
@@ -252,29 +336,34 @@ class _PreferencesContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'General',
+                Text(
+                  context.l10n.textGeneral68,
                   style: TextStyle(fontSize: 30, fontWeight: FontWeight.w400),
                 ),
                 const SizedBox(height: 54),
-                const Text('Permissions', style: TextStyle(fontSize: 18)),
+                Text(
+                  context.l10n.textPermissions371,
+                  style: TextStyle(fontSize: 18),
+                ),
                 const SizedBox(height: 22),
                 _SettingsCard(
                   children: [
                     _PreferenceRow(
-                      title: 'Default permissions',
-                      description: 'By default, Ayakiro can read and edit files in its workspace. It can ask for additional access when needed',
+                      title: context.l10n.textDefaultPermissions372,
+                      description:
+                          context.l10n.textByDefaultAyakiroCanReadAndEdit373,
                       control: Switch(
                         value: workspaceAccess,
                         onChanged: onWorkspaceAccessChanged,
                       ),
                     ),
                     _PreferenceRow(
-                      title: 'Full access',
-                      description: 'When Ayakiro runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.',
-                      extra: const Text(
-                        'Learn more about elevated risks.',
-                        style: TextStyle(color: AppTheme.text),
+                      title: context.l10n.textFullAccess374,
+                      description:
+                          context.l10n.textWhenAyakiroRunsWithFullAccessIt375,
+                      extra: Text(
+                        context.l10n.textLearnMoreAboutElevatedRisks376,
+                        style: TextStyle(color: context.palette.text),
                       ),
                       control: Switch(
                         value: fullAccess,
@@ -284,65 +373,101 @@ class _PreferencesContent extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 66),
-                const Text('General', style: TextStyle(fontSize: 18)),
+                Text(
+                  context.l10n.textGeneral68,
+                  style: TextStyle(fontSize: 18),
+                ),
                 const SizedBox(height: 22),
                 _SettingsCard(
                   children: [
                     _PreferenceRow(
-                      title: 'Projectless task folder',
-                      description: 'The location where tasks started outside of projects store their data by default.',
+                      title: context.l10n.textProjectlessTaskFolder377,
+                      description: context
+                          .l10n
+                          .textTheLocationWhereTasksStartedOutsideOf378,
                       control: _ActionButton(
                         label: '/home/ayakiro...uments/Codex',
-                        action: 'Change',
+                        action: context.l10n.textChange379,
                       ),
                     ),
                     _PreferenceRow(
-                      title: 'Default file open destination',
-                      description: 'Where files and folders open by default',
+                      title: context.l10n.textDefaultFileOpenDestination380,
+                      description:
+                          context.l10n.textWhereFilesAndFoldersOpenByDefault381,
                       control: _DropButton(label: 'Zed'),
                     ),
                     _PreferenceRow(
-                      title: 'Language',
-                      description: 'Language for the app UI',
-                      control: _DropButton(label: 'Auto detect'),
+                      title: context.l10n.textLanguage382,
+                      description: context.l10n.textLanguageForTheAppUI383,
+                      control: DesktopMenuButton<String>(
+                        tooltip: context.l10n.textLanguage382,
+                        onSelected: (code) =>
+                            ref.read(localeProvider.notifier).select(code),
+                        entries: [
+                          DesktopMenuEntry(
+                            value: 'ru',
+                            label: context.l10n.russianLanguage,
+                          ),
+                          DesktopMenuEntry(
+                            value: 'en',
+                            label: context.l10n.englishLanguage,
+                          ),
+                        ],
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            (ref.watch(localeProvider)?.languageCode ??
+                                        Localizations.localeOf(context)
+                                            .languageCode) ==
+                                    'ru'
+                                ? context.l10n.russianLanguage
+                                : context.l10n.englishLanguage,
+                          ),
+                        ),
+                      ),
                     ),
                     _PreferenceRow(
-                      title: 'Bottom panel',
+                      title: context.l10n.textBottomPanel385,
                       description:
-                          'Show the bottom panel control in the app header',
+                          context.l10n.textShowTheBottomPanelControlInThe386,
                       control: Switch(
                         value: bottomPanel,
                         onChanged: onBottomPanelChanged,
                       ),
                     ),
                     _PreferenceRow(
-                      title: 'Prevent sleep while running',
-                      description: 'Keep your computer awake while Ayakiro is running a task',
+                      title: context.l10n.textPreventSleepWhileRunning387,
+                      description: context
+                          .l10n
+                          .textKeepYourComputerAwakeWhileAyakiroIs388,
                       control: Switch(
                         value: keepAwake,
                         onChanged: onKeepAwakeChanged,
                       ),
                     ),
                     _PreferenceRow(
-                      title: 'Open source licenses',
-                      description:
-                          'Third-party software used by Ayakiro BCI Engine',
-                      control: _DropButton(label: 'View'),
+                      title: context.l10n.textOpenSourceLicenses389,
+                      description: context
+                          .l10n
+                          .textThirdPartySoftwareUsedByAyakiroBCI390,
+                      control: _DropButton(label: context.l10n.textView62),
                     ),
                     _PreferenceRow(
-                      title: 'Version',
-                      description: 'Current application build',
+                      title: context.l10n.textVersion207,
+                      description: context.l10n.textCurrentApplicationBuild391,
                       control: Text(
                         version,
-                        style: const TextStyle(color: AppTheme.mutedText),
+                        style: TextStyle(color: context.palette.mutedText),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 48),
                 Text(
-                  '${AppInfo.appName} · local offline-first mode',
-                  style: const TextStyle(color: AppTheme.mutedText),
+                  context.l10n.textArg0LocalOfflineFirstMode392(
+                    (AppInfo.appName).toString(),
+                  ),
+                  style: TextStyle(color: context.palette.mutedText),
                 ),
               ],
             ),
@@ -383,24 +508,25 @@ class _PreferenceNavButtonState extends State<_PreferenceNavButton> {
     child: GestureDetector(
       onTap: widget.onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
+        duration: AppTheme.hoverDuration,
+        curve: AppTheme.hoverCurve,
         height: 39,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: widget.selected
-              ? AppTheme.border
+              ? context.palette.hover
               : _hovered
-              ? const Color(0xFF202020)
-              : Colors.transparent,
+              ? context.palette.hover.withAlpha(130)
+              : context.palette.hover.withAlpha(0),
           borderRadius: BorderRadius.circular(9),
         ),
         child: Row(
           children: [
-            Icon(widget.icon, size: 18, color: AppTheme.text),
+            Icon(widget.icon, size: 18, color: context.palette.text),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                widget.label,
+                context.hostLabel(widget.label),
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 14),
               ),
@@ -420,9 +546,8 @@ class _SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: AppTheme.panel,
+      color: context.palette.panel,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppTheme.border),
     ),
     child: Column(children: children),
   );
@@ -452,7 +577,7 @@ class _PreferenceRow extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             description,
-            style: const TextStyle(color: AppTheme.mutedText, fontSize: 13),
+            style: TextStyle(color: context.palette.mutedText, fontSize: 13),
           ),
           if (extra != null) ...[const SizedBox(height: 3), extra!],
         ],
@@ -503,8 +628,8 @@ class _ActionButton extends StatelessWidget {
         child: Text(
           label,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppTheme.mutedText,
+          style: TextStyle(
+            color: context.palette.mutedText,
             fontFamily: 'monospace',
           ),
         ),

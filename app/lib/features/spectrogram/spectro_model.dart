@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 /// Later the same model will be fed by the native core output.
 class SpectroModel extends ChangeNotifier {
   SpectroModel({this.windowSize = 256, this.hop = 32, this.maxColumns = 320})
-      : _ring = Float64List(windowSize) {
+    : _ring = Float64List(windowSize) {
     for (int i = 0; i < windowSize; i++) {
       _hann[i] = 0.5 * (1 - math.cos(2 * math.pi * i / (windowSize - 1)));
     }
@@ -37,7 +37,7 @@ class SpectroModel extends ChangeNotifier {
 
   bool paused = false;
 
-  int get bins => windowSize ~/ 4;  // 64 display bins
+  int get bins => windowSize ~/ 4; // 64 display bins
 
   double get gain => _gain;
 
@@ -82,8 +82,7 @@ class SpectroModel extends ChangeNotifier {
         }
       }
       final double scaled = (peak * _gain + 1e-5);
-      row[b] = ((math.log(scaled) / math.ln10 + 4.0) / 3.5)
-          .clamp(0.0, 1.0);
+      row[b] = ((math.log(scaled) / math.ln10 + 4.0) / 3.5).clamp(0.0, 1.0);
     }
 
     rows.add(row);
@@ -164,7 +163,7 @@ class SpectroModel extends ChangeNotifier {
       return;
     }
     _markerSeq++;
-    markers[-1] = 'M$_markerSeq';  // -1 = right edge; normalized below
+    markers[-1] = 'M$_markerSeq'; // -1 = right edge; normalized below
     _normalizeMarkers();
     notifyListeners();
   }

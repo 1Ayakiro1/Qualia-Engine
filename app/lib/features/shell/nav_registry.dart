@@ -59,9 +59,9 @@ const List<NavSection> kNavSections = <NavSection>[
   ),
   NavSection(
     id: SectionId.modules,
-    label: 'Модули',
+    label: 'Workspace',
     icon: Icons.extension_outlined,
-    subtitle: 'Реестр системных модулей',
+    subtitle: 'Канвас обработки модулей',
     modes: {AppMode.researcher, AppMode.developer},
   ),
   NavSection(
@@ -94,7 +94,7 @@ const List<NavSection> kNavSections = <NavSection>[
   ),
   NavSection(
     id: SectionId.extensions,
-    label: 'Extensions',
+    label: 'Marketplace',
     icon: Icons.auto_awesome_mosaic_outlined,
     subtitle: 'Пользовательские расширения',
     modes: {AppMode.consumer, AppMode.researcher, AppMode.developer},

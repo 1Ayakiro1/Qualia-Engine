@@ -1,3 +1,6 @@
+import '../../l10n/app_strings.dart';
+import '../common/desktop_menu.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,22 +26,22 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           Text(
-            'File',
+            context.l10n.textFile60,
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
           ),
           const SizedBox(width: 25),
           Text(
-            'Edit',
+            context.l10n.textEdit61,
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
           ),
           const SizedBox(width: 25),
           Text(
-            'View',
+            context.l10n.textView62,
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
           ),
           const SizedBox(width: 25),
           Text(
-            'Help',
+            context.l10n.textHelp63,
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
           ),
         ],
@@ -49,9 +52,9 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
           child: StatusChip(
             label: engine.isOnline
                 ? (engine.runState == EngineRunState.running
-                      ? 'Ядро: активна сессия'
-                      : 'Ядро: онлайн')
-                : 'Ядро: офлайн',
+                      ? context.l10n.textCoreSessionActive64
+                      : context.l10n.textCoreOnline65)
+                : context.l10n.textCoreOffline66,
             color: !engine.isOnline
                 ? theme.colorScheme.outline
                 : engine.runState == EngineRunState.running
@@ -66,30 +69,20 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: PopupMenuButton<AppMode>(
-            tooltip: 'Режим использования',
-            initialValue: mode,
+          child: DesktopMenuButton<AppMode>(
+            tooltip: context.l10n.textUsageMode67,
             onSelected: (AppMode value) =>
                 ref.read(appModeProvider.notifier).setMode(value),
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<AppMode>>[
+            entries: [
               for (final AppMode m in AppMode.values)
-                PopupMenuItem<AppMode>(
+                DesktopMenuEntry<AppMode>(
                   value: m,
-                  child: ListTile(
-                    dense: true,
-                    leading: Icon(switch (m) {
-                      AppMode.consumer => Icons.person_outline,
-                      AppMode.researcher => Icons.science_outlined,
-                      AppMode.developer => Icons.code,
-                    }),
-                    title: Text(m.label),
-                    subtitle: Text(m.hint, style: theme.textTheme.bodySmall),
-                  ),
+                  label: context.hostLabel(m.label),
                 ),
             ],
             child: Chip(
               avatar: const Icon(Icons.switch_account, size: 16),
-              label: Text(mode.label),
+              label: Text(context.hostLabel(mode.label)),
               visualDensity: VisualDensity.compact,
             ),
           ),

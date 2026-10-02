@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'app_logger.dart';
+import 'log_entry.dart';
 
 /// Starts the debug terminal as a separate process.
 ///
@@ -20,9 +21,10 @@ class DebugTerminalLauncher {
         workingDirectory: File(Platform.resolvedExecutable).parent.path,
         mode: ProcessStartMode.detached,
       );
+      logI(LogSource.terminal, 'окно отладочного терминала запущено');
       return true;
     } catch (error) {
-      logE('debug-terminal', 'не удалось запустить отдельное окно: $error');
+      logE(LogSource.terminal, 'не удалось запустить отдельное окно: $error');
       return false;
     }
   }

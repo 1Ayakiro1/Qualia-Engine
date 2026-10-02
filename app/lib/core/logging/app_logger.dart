@@ -107,14 +107,17 @@ class AppLogger extends ChangeNotifier {
       _sink = null;
     }
     _initialized = true;
-    log('app', 'приложение запущено (Platform: ${Platform.operatingSystem})');
+    log(
+      LogSource.app,
+      'приложение запущено (Platform: ${Platform.operatingSystem})',
+    );
   }
 
-  void log(String source, String message, {LogLevel level = LogLevel.info}) {
+  void log(LogSource source, String message, {LogLevel level = LogLevel.info}) {
     final LogEntry entry = LogEntry(
       time: DateTime.now(),
       level: level,
-      source: source,
+      source: source.tag,
       message: message,
     );
     _entries.add(entry);
@@ -141,7 +144,7 @@ class AppLogger extends ChangeNotifier {
     }
     recording = value;
     log(
-      'app',
+      LogSource.app,
       value
           ? 'запись лога в файл продолжена'
           : 'запись лога в файл приостановлена',
@@ -167,7 +170,7 @@ class AppLogger extends ChangeNotifier {
   }
 
   Future<void> close() async {
-    log('app', 'приложение завершается');
+    log(LogSource.app, 'приложение завершается');
     await flush();
     try {
       await _sink?.close();
@@ -179,11 +182,11 @@ class AppLogger extends ChangeNotifier {
 }
 
 // Convenience shortcuts used across the app.
-void logD(String source, String message) =>
+void logD(LogSource source, String message) =>
     AppLogger.instance.log(source, message, level: LogLevel.debug);
-void logI(String source, String message) =>
+void logI(LogSource source, String message) =>
     AppLogger.instance.log(source, message, level: LogLevel.info);
-void logW(String source, String message) =>
+void logW(LogSource source, String message) =>
     AppLogger.instance.log(source, message, level: LogLevel.warning);
-void logE(String source, String message) =>
+void logE(LogSource source, String message) =>
     AppLogger.instance.log(source, message, level: LogLevel.error);

@@ -1,3 +1,5 @@
+import '../../l10n/app_strings.dart';
+
 import 'dart:ffi';
 import 'dart:math' as math;
 
@@ -36,7 +38,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
       _say('ядро не загружено');
       return;
     }
-    _say('core ${_controller.bindings!.coreVersion} · ABI ${_controller.bindings!.abiVersion}');
+    _say(
+      'core ${_controller.bindings!.coreVersion} · ABI ${_controller.bindings!.abiVersion}',
+    );
   }
 
   void _create() {
@@ -64,7 +68,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
       _say('engine не создан');
       return;
     }
-    _controller.stop();  // reset if a previous session is still running
+    _controller.stop(); // reset if a previous session is still running
     final int? startCode = _controller.start(sampleRate: 256, channels: 1);
     if (startCode == null || startCode != 0) {
       _say('start → код $startCode');
@@ -102,9 +106,11 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
       }
       final List<double>? metrics = _controller.metrics();
       if (metrics != null) {
-        _say('metrics: rms=${metrics[0].toStringAsFixed(4)} '
-            'peak=${metrics[1].toStringAsFixed(1)} Hz '
-            'quality=${metrics[2].toStringAsFixed(2)}');
+        _say(
+          'metrics: rms=${metrics[0].toStringAsFixed(4)} '
+          'peak=${metrics[1].toStringAsFixed(1)} Hz '
+          'quality=${metrics[2].toStringAsFixed(2)}',
+        );
       }
       _controller.stop();
     } finally {
@@ -131,9 +137,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const ScreenHeader(
-          title: 'Разработчик',
-          subtitle: 'FFI-консоль ядра · bci_engine_* C API',
+        ScreenHeader(
+          title: context.l10n.textDeveloper32,
+          subtitle: context.l10n.textCoreFFIConsoleBciEngineCAPI349,
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -141,12 +147,30 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton(onPressed: _version, child: const Text('Версия ядра')),
-              OutlinedButton(onPressed: _create, child: const Text('Создать engine')),
-              OutlinedButton(onPressed: _start, child: const Text('Старт')),
-              OutlinedButton(onPressed: _stop, child: const Text('Стоп')),
-              OutlinedButton(onPressed: _echo, child: const Text('Echo-тест')),
-              OutlinedButton(onPressed: _modules, child: const Text('Модули (JSON)')),
+              OutlinedButton(
+                onPressed: _version,
+                child: Text(context.l10n.textCoreVersion241),
+              ),
+              OutlinedButton(
+                onPressed: _create,
+                child: Text(context.l10n.textCreateEngine350),
+              ),
+              OutlinedButton(
+                onPressed: _start,
+                child: Text(context.l10n.textStart283),
+              ),
+              OutlinedButton(
+                onPressed: _stop,
+                child: Text(context.l10n.textStop284),
+              ),
+              OutlinedButton(
+                onPressed: _echo,
+                child: Text(context.l10n.textEchoTest351),
+              ),
+              OutlinedButton(
+                onPressed: _modules,
+                child: Text(context.l10n.textModulesJSON352),
+              ),
             ],
           ),
         ),
@@ -154,10 +178,13 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
             engine.isOnline
-                ? 'Библиотека: ${engine.libraryPath}'
-                : 'Библиотека ядра не найдена — соберите ядро (scripts/build.sh).',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ? context.l10n.textLibraryArg0353(
+                    (engine.libraryPath).toString(),
+                  )
+                : context.l10n.textCoreLibraryNotFoundBuildTheCore354,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         Expanded(
@@ -168,11 +195,13 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 padding: const EdgeInsets.all(12),
                 child: ListView.builder(
                   itemCount: _log.length,
-                  itemBuilder: (BuildContext context, int index) => SelectableText(
-                    _log[index],
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontFamily: 'monospace'),
-                  ),
+                  itemBuilder: (BuildContext context, int index) =>
+                      SelectableText(
+                        _log[index],
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                        ),
+                      ),
                 ),
               ),
             ),

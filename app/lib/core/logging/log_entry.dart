@@ -1,5 +1,31 @@
 import 'package:flutter/foundation.dart';
 
+/// Logical area of the application that emitted a log entry.
+///
+/// Fixed tags keep log files greppable and the debug terminal filterable:
+/// every user action lands under a predictable source, so "что происходило
+/// в приложении" can be reconstructed from the log alone. Tags fit the
+/// nine-character source column of [LogEntry.formatted].
+enum LogSource {
+  app('app'),
+  core('core'),
+  ui('ui'),
+  shell('shell'),
+  session('session'),
+  settings('settings'),
+  modules('modules'),
+  entity('entity'),
+  extension('extension'),
+  profile('profile'),
+  terminal('terminal'),
+  flutter('flutter');
+
+  const LogSource(this.tag);
+
+  /// Text written into the log line's source column.
+  final String tag;
+}
+
 /// Severity of a log entry. Ordered from the most verbose to the most severe.
 enum LogLevel { debug, info, warning, error }
 
@@ -68,13 +94,16 @@ class LogEntry {
   /// Human-readable single line.
   String get formatted {
     final String ts = time.toIso8601String();
-    final String src = source.length > 9 ? source.substring(0, 9) : source.padRight(9);
+    final String src = source.length > 9
+        ? source.substring(0, 9)
+        : source.padRight(9);
     final String oneLine = message.replaceAll('\n', ' | ');
     return '[$ts] [${level.tag}] [$src] $oneLine';
   }
 
-  static final RegExp _linePattern =
-      RegExp(r'^\[(.+?)\] \[(.+?)\] \[(.+?)\] (.*)$');
+  static final RegExp _linePattern = RegExp(
+    r'^\[(.+?)\] \[(.+?)\] \[(.+?)\] (.*)$',
+  );
 
   /// Parses a line produced by [formatted]; returns null when it does not match.
   static LogEntry? tryParse(String line) {

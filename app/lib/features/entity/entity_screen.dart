@@ -1,8 +1,10 @@
+import '../../l10n/app_strings.dart';
+
 import 'package:flutter/material.dart';
 
 import 'dart:math' as math;
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_palette.dart';
 import '../common/widgets.dart';
 
 class NeuralEntity {
@@ -89,25 +91,21 @@ class EntityWorkspace extends StatelessWidget {
     required this.onEdit,
     required this.onRemove,
     required this.onToggleInstalled,
-    this.inspectorOpen = false,
-    this.onToggleInspector,
   });
 
   final NeuralEntity? entity;
   final ValueChanged<NeuralEntity> onEdit;
   final ValueChanged<NeuralEntity> onRemove;
   final ValueChanged<NeuralEntity> onToggleInstalled;
-  final bool inspectorOpen;
-  final VoidCallback? onToggleInspector;
 
   @override
   Widget build(BuildContext context) {
     final selected = entity;
     if (selected == null) {
-      return const Center(
+      return Center(
         child: Text(
-          'Select a neural entity',
-          style: TextStyle(color: AppTheme.mutedText),
+          context.l10n.textSelectANeuralEntity421,
+          style: TextStyle(color: context.palette.mutedText),
         ),
       );
     }
@@ -133,25 +131,37 @@ class EntityWorkspace extends StatelessWidget {
                 ),
                 DesktopIconButton(
                   icon: Icons.edit_outlined,
-                  tooltip: 'Edit entity',
+                  tooltip: context.l10n.textEditEntity163,
                   onPressed: () => onEdit(selected),
                 ),
                 DesktopIconButton(
                   icon: Icons.delete_outline,
-                  tooltip: 'Remove entity',
+                  tooltip: context.l10n.textRemoveEntity162,
                   onPressed: () => onRemove(selected),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              selected.description,
-              style: const TextStyle(color: AppTheme.mutedText, height: 1.4),
+              kNeuralEntities.any(
+                    (entry) =>
+                        entry.id == selected.id &&
+                        entry.description == selected.description,
+                  )
+                  ? context.hostLabel(selected.description)
+                  : selected.description,
+              style: TextStyle(color: context.palette.mutedText, height: 1.4),
             ),
             const SizedBox(height: 22),
-            _EntityProperty(label: 'ID', value: selected.id),
-            _EntityProperty(label: 'Framework', value: selected.framework),
-            _EntityProperty(label: 'Version', value: selected.version),
+            _EntityProperty(label: context.l10n.textID188, value: selected.id),
+            _EntityProperty(
+              label: context.l10n.textFramework206,
+              value: selected.framework,
+            ),
+            _EntityProperty(
+              label: context.l10n.textVersion207,
+              value: selected.version,
+            ),
             const SizedBox(height: 22),
             FilledButton.icon(
               onPressed: () => onToggleInstalled(selected),
@@ -160,60 +170,22 @@ class EntityWorkspace extends StatelessWidget {
                     ? Icons.delete_outline
                     : Icons.download_outlined,
               ),
-              label: Text(selected.installed ? 'Uninstall' : 'Install'),
+              label: Text(
+                selected.installed
+                    ? context.l10n.textUninstall212
+                    : context.l10n.textInstall422,
+              ),
             ),
           ],
         ),
       ),
     );
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: details),
-        if (inspectorOpen)
-          SizedBox(
-            width: 260,
-            child: DesktopPane(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'ENTITY INSPECTOR',
-                      style: TextStyle(
-                        color: AppTheme.mutedText,
-                        fontSize: 11,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(selected.name),
-                    const SizedBox(height: 8),
-                    Text(
-                      selected.framework,
-                      style: const TextStyle(color: AppTheme.mutedText),
-                    ),
-                    const Spacer(),
-                    DesktopIconButton(
-                      icon: Icons.edit_outlined,
-                      tooltip: 'Edit entity',
-                      onPressed: () => onEdit(selected),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
+    return details;
   }
 }
 
 class _EntityScreenState extends State<EntityScreen> {
   NeuralEntity? _selected;
-  bool _inspectorOpen = false;
   bool _installedExpanded = true;
   bool _catalogExpanded = true;
 
@@ -233,16 +205,13 @@ class _EntityScreenState extends State<EntityScreen> {
                 180.0,
                 math.min(310.0, constraints.maxWidth - 180).toDouble(),
               );
-        final inspectorWidth = _inspectorOpen
-            ? (constraints.maxWidth * .28).clamp(190.0, 250.0)
-            : 0.0;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
               width: sidebarWidth,
               child: ColoredBox(
-                color: AppTheme.panel,
+                color: context.palette.panel,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -250,11 +219,11 @@ class _EntityScreenState extends State<EntityScreen> {
                       padding: const EdgeInsets.fromLTRB(12, 9, 8, 8),
                       child: Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'ENTITY',
+                              context.l10n.textENTITY423,
                               style: TextStyle(
-                                color: AppTheme.mutedText,
+                                color: context.palette.mutedText,
                                 fontSize: 11,
                                 letterSpacing: 1.2,
                                 fontWeight: FontWeight.bold,
@@ -263,19 +232,8 @@ class _EntityScreenState extends State<EntityScreen> {
                           ),
                           DesktopIconButton(
                             icon: Icons.add,
-                            tooltip: 'Add entity',
+                            tooltip: context.l10n.textAddEntity161,
                             onPressed: widget.onAdd,
-                          ),
-                          DesktopIconButton(
-                            icon: _inspectorOpen
-                                ? Icons.view_sidebar
-                                : Icons.view_sidebar_outlined,
-                            tooltip: _inspectorOpen
-                                ? 'Hide entity inspector'
-                                : 'Show entity inspector',
-                            onPressed: () => setState(
-                              () => _inspectorOpen = !_inspectorOpen,
-                            ),
                           ),
                         ],
                       ),
@@ -285,7 +243,7 @@ class _EntityScreenState extends State<EntityScreen> {
                       child: ListView(
                         children: [
                           ExplorerDisclosureSection(
-                            title: 'Installed',
+                            title: context.l10n.textInstalled176,
                             expanded: _installedExpanded,
                             onToggle: () => setState(
                               () => _installedExpanded = !_installedExpanded,
@@ -300,7 +258,7 @@ class _EntityScreenState extends State<EntityScreen> {
                             ],
                           ),
                           ExplorerDisclosureSection(
-                            title: 'Catalog',
+                            title: context.l10n.textCatalog424,
                             expanded: _catalogExpanded,
                             onToggle: () => setState(
                               () => _catalogExpanded = !_catalogExpanded,
@@ -316,11 +274,13 @@ class _EntityScreenState extends State<EntityScreen> {
                             ],
                           ),
                           if (widget.entities.isEmpty)
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.all(16),
                               child: Text(
-                                'No entities yet',
-                                style: TextStyle(color: AppTheme.mutedText),
+                                context.l10n.textNoEntitiesYet425,
+                                style: TextStyle(
+                                  color: context.palette.mutedText,
+                                ),
                               ),
                             ),
                         ],
@@ -333,12 +293,12 @@ class _EntityScreenState extends State<EntityScreen> {
             const VerticalDivider(width: 1),
             Expanded(
               child: ColoredBox(
-                color: AppTheme.background,
+                color: context.palette.background,
                 child: entity == null
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'Select a neural entity',
-                          style: TextStyle(color: AppTheme.mutedText),
+                          context.l10n.textSelectANeuralEntity421,
+                          style: TextStyle(color: context.palette.mutedText),
                         ),
                       )
                     : SingleChildScrollView(
@@ -363,32 +323,42 @@ class _EntityScreenState extends State<EntityScreen> {
                                   ),
                                   DesktopIconButton(
                                     icon: Icons.edit_outlined,
-                                    tooltip: 'Edit entity',
+                                    tooltip: context.l10n.textEditEntity163,
                                     onPressed: () => widget.onEdit(entity),
                                   ),
                                   DesktopIconButton(
                                     icon: Icons.delete_outline,
-                                    tooltip: 'Remove entity',
+                                    tooltip: context.l10n.textRemoveEntity162,
                                     onPressed: () => widget.onRemove(entity),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                entity.description,
-                                style: const TextStyle(
-                                  color: AppTheme.mutedText,
+                                kNeuralEntities.any(
+                                      (entry) =>
+                                          entry.id == entity.id &&
+                                          entry.description ==
+                                              entity.description,
+                                    )
+                                    ? context.hostLabel(entity.description)
+                                    : entity.description,
+                                style: TextStyle(
+                                  color: context.palette.mutedText,
                                   height: 1.4,
                                 ),
                               ),
                               const SizedBox(height: 22),
-                              _EntityProperty(label: 'ID', value: entity.id),
                               _EntityProperty(
-                                label: 'Framework',
+                                label: context.l10n.textID188,
+                                value: entity.id,
+                              ),
+                              _EntityProperty(
+                                label: context.l10n.textFramework206,
                                 value: entity.framework,
                               ),
                               _EntityProperty(
-                                label: 'Version',
+                                label: context.l10n.textVersion207,
                                 value: entity.version,
                               ),
                               const SizedBox(height: 22),
@@ -401,7 +371,9 @@ class _EntityScreenState extends State<EntityScreen> {
                                       : Icons.download_outlined,
                                 ),
                                 label: Text(
-                                  entity.installed ? 'Uninstall' : 'Install',
+                                  entity.installed
+                                      ? context.l10n.textUninstall212
+                                      : context.l10n.textInstall422,
                                 ),
                               ),
                             ],
@@ -410,50 +382,6 @@ class _EntityScreenState extends State<EntityScreen> {
                       ),
               ),
             ),
-            if (_inspectorOpen &&
-                constraints.maxWidth - sidebarWidth - inspectorWidth - 2 >=
-                    120) ...[
-              const VerticalDivider(width: 1),
-              SizedBox(
-                width: inspectorWidth,
-                child: ColoredBox(
-                  color: AppTheme.panel,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: entity == null
-                        ? const Text(
-                            'Select an entity',
-                            style: TextStyle(color: AppTheme.mutedText),
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'ENTITY INSPECTOR',
-                                style: TextStyle(
-                                  color: AppTheme.mutedText,
-                                  fontSize: 11,
-                                  letterSpacing: 1,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(entity.name),
-                              const SizedBox(height: 8),
-                              Text(
-                                entity.installed
-                                    ? 'Installed'
-                                    : 'Not installed',
-                                style: const TextStyle(
-                                  color: AppTheme.mutedText,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       },
@@ -475,38 +403,33 @@ class _EntityItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    child: Material(
-      color: selected ? AppTheme.background : Colors.transparent,
-      borderRadius: BorderRadius.circular(6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        hoverColor: AppTheme.border,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: Row(
-            children: [
-              const Icon(Icons.hub_outlined, size: 17),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(entity.name, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${entity.framework} · v${entity.version}',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.mutedText,
-                        fontSize: 10,
-                      ),
+    child: DesktopHoverTile(
+      onTap: onTap,
+      selected: selected,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.hub_outlined, size: 17),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(entity.name, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${entity.framework} · v${entity.version}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.palette.mutedText,
+                      fontSize: 10,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     ),
@@ -526,7 +449,10 @@ class _EntityProperty extends StatelessWidget {
       children: [
         SizedBox(
           width: 100,
-          child: Text(label, style: const TextStyle(color: AppTheme.mutedText)),
+          child: Text(
+            label,
+            style: TextStyle(color: context.palette.mutedText),
+          ),
         ),
         Expanded(child: SelectableText(value)),
       ],

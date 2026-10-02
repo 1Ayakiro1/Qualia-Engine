@@ -9,6 +9,8 @@ import 'core/logging/app_logger.dart';
 import 'core/logging/debug_terminal_app.dart';
 import 'core/logging/debug_terminal_launcher.dart';
 import 'core/logging/log_entry.dart';
+import 'core/auth/auth_service.dart';
+import 'core/auth/supabase_config.dart';
 
 Future<RandomAccessFile?> _acquireDebugTerminalLock() async {
   final File lockFile = LogLocations.debugTerminalLockFile();
@@ -83,9 +85,19 @@ void main(List<String> args) async {
     debugPrint('не удалось скрыть системную панель окна: $e');
   }
   await AppLogger.instance.init();
+  try {
+    await AuthService.instance.initialize();
+    await _handleAuthCallbackArguments(args);
+  } catch (error) {
+    AppLogger.instance.log(
+      LogSource.profile,
+      'Supabase Auth недоступен: $error',
+      level: LogLevel.warning,
+    );
+  }
   FlutterError.onError = (FlutterErrorDetails details) {
     AppLogger.instance.log(
-      'flutter',
+      LogSource.flutter,
       'неперехваченная ошибка: ${details.exceptionAsString()}',
       level: LogLevel.error,
     );
@@ -95,4 +107,22 @@ void main(List<String> args) async {
     await DebugTerminalLauncher.launch();
   }
   runApp(const ProviderScope(child: BciApp()));
+}
+
+/// GTK forwards a registered URI scheme as a command-line argument when the
+/// desktop application is launched for an OAuth callback. Consume it here as
+/// well as listening for live links, since Linux can start a fresh process.
+Future<void> _handleAuthCallbackArguments(List<String> args) async {
+  if (!AuthService.instance.isInitialized) return;
+  for (final argument in args) {
+    final uri = Uri.tryParse(argument);
+    if (uri == null ||
+        uri.scheme != Uri.parse(SupabaseConfig.oauthRedirect).scheme ||
+        uri.host != 'auth' ||
+        uri.path != '/callback') {
+      continue;
+    }
+    await AuthService.instance.handleOAuthCallback(uri);
+    return;
+  }
 }

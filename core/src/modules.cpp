@@ -111,38 +111,6 @@ class SmoothingModule final : public IModule {
   std::vector<bool> primed_;
 };
 
-class EventMarkersModule final : public IModule {
- public:
-  const ModuleInfo& info() const override { return info_; }
-  void process(SampleBlock& block) override {
-    (void)block;  // TODO(v0.3): event/marker bus integration.
-  }
-
- private:
-  ModuleInfo info_{"core.event_markers",
-                   "Маркеры событий",
-                   "Заготовка системы меток, привязанных к событиям парадигмы.",
-                   "0.1.0",
-                   static_cast<int>(ModuleCategory::kUtility),
-                   true};
-};
-
-class StorageRecorderModule final : public IModule {
- public:
-  const ModuleInfo& info() const override { return info_; }
-  void process(SampleBlock& block) override {
-    (void)block;  // TODO(v0.2): session recorder writing to local storage.
-  }
-
- private:
-  ModuleInfo info_{"core.storage_recorder",
-                   "Рекордер сессий",
-                   "Заготовка записи потока в хранилище сессий.",
-                   "0.1.0",
-                   static_cast<int>(ModuleCategory::kOutput),
-                   true};
-};
-
 class DiagnosticsModule final : public IModule {
  public:
   explicit DiagnosticsModule(EngineMetrics& metrics) : metrics_(metrics) {}
@@ -234,8 +202,6 @@ std::vector<std::unique_ptr<IModule>> create_default_pipeline(
   pipeline.push_back(std::make_unique<GainModule>());
   pipeline.push_back(std::make_unique<SmoothingModule>());
   pipeline.push_back(std::make_unique<DiagnosticsModule>(metrics));
-  pipeline.push_back(std::make_unique<EventMarkersModule>());
-  pipeline.push_back(std::make_unique<StorageRecorderModule>());
   return pipeline;
 }
 

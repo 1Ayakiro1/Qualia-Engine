@@ -22,16 +22,20 @@ class EngineController extends Notifier<EngineState> {
     _bindings = CoreBindings.tryLoad();
     final CoreBindings? bindings = _bindings;
     if (bindings == null) {
-      AppLogger.instance.log('core',
-          'libbci_engine_core не найдена — работа в офлайн-режиме (Dart-симуляция)',
-          level: LogLevel.warning);
+      AppLogger.instance.log(
+        LogSource.core,
+        'libbci_engine_core не найдена — работа в офлайн-режиме (Dart-симуляция)',
+        level: LogLevel.warning,
+      );
       return const EngineState(
         availability: EngineAvailability.unavailable,
         lastError: 'libbci_engine_core не найдена рядом с исполняемым файлом',
       );
     }
-    AppLogger.instance.log('core',
-        'ядро загружено: ${bindings.path} (v${bindings.coreVersion}, ABI ${bindings.abiVersion})');
+    AppLogger.instance.log(
+      LogSource.core,
+      'ядро загружено: ${bindings.path} (v${bindings.coreVersion}, ABI ${bindings.abiVersion})',
+    );
     return EngineState(
       availability: EngineAvailability.available,
       coreVersion: bindings.coreVersion,
@@ -85,11 +89,12 @@ class EngineController extends Notifier<EngineState> {
     _refreshModuleInfo();
     final bool ok = code == 0;
     AppLogger.instance.log(
-        'session',
-        ok
-            ? 'сессия стартовала через ядро ($sampleRate Гц × $channels)'
-            : 'start вернул код $code: ${bindings.lastError(engine)}',
-        level: ok ? LogLevel.info : LogLevel.error);
+      LogSource.session,
+      ok
+          ? 'сессия стартовала через ядро ($sampleRate Гц × $channels)'
+          : 'start вернул код $code: ${bindings.lastError(engine)}',
+      level: ok ? LogLevel.info : LogLevel.error,
+    );
     state = state.copyWith(
       runState: code == 0 ? EngineRunState.running : state.runState,
       lastError: code == 0 ? '' : bindings.lastError(engine),
@@ -105,8 +110,11 @@ class EngineController extends Notifier<EngineState> {
       return null;
     }
     final int code = bindings.stop(engine);
-    AppLogger.instance
-        .log('session', 'сессия остановлена (код $code)', level: code == 0 ? LogLevel.info : LogLevel.warning);
+    AppLogger.instance.log(
+      LogSource.session,
+      'сессия остановлена (код $code)',
+      level: code == 0 ? LogLevel.info : LogLevel.warning,
+    );
     state = state.copyWith(
       runState: EngineRunState.idle,
       lastError: code < 0 ? bindings.lastError(engine) : '',
@@ -168,8 +176,7 @@ class EngineController extends Notifier<EngineState> {
       return;
     }
     // Подключаем мост логов ядра один раз, когда есть живая библиотека.
-    CoreLogBridge.install(bindings.rawLibrary,
-        abiVersion: bindings.abiVersion);
+    CoreLogBridge.install(bindings.rawLibrary, abiVersion: bindings.abiVersion);
     state = state.copyWith(
       moduleCount: bindings.moduleCount(engine),
       coreVersion: bindings.coreVersion,
