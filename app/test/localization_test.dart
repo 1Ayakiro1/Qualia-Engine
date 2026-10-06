@@ -7,6 +7,7 @@ import 'package:bci_engine/l10n/locale_controller.dart';
 import 'package:bci_engine/features/settings/settings_screen.dart';
 import 'package:bci_engine/features/marketplace/marketplace_screen.dart';
 import 'package:bci_engine/features/modules/module_ui.dart';
+import 'package:bci_engine/features/common/desktop_menu.dart';
 import 'package:bci_engine/core/theme/app_theme.dart';
 import 'package:bci_engine/core/theme/app_palette.dart';
 import 'package:flutter/material.dart';
@@ -149,18 +150,30 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Модули'));
       await tester.pumpAndSettle();
-      final filters = find.byKey(const ValueKey('marketplace filters scroll'));
-      final mit = find.descendant(of: filters, matching: find.text('MIT'));
-      await tester.ensureVisible(mit);
+      final license = find.byKey(const ValueKey('marketplace license filter'));
+      await tester.ensureVisible(license);
       await tester.pumpAndSettle();
-      await tester.tap(mit);
+      await tester.tap(license);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DesktopMenuSurface<String>),
+          matching: find.text('MIT'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Источник сигнала · Демо'), findsOneWidget);
       expect(find.text('Полосовой фильтр · Демо'), findsNothing);
-      final all = find.descendant(of: filters, matching: find.text('Все')).last;
-      await Scrollable.ensureVisible(tester.element(all), alignment: .5);
+      await Scrollable.ensureVisible(tester.element(license), alignment: .5);
       await tester.pumpAndSettle();
-      await tester.tap(all);
+      await tester.tap(license);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DesktopMenuSurface<String>),
+          matching: find.text('Все'),
+        ),
+      );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Полосовой фильтр · Демо'),

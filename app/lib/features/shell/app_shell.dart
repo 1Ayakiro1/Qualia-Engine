@@ -1,10 +1,17 @@
 import '../../l10n/app_strings.dart';
 import '../../l10n/module_strings.dart';
 import '../common/desktop_menu.dart';
+import '../common/desktop_scroll.dart';
+import '../common/desktop_focus.dart';
+import '../common/navigation_bindings.dart';
+import '../modules/workspace_manager.dart';
 
 import 'dart:math' as math;
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +22,7 @@ import '../../core/constants/app_info.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/logging/debug_terminal_launcher.dart';
 import '../../core/modules/module_registry.dart';
+import '../../core/modules/local_module_store.dart';
 import '../../core/modules/module_repository.dart';
 import '../../core/modules/module_preview_data.dart';
 import '../../core/logging/app_logger.dart';
@@ -100,7 +108,6 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     debugLabel: 'app shell shortcuts',
   );
   bool terminalOpen = true;
-  bool modeSwitcherOpen = false;
   bool _explorerVisible = true;
   String settingsItem = 'General';
   SystemModule? _selectedModule;
@@ -213,6 +220,16 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   void _handleFileAction(String action) {
     if (action == 'add_workspace_preset') _addPreset();
+    if (action == 'new') {
+      _selectSection(SectionId.modules, ref.read(appModeProvider));
+      editWorkspace(context, ref);
+    }
+    if (action == 'open') _openWorkspaceManager();
+  }
+
+  void _openWorkspaceManager() {
+    _selectSection(SectionId.modules, ref.read(appModeProvider));
+    showWorkspaceManager(context);
   }
 
   void _handleEditAction(String action) {
@@ -403,6 +420,14 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   Future<void> _showModuleEditor([SystemModule? existing]) async {
+    if (existing?.isLocal == true) {
+      _addNotification(
+        context.l10n.localModuleProject,
+        context.l10n.localModuleEditHint,
+        Icons.code,
+      );
+      return;
+    }
     if (existing?.manifest['preview'] == true) {
       _addNotification(
         context.l10n.textPreviewModule77,
@@ -465,6 +490,92 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
       ),
       Icons.extension_outlined,
     );
+  }
+
+  Future<void> _showModuleActions() async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(context.l10n.textAddModule158),
+        children: [
+          for (final entry in {
+            'create-local': context.l10n.moduleCreateLocal,
+            'create-online': context.l10n.moduleCreateOnline,
+            'add-local': context.l10n.moduleAddLocal,
+            'add-online': context.l10n.moduleAddOnline,
+          }.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, entry.key),
+              child: Text(entry.value),
+            ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    try {
+      switch (action) {
+        case 'create-local':
+          final directory = await getDirectoryPath();
+          if (directory == null) return;
+          await LocalModuleStore().createProject(directory);
+          if (mounted) {
+            _addNotification(
+              context.l10n.localModuleProject,
+              '$directory\npython3 qmod.py build .',
+              Icons.code,
+            );
+          }
+        case 'create-online':
+          await _showModuleEditor();
+        case 'add-local':
+          final file = await openFile(
+            acceptedTypeGroups: [
+              const XTypeGroup(label: 'Qualia module', extensions: ['qmod']),
+            ],
+          );
+          if (file == null || !mounted) return;
+          if (await File(file.path).length() > LocalModuleStore.maxBytes) {
+            throw const FormatException('Package is too large.');
+          }
+          if (!mounted) return;
+          final trusted = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(context.l10n.localModuleTrustTitle),
+              content: Text(context.l10n.localModuleTrustWarning),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(context.l10n.textCancel198),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(context.l10n.moduleAddLocal),
+                ),
+              ],
+            ),
+          );
+          if (trusted != true) return;
+          final module = await LocalModuleStore().install(
+            await file.readAsBytes(),
+          );
+          if (!mounted) return;
+          ref.read(workspaceProvider.notifier).addToLibrary(module);
+          setState(() => _selectedModule = module);
+        case 'add-online':
+          _selectSection(SectionId.extensions, ref.read(appModeProvider));
+        default:
+          break;
+      }
+    } catch (error) {
+      if (mounted) {
+        _addNotification(
+          context.l10n.localModuleError,
+          '$error',
+          Icons.error_outline,
+        );
+      }
+    }
   }
 
   Future<void> _loadUserModules() async {
@@ -572,6 +683,11 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   Future<void> _removeModule(SystemModule module) async {
+    if (module.isLocal) {
+      ref.read(workspaceProvider.notifier).removeLocalModule(module.id);
+      setState(() => _selectedModule = null);
+      return;
+    }
     if (module.manifest['preview'] == true) {
       _addNotification(
         context.l10n.textPreviewModule77,
@@ -705,26 +821,6 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     }
   }
 
-  void _selectMode(AppMode value) {
-    ref.read(appModeProvider.notifier).setMode(value);
-    _openTab(SectionId.dashboard);
-    ref.read(navSectionProvider.notifier).select(SectionId.dashboard);
-    setState(() => modeSwitcherOpen = false);
-  }
-
-  Widget _modeSwitcherOverlay({required Widget child, required AppMode mode}) =>
-      Stack(
-        children: [
-          Positioned.fill(child: child),
-          if (modeSwitcherOpen)
-            Positioned(
-              left: layout.railWidth + layout.gap,
-              bottom: 54,
-              child: _ModeSwitcherPanel(current: mode, onSelected: _selectMode),
-            ),
-        ],
-      );
-
   Widget _buildActivityRail({
     required List<NavSection> sections,
     required AppMode mode,
@@ -739,9 +835,6 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
       child: _ActivityRail(
         sections: sections,
         selectedSection: section,
-        modeSwitcherOpen: modeSwitcherOpen,
-        onModeSwitcher: () =>
-            setState(() => modeSwitcherOpen = !modeSwitcherOpen),
         onNavigate: (id) => _selectSection(id, mode),
         onProfile: () => _selectSection(SectionId.profile, mode),
         config: config,
@@ -762,7 +855,12 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: NavigationBindings.instance,
+    builder: (context, _) => _buildShell(context),
+  );
+
+  Widget _buildShell(BuildContext context) {
     final graph = ref.watch(workspaceProvider);
     final railVisible = ref.watch(railProvider).visible;
     final mode = ref.watch(appModeProvider);
@@ -774,16 +872,14 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         (selected < 0 ? sections.first : sections[selected]);
 
     return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.equal, control: true): () =>
-            _changeScale(_scaleStep),
-        const SingleActivator(LogicalKeyboardKey.add, control: true): () =>
-            _changeScale(_scaleStep),
-        const SingleActivator(LogicalKeyboardKey.minus, control: true): () =>
-            _changeScale(-_scaleStep),
-        const SingleActivator(LogicalKeyboardKey.digit0, control: true):
-            _resetScale,
-      },
+      bindings: NavigationBindings.instance.callbacks({
+        NavigationAction.scaleUp: () => _changeScale(_scaleStep),
+        NavigationAction.scaleDown: () => _changeScale(-_scaleStep),
+        NavigationAction.scaleReset: _resetScale,
+        NavigationAction.openWorkspace: _openWorkspaceManager,
+        NavigationAction.findModule: () =>
+            _selectSection(SectionId.modules, mode),
+      }),
       child: Focus(
         focusNode: _shellFocusNode,
         autofocus: true,
@@ -813,8 +909,12 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                   child: SizedBox(
                     width: constraints.maxWidth,
                     height: constraints.maxHeight,
-                    child: Align(
+                    child: OverflowBox(
                       alignment: Alignment.topLeft,
+                      minWidth: width,
+                      maxWidth: width,
+                      minHeight: height,
+                      maxHeight: height,
                       child: Transform.scale(
                         scale: visualScale,
                         alignment: Alignment.topLeft,
@@ -851,37 +951,33 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                   padding: EdgeInsets.all(
                                                     layout.gap,
                                                   ),
-                                                  child: _modeSwitcherOverlay(
-                                                    mode: mode,
-                                                    child: Row(
-                                                      children: [
-                                                        _buildActivityRail(
-                                                          sections: sections,
-                                                          mode: mode,
-                                                          section: section,
+                                                  child: Row(
+                                                    children: [
+                                                      _buildActivityRail(
+                                                        sections: sections,
+                                                        mode: mode,
+                                                        section: section,
+                                                      ),
+                                                      if (railVisible)
+                                                        _LayoutDivider(
+                                                          key:
+                                                              const ValueKey<
+                                                                String
+                                                              >(
+                                                                'rail resize handle',
+                                                              ),
+                                                          onDrag: _resizeRail,
                                                         ),
-                                                        if (railVisible)
-                                                          _LayoutDivider(
-                                                            key:
-                                                                const ValueKey<
-                                                                  String
-                                                                >(
-                                                                  'rail resize handle',
-                                                                ),
-                                                            onDrag: _resizeRail,
-                                                          ),
-                                                        Expanded(
-                                                          child: _ShellSurface(
-                                                            radius:
-                                                                layout.radius,
-                                                            child: ProfileScreen(
-                                                              onBack:
-                                                                  _returnToApp,
-                                                            ),
+                                                      Expanded(
+                                                        child: _ShellSurface(
+                                                          radius: layout.radius,
+                                                          child: ProfileScreen(
+                                                            onBack:
+                                                                _returnToApp,
                                                           ),
                                                         ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 )
                                               : section == SectionId.bugReport
@@ -889,35 +985,31 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                   padding: EdgeInsets.all(
                                                     layout.gap,
                                                   ),
-                                                  child: _modeSwitcherOverlay(
-                                                    mode: mode,
-                                                    child: Row(
-                                                      children: [
-                                                        _buildActivityRail(
-                                                          sections: sections,
-                                                          mode: mode,
-                                                          section: section,
+                                                  child: Row(
+                                                    children: [
+                                                      _buildActivityRail(
+                                                        sections: sections,
+                                                        mode: mode,
+                                                        section: section,
+                                                      ),
+                                                      if (railVisible)
+                                                        _LayoutDivider(
+                                                          key:
+                                                              const ValueKey<
+                                                                String
+                                                              >(
+                                                                'rail resize handle',
+                                                              ),
+                                                          onDrag: _resizeRail,
                                                         ),
-                                                        if (railVisible)
-                                                          _LayoutDivider(
-                                                            key:
-                                                                const ValueKey<
-                                                                  String
-                                                                >(
-                                                                  'rail resize handle',
-                                                                ),
-                                                            onDrag: _resizeRail,
-                                                          ),
-                                                        Expanded(
-                                                          child: _ShellSurface(
-                                                            radius:
-                                                                layout.radius,
-                                                            child:
-                                                                const BugReportScreen(),
-                                                          ),
+                                                      Expanded(
+                                                        child: _ShellSurface(
+                                                          radius: layout.radius,
+                                                          child:
+                                                              const BugReportScreen(),
                                                         ),
-                                                      ],
-                                                    ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 )
                                               : section == SectionId.settings
@@ -1054,7 +1146,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                       mode,
                                                                     ),
                                                                 onAddModule:
-                                                                    _showModuleEditor,
+                                                                    _showModuleActions,
                                                                 onRemoveModule:
                                                                     _removeModule,
                                                                 onEditModule:
@@ -1164,7 +1256,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                                   onOpenMarketplace: () => _selectSection(SectionId.extensions, mode),
                                                                                   section: active.id,
                                                                                   modules: _availableModules,
-                                                                                  onAddModule: _showModuleEditor,
+                                                                                  onAddModule: _showModuleActions,
                                                                                   onEditModule: _showModuleEditor,
                                                                                   onRemoveModule: _removeModule,
                                                                                   entities: _entities,
@@ -1211,19 +1303,6 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                           ),
                                                         ],
                                                       ),
-                                                      if (modeSwitcherOpen)
-                                                        Positioned(
-                                                          left:
-                                                              layout.railWidth +
-                                                              layout.gap,
-                                                          bottom: 54,
-                                                          child:
-                                                              _ModeSwitcherPanel(
-                                                                current: mode,
-                                                                onSelected:
-                                                                    _selectMode,
-                                                              ),
-                                                        ),
                                                     ],
                                                   ),
                                                 ),
@@ -1841,7 +1920,9 @@ class _TopMenuItem extends StatelessWidget {
           _MenuAction(
             value: 'open',
             label: context.l10n.textOpenProject126,
-            shortcut: 'Ctrl+O',
+            shortcut: NavigationBindings.instance.label(
+              NavigationAction.openWorkspace,
+            ),
           ),
           _MenuAction(
             value: 'import',
@@ -2025,6 +2106,7 @@ class _AnimatedContextMenuButtonState<T>
   late final AnimationController _animationController;
   OverlayEntry? _overlayEntry;
   bool _submenuOpen = false;
+  late final FocusNode _triggerFocus = FocusNode(debugLabel: widget.tooltip);
   Object? _menuToken;
 
   static Object? _activeMenuToken;
@@ -2055,6 +2137,7 @@ class _AnimatedContextMenuButtonState<T>
       _activeMenuToken = null;
     }
     _menuToken = null;
+    _triggerFocus.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -2111,63 +2194,92 @@ class _AnimatedContextMenuButtonState<T>
     _activeMenuCloser = _closeMenu;
     final overlay = Overlay.of(context);
     _overlayEntry = OverlayEntry(
-      builder: (overlayContext) => Stack(
-        children: [
-          CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            offset: const Offset(0, 32),
-            child: TapRegion(
-              groupId: _topMenuTapRegionGroup,
-              onTapOutside: (_) => _closeMenu(),
-              child: FadeTransition(
-                opacity: CurvedAnimation(
-                  parent: _animationController,
-                  curve: Curves.easeOut,
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _menuSurface(
-                        widget.actions,
-                        width: widget.menuWidth,
-                        onAction: (action) {
-                          if (action.submenu != null) {
-                            _submenuOpen = !_submenuOpen;
-                            _overlayEntry?.markNeedsBuild();
-                          } else {
-                            widget.onSelected(action.value);
-                            _closeMenu();
-                          }
-                        },
-                      ),
-                      for (final action in widget.actions)
-                        if (_submenuOpen && action.submenu != null) ...[
-                          const SizedBox(width: 5),
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: _submenuTopOffset(widget.actions, action),
-                            ),
-                            child: _menuSurface(
-                              action.submenu!,
-                              width: 160,
-                              onAction: (submenuAction) {
-                                widget.onSelected(submenuAction.value);
+      builder: (overlayContext) => FocusScope(
+        child: Focus(
+          canRequestFocus: false,
+          onKeyEvent: (_, event) {
+            if (event is! KeyDownEvent) return KeyEventResult.ignored;
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              if (_submenuOpen) {
+                _submenuOpen = false;
+                _overlayEntry?.markNeedsBuild();
+              } else {
+                _closeMenu();
+              }
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+                _submenuOpen) {
+              _submenuOpen = false;
+              _overlayEntry?.markNeedsBuild();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Stack(
+            children: [
+              CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                offset: const Offset(0, 32),
+                child: TapRegion(
+                  groupId: _topMenuTapRegionGroup,
+                  onTapOutside: (_) => _closeMenu(),
+                  child: FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: _animationController,
+                      curve: Curves.easeOut,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _menuSurface(
+                            widget.actions,
+                            width: widget.menuWidth,
+                            onAction: (action) {
+                              if (action.submenu != null) {
+                                _submenuOpen = !_submenuOpen;
+                                _overlayEntry?.markNeedsBuild();
+                              } else {
+                                widget.onSelected(action.value);
                                 _closeMenu();
-                              },
-                            ),
+                              }
+                            },
                           ),
+                          for (final action in widget.actions)
+                            if (_submenuOpen && action.submenu != null) ...[
+                              const SizedBox(width: 5),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: _submenuTopOffset(
+                                    widget.actions,
+                                    action,
+                                  ),
+                                ),
+                                child: FocusScope(
+                                  child: _menuSurface(
+                                    action.submenu!,
+                                    width: 160,
+                                    onAction: (submenuAction) {
+                                      widget.onSelected(submenuAction.value);
+                                      _closeMenu();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                         ],
-                    ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     overlay.insert(_overlayEntry!);
@@ -2191,6 +2303,7 @@ class _AnimatedContextMenuButtonState<T>
       _activeMenuToken = null;
     }
     _menuToken = null;
+    _triggerFocus.requestFocus();
     _animationController.reverse().whenCompleteOrCancel(() {
       entry.remove();
     });
@@ -2205,6 +2318,8 @@ class _AnimatedContextMenuButtonState<T>
         message: widget.tooltip,
         child: DesktopHoverTile(
           onTap: _toggleMenu,
+          focusNode: _triggerFocus,
+          label: widget.tooltip,
           borderRadius: BorderRadius.circular(6),
           child: widget.child,
         ),
@@ -2466,37 +2581,41 @@ class _HoverSearchActionState extends State<_HoverSearchAction> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          curve: AppTheme.hoverCurve,
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: _hovered
-                ? context.palette.hover
-                : context.palette.hover.withAlpha(0),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              Icon(widget.icon, size: 17, color: context.palette.text),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  context.hostLabel(widget.label),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.palette.text),
+      child: DesktopFocusableAction(
+        onActivate: widget.onTap,
+        label: context.hostLabel(widget.label),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: AppTheme.hoverDuration,
+            curve: AppTheme.hoverCurve,
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? context.palette.hover
+                  : context.palette.hover.withAlpha(0),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(widget.icon, size: 17, color: context.palette.text),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    context.hostLabel(widget.label),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: context.palette.text),
+                  ),
                 ),
-              ),
-              if (widget.shortcut != null)
-                Text(
-                  widget.shortcut!,
-                  style: TextStyle(color: context.palette.mutedText),
-                ),
-            ],
+                if (widget.shortcut != null)
+                  Text(
+                    widget.shortcut!,
+                    style: TextStyle(color: context.palette.mutedText),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2566,8 +2685,6 @@ class _ActivityRail extends StatelessWidget {
   const _ActivityRail({
     required this.sections,
     required this.selectedSection,
-    required this.modeSwitcherOpen,
-    required this.onModeSwitcher,
     required this.onNavigate,
     required this.onProfile,
     required this.config,
@@ -2577,8 +2694,6 @@ class _ActivityRail extends StatelessWidget {
   });
   final List<NavSection> sections;
   final SectionId selectedSection;
-  final bool modeSwitcherOpen;
-  final VoidCallback onModeSwitcher;
   final ValueChanged<SectionId> onNavigate;
   final VoidCallback onProfile;
   final RailConfiguration config;
@@ -2659,7 +2774,7 @@ class _ActivityRail extends StatelessWidget {
                     ))
                       _RailButton(
                         item: item,
-                        active: !modeSwitcherOpen && item.id == selectedSection,
+                        active: item.id == selectedSection,
                         enabled: true,
                         onTap: item.label == 'User profile button'
                             ? onProfile
@@ -2673,7 +2788,7 @@ class _ActivityRail extends StatelessWidget {
                     ))
                       _RailButton(
                         item: item,
-                        active: !modeSwitcherOpen && item.id == selectedSection,
+                        active: item.id == selectedSection,
                         enabled: true,
                         onTap: () => onNavigate(item.id),
                       ),
@@ -2692,18 +2807,6 @@ class _ActivityRail extends StatelessWidget {
                 ),
               ),
             ),
-            _RailButton(
-              item: const NavSection(
-                id: SectionId.session,
-                label: 'user&dev switcher',
-                icon: Icons.person_outline,
-                modes: {},
-              ),
-              active: modeSwitcherOpen,
-              enabled: true,
-              onTap: onModeSwitcher,
-            ),
-            const SizedBox(height: 2),
             if (config.sections.contains(SectionId.settings))
               _RailButton(
                 item: const NavSection(
@@ -2712,8 +2815,7 @@ class _ActivityRail extends StatelessWidget {
                   icon: Icons.settings_outlined,
                   modes: {},
                 ),
-                active:
-                    !modeSwitcherOpen && selectedSection == SectionId.settings,
+                active: selectedSection == SectionId.settings,
                 enabled: true,
                 onTap: () => onNavigate(SectionId.settings),
               ),
@@ -2753,30 +2855,34 @@ class _RailButtonState extends State<_RailButton> {
       cursor: widget.enabled
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: widget.enabled ? widget.onTap : null,
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          curve: AppTheme.hoverCurve,
-          height: 40,
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          decoration: BoxDecoration(
-            color: _hovered && widget.enabled
-                ? context.palette.hover
-                : widget.active
-                ? context.palette.panel
-                : context.palette.hover.withAlpha(0),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Center(
-            child: DesktopColorTransition(
-              color: widget.active
-                  ? context.palette.text
-                  : widget.enabled
-                  ? context.palette.mutedText
-                  : context.palette.mutedText.withAlpha(110),
-              builder: (context, color) =>
-                  Icon(widget.item.icon, size: 20, color: color),
+      child: DesktopFocusableAction(
+        onActivate: widget.enabled ? widget.onTap : null,
+        label: context.hostLabel(widget.item.label),
+        child: GestureDetector(
+          onTap: widget.enabled ? widget.onTap : null,
+          child: AnimatedContainer(
+            duration: AppTheme.hoverDuration,
+            curve: AppTheme.hoverCurve,
+            height: 40,
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: _hovered && widget.enabled
+                  ? context.palette.hover
+                  : widget.active
+                  ? context.palette.panel
+                  : context.palette.hover.withAlpha(0),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Center(
+              child: DesktopColorTransition(
+                color: widget.active
+                    ? context.palette.text
+                    : widget.enabled
+                    ? context.palette.mutedText
+                    : context.palette.mutedText.withAlpha(110),
+                builder: (context, color) =>
+                    Icon(widget.item.icon, size: 20, color: color),
+              ),
             ),
           ),
         ),
@@ -2851,7 +2957,9 @@ class _Explorer extends StatefulWidget {
 }
 
 class _ExplorerState extends State<_Explorer> {
-  final ScrollController _moduleScrollController = ScrollController();
+  final ScrollController _moduleScrollController = DesktopScrollController(
+    debugLabel: 'explorer modules',
+  );
   final TextEditingController _activeModuleController = TextEditingController();
   final TextEditingController _catalogModuleController =
       TextEditingController();
@@ -3434,143 +3542,53 @@ class _ModuleItemState extends State<_ModuleItem> {
     child: MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          curve: AppTheme.hoverCurve,
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 9),
-          decoration: BoxDecoration(
-            color: widget.selected || _hovered
-                ? context.palette.hover
-                : context.palette.hover.withAlpha(0),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _icon,
-                size: 17,
-                color: widget.catalog
-                    ? context.palette.mutedText
-                    : context.palette.text,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  widget.module.displayName(context),
-                  style: TextStyle(color: context.palette.text, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
+      child: DesktopFocusableAction(
+        onActivate: widget.onTap,
+        label: widget.module.displayName(context),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: AppTheme.hoverDuration,
+            curve: AppTheme.hoverCurve,
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            decoration: BoxDecoration(
+              color: widget.selected || _hovered
+                  ? context.palette.hover
+                  : context.palette.hover.withAlpha(0),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _icon,
+                  size: 17,
+                  color: widget.catalog
+                      ? context.palette.mutedText
+                      : context.palette.text,
                 ),
-              ),
-              Icon(
-                Icons.circle,
-                size: 6,
-                color: widget.module.active
-                    ? context.palette.text
-                    : context.palette.mutedText,
-              ),
-            ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.module.displayName(context),
+                    style: TextStyle(color: context.palette.text, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.circle,
+                  size: 6,
+                  color: widget.module.active
+                      ? context.palette.text
+                      : context.palette.mutedText,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     ),
   );
-}
-
-class _ModeSwitcherPanel extends StatefulWidget {
-  const _ModeSwitcherPanel({required this.current, required this.onSelected});
-
-  final AppMode current;
-  final ValueChanged<AppMode> onSelected;
-
-  @override
-  State<_ModeSwitcherPanel> createState() => _ModeSwitcherPanelState();
-}
-
-class _ModeSwitcherPanelState extends State<_ModeSwitcherPanel> {
-  AppMode? _hoveredMode;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: 62,
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        decoration: BoxDecoration(
-          color: context.palette.panel,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black54,
-              blurRadius: 18,
-              offset: Offset(4, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final mode in AppMode.values)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Tooltip(
-                  message:
-                      '${context.hostLabel(mode.label)}: ${context.hostLabel(mode.hint)}',
-                  waitDuration: const Duration(seconds: 1),
-                  showDuration: const Duration(seconds: 4),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.palette.panel,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  textStyle: TextStyle(
-                    color: context.palette.text,
-                    fontSize: 14,
-                  ),
-                  child: MouseRegion(
-                    onEnter: (_) => setState(() => _hoveredMode = mode),
-                    onExit: (_) => setState(() => _hoveredMode = null),
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () => widget.onSelected(mode),
-                      child: AnimatedContainer(
-                        duration: AppTheme.hoverDuration,
-                        curve: AppTheme.hoverCurve,
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: _hoveredMode == mode || widget.current == mode
-                              ? context.palette.hover
-                              : context.palette.background,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Icon(
-                          switch (mode) {
-                            AppMode.consumer => Icons.person_outline,
-                            AppMode.researcher => Icons.science_outlined,
-                            AppMode.developer => Icons.code_outlined,
-                          },
-                          size: 20,
-                          color: widget.current == mode
-                              ? context.palette.text
-                              : context.palette.mutedText,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _EditorTabs extends StatelessWidget {
@@ -3685,51 +3703,55 @@ class _EditorTabState extends State<_EditorTab> {
   Widget build(BuildContext context) => MouseRegion(
     onEnter: (_) => setState(() => _hovered = true),
     onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      onTap: widget.onSelect,
-      child: AnimatedContainer(
-        duration: AppTheme.hoverDuration,
-        curve: AppTheme.hoverCurve,
-        width: 205,
-        height: 35,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: widget.selected
-              ? context.palette.panel
-              : _hovered && !_closeHovered
-              ? context.palette.hover
-              : context.palette.background,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-        ),
-        child: Row(
-          children: [
-            Icon(_phosphorFor(widget.tab.id), size: 15),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.tab.id == SectionId.extensions &&
-                        widget.tab.label != 'Marketplace'
-                    ? widget.tab.label
-                    : context.hostLabel(widget.tab.label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            MouseRegion(
-              onEnter: (_) => setState(() => _closeHovered = true),
-              onExit: (_) => setState(() => _closeHovered = false),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: DesktopIconButton(
-                  icon: Icons.close,
-                  tooltip: context.l10n.textCloseTab183,
-                  onPressed: widget.onClose,
-                  size: 22,
-                  iconSize: 14,
+    child: DesktopFocusableAction(
+      onActivate: widget.onSelect,
+      label: context.hostLabel(widget.tab.label),
+      child: GestureDetector(
+        onTap: widget.onSelect,
+        child: AnimatedContainer(
+          duration: AppTheme.hoverDuration,
+          curve: AppTheme.hoverCurve,
+          width: 205,
+          height: 35,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? context.palette.panel
+                : _hovered && !_closeHovered
+                ? context.palette.hover
+                : context.palette.background,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          ),
+          child: Row(
+            children: [
+              Icon(_phosphorFor(widget.tab.id), size: 15),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.tab.id == SectionId.extensions &&
+                          widget.tab.label != 'Marketplace'
+                      ? widget.tab.label
+                      : context.hostLabel(widget.tab.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-          ],
+              MouseRegion(
+                onEnter: (_) => setState(() => _closeHovered = true),
+                onExit: (_) => setState(() => _closeHovered = false),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: DesktopIconButton(
+                    icon: Icons.close,
+                    tooltip: context.l10n.textCloseTab183,
+                    onPressed: widget.onClose,
+                    size: 22,
+                    iconSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -4007,22 +4029,28 @@ class _ModuleEditorDialogState extends State<_ModuleEditorDialog> {
                   '7A5B42',
                   '46505C',
                 ])
-                  GestureDetector(
-                    onTap: () => setState(() => _coverColor = color),
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: Color(0xFF000000 | int.parse(color, radix: 16)),
-                        borderRadius: BorderRadius.circular(8),
+                  DesktopFocusableAction(
+                    onActivate: () => setState(() => _coverColor = color),
+                    label: '#$color',
+                    child: GestureDetector(
+                      onTap: () => setState(() => _coverColor = color),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Color(
+                            0xFF000000 | int.parse(color, radix: 16),
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: color == _coverColor
+                            ? const Icon(
+                                Icons.check,
+                                size: 17,
+                                color: Colors.white,
+                              )
+                            : null,
                       ),
-                      child: color == _coverColor
-                          ? const Icon(
-                              Icons.check,
-                              size: 17,
-                              color: Colors.white,
-                            )
-                          : null,
                     ),
                   ),
               ],

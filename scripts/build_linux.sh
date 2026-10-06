@@ -5,6 +5,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 ensure_flutter
 
+# A stock Linux embedder is capped at fallback 60 Hz. Build our ABI-compatible
+# pinned GTK library before packaging; never silently ship the stock fallback.
+bash "${ROOT_DIR}/scripts/build_native_embedder.sh" release
+
 # `flutter analyze` crashes when the checkout path contains non-ASCII/space
 # characters (LSP framing bug in the analysis server). Builders often carry
 # such paths (e.g. ".../Проекты/BCI/BCI Engine"), so static checks go through
@@ -25,4 +29,6 @@ flutter build linux --release "$@"
 BUNDLE="${ROOT_DIR}/app/build/linux/x64/release/bundle"
 [ -f "${BUNDLE}/bci_engine" ] || die "бинарник не найден после сборки"
 [ -f "${BUNDLE}/lib/libbci_engine_core.so" ] || die "libbci_engine_core.so не в бандле"
+NATIVE_ENGINE="${QUALIA_ENGINE_CACHE:-${HOME}/.cache/qualia-native-vsync}/engine/src/out/qualia_release/libflutter_linux_gtk.so"
+cp "${NATIVE_ENGINE}" "${BUNDLE}/lib/libflutter_linux_gtk.so"
 log "linux bundle готов: ${BUNDLE}"

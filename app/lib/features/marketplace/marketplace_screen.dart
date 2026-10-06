@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../core/modules/module_registry.dart';
 import '../../core/modules/module_repository.dart';
@@ -16,8 +17,11 @@ import '../../core/theme/app_palette.dart';
 import '../../state/app_state.dart';
 import '../../state/workspace_state.dart';
 import '../common/widgets.dart';
+import '../common/desktop_scroll.dart';
 import 'catalog_entry.dart';
 import 'catalog_cover.dart';
+import '../../core/workspace/workspace_repository.dart';
+import '../modules/workspace_manager.dart';
 
 typedef CatalogPageLoader = Future<List<SystemModule>> Function(
   int offset,
@@ -29,9 +33,12 @@ class MarketplaceScreen extends ConsumerStatefulWidget {
     super.key,
     this.loadPage,
     this.includePreviews = true,
+    this.loadWorkspacePage,
   });
   final CatalogPageLoader? loadPage;
   final bool includePreviews;
+  final Future<List<PublishedWorkspace>> Function(int offset, int limit)?
+  loadWorkspacePage;
   @override
   ConsumerState<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
@@ -39,8 +46,10 @@ class MarketplaceScreen extends ConsumerStatefulWidget {
 class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   static const _pageSize = 24;
   final _search = TextEditingController();
-  final _scroll = ScrollController();
-  final _filterScroll = ScrollController();
+  final _scroll = DesktopScrollController(debugLabel: 'marketplace catalog');
+  final _filterScroll = DesktopScrollController(
+    debugLabel: 'marketplace filters',
+  );
   final _entries = <CatalogEntry>[];
   final _liked = <String>{};
   MarketplaceKind _kind = MarketplaceKind.extensions;
@@ -57,6 +66,10 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   bool _filterWidthChanged = false;
   String? _error;
   int _offset = 0;
+  bool _workspaceLoading = false;
+  bool _workspaceHasMore = true;
+  int _workspaceOffset = 0;
+  String? _workspaceError;
 
   @override
   void initState() {
@@ -117,6 +130,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   }
 
   Future<void> _load() async {
+    if (_kind == MarketplaceKind.workspaces) return _loadWorkspaces();
     if (_loading || !_hasMore) return;
     setState(() {
       _loading = true;
@@ -151,6 +165,57 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     }
   }
 
+  Future<void> _loadWorkspaces() async {
+    if (_workspaceLoading || !_workspaceHasMore) return;
+    setState(() {
+      _workspaceLoading = true;
+      _workspaceError = null;
+    });
+    try {
+      final items =
+          await (widget.loadWorkspacePage?.call(_workspaceOffset, _pageSize) ??
+              WorkspaceRepository().listPublishedPage(
+                offset: _workspaceOffset,
+                limit: _pageSize,
+              ));
+      if (!mounted) return;
+      setState(() {
+        _entries.addAll(
+          items
+              .where(
+                (item) =>
+                    !_entries.any((old) => old.id == 'workspace:${item.id}'),
+              )
+              .map(
+                (item) => CatalogEntry(
+                  id: 'workspace:${item.id}',
+                  name: item.project.name,
+                  description: item.project.description,
+                  kind: MarketplaceKind.workspaces,
+                  category: 'Workspace',
+                  author: item.author,
+                  license: item.license,
+                  createdAt: item.createdAt,
+                  iconName: 'workspace',
+                  workspace: item,
+                ),
+              ),
+        );
+        _workspaceOffset += items.length;
+        _workspaceHasMore = items.length == _pageSize;
+        _workspaceLoading = false;
+      });
+      _fillViewport();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _workspaceError = 'workspaces';
+          _workspaceLoading = false;
+        });
+      }
+    }
+  }
+
   void _maybeLoadMore() {
     if (_scroll.hasClients && _scroll.position.extentAfter < 450) _load();
   }
@@ -158,8 +223,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   void _fillViewport() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted &&
-          _hasMore &&
-          _error == null &&
+          (_kind == MarketplaceKind.workspaces
+              ? _workspaceHasMore
+              : _hasMore) &&
+          (_kind == MarketplaceKind.workspaces ? _workspaceError : _error) ==
+              null &&
           (!_scroll.hasClients || _scroll.position.extentAfter < 450)) {
         _load();
       }
@@ -236,6 +304,72 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   }
 
   Future<void> _details(CatalogEntry entry) async {
+    if (entry.workspace != null) {
+      final project = entry.workspace!.project;
+      final install = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(project.name),
+          content: SizedBox(
+            width: 490,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(project.description),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.l10n.workspaceGraphSummary(
+                      project.nodes.length,
+                      project.links.length,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('${context.l10n.textLicense103}: ${entry.license}'),
+                  const SizedBox(height: 16),
+                  Text(context.l10n.workspaceInstallNotice),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.l10n.textClose110),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.l10n.workspaceInstall),
+            ),
+          ],
+        ),
+      );
+      if (install != true || !mounted) return;
+      try {
+        await installWorkspace(context, ref, project);
+      } catch (error) {
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              error is WorkspaceDependencyException
+                  ? context.l10n.workspaceDependenciesUnavailable
+                  : context.l10n.workspaceOperationFailed,
+            ),
+            content: Text('$error'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(context.l10n.textClose110),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
     final connected = ref
         .read(workspaceProvider)
         .library
@@ -344,6 +478,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loading = _kind == MarketplaceKind.workspaces
+        ? _workspaceLoading
+        : _loading;
+    final error = _kind == MarketplaceKind.workspaces
+        ? _workspaceError
+        : _error;
     final connected = ref
         .watch(workspaceProvider)
         .library
@@ -396,7 +536,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                   vertical: 9,
                                 ),
                                 child: Text(
-                                  context.hostLabel(marketplaceKindLabel(kind)),
+                                  kind == MarketplaceKind.workspaces
+                                      ? context.l10n.workspacesTitle
+                                      : context.hostLabel(
+                                          marketplaceKindLabel(kind),
+                                        ),
                                   style: TextStyle(
                                     color: kind == _kind
                                         ? context.palette.text
@@ -583,10 +727,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                         20,
                                       ),
                                       sliver: _view == 'List'
-                                          ? SliverFixedExtentList(
-                                              itemExtent: bounds.maxWidth >= 660
-                                                  ? 270
-                                                  : 474,
+                                          ? SliverList(
                                               delegate:
                                                   SliverChildBuilderDelegate(
                                                     (context, index) => Padding(
@@ -594,68 +735,87 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                                           const EdgeInsets.only(
                                                             bottom: 14,
                                                           ),
-                                                      child: _CatalogCard(
-                                                        entry: items[index],
-                                                        liked: _liked.contains(
-                                                          items[index].id,
-                                                        ),
-                                                        connected: connected
-                                                            .contains(
-                                                              items[index].id,
-                                                            ),
-                                                        horizontal:
+                                                      child: SizedBox(
+                                                        height:
                                                             bounds.maxWidth >=
-                                                            660,
-                                                        onLike: () =>
-                                                            _like(items[index]),
-                                                        onOpen: () => _details(
-                                                          items[index],
+                                                                660
+                                                            ? 256
+                                                            : null,
+                                                        child: _CatalogCard(
+                                                          adaptive:
+                                                              bounds.maxWidth <
+                                                              660,
+                                                          entry: items[index],
+                                                          liked: _liked
+                                                              .contains(
+                                                                items[index].id,
+                                                              ),
+                                                          connected: connected
+                                                              .contains(
+                                                                items[index].id,
+                                                              ),
+                                                          horizontal:
+                                                              bounds.maxWidth >=
+                                                              660,
+                                                          onLike: () => _like(
+                                                            items[index],
+                                                          ),
+                                                          onOpen: () =>
+                                                              _details(
+                                                                items[index],
+                                                              ),
                                                         ),
                                                       ),
                                                     ),
                                                     childCount: items.length,
                                                   ),
                                             )
-                                          : SliverGrid(
-                                              delegate:
-                                                  SliverChildBuilderDelegate(
-                                                    (
-                                                      context,
-                                                      index,
-                                                    ) => _CatalogCard(
-                                                      entry: items[index],
-                                                      liked: _liked.contains(
-                                                        items[index].id,
-                                                      ),
-                                                      connected: connected
-                                                          .contains(
-                                                            items[index].id,
-                                                          ),
-                                                      onLike: () =>
-                                                          _like(items[index]),
-                                                      onOpen: () => _details(
-                                                        items[index],
-                                                      ),
-                                                    ),
-                                                    childCount: items.length,
-                                                  ),
+                                          : SliverMasonryGrid(
                                               gridDelegate:
-                                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                                  SliverSimpleGridDelegateWithFixedCrossAxisCount(
                                                     crossAxisCount: columns,
-                                                    crossAxisSpacing: 14,
-                                                    mainAxisSpacing: 14,
-                                                    mainAxisExtent: 460,
                                                   ),
+                                              crossAxisSpacing: 14,
+                                              mainAxisSpacing: 14,
+                                              delegate: SliverChildBuilderDelegate(
+                                                (
+                                                  context,
+                                                  index,
+                                                ) => _CatalogCard(
+                                                  key: ValueKey(
+                                                    'catalog card ${items[index].id}',
+                                                  ),
+                                                  adaptive: true,
+                                                  entry: items[index],
+                                                  liked: _liked.contains(
+                                                    items[index].id,
+                                                  ),
+                                                  connected: connected.contains(
+                                                    items[index].id,
+                                                  ),
+                                                  onLike: () =>
+                                                      _like(items[index]),
+                                                  onOpen: () =>
+                                                      _details(items[index]),
+                                                ),
+                                                childCount: items.length,
+                                              ),
                                             ),
                                     ),
-                                    if (_error != null)
+                                    if (error != null)
                                       SliverToBoxAdapter(
                                         child: Padding(
                                           padding: const EdgeInsets.all(24),
                                           child: Column(
                                             children: [
                                               Text(
-                                                context.hostLabel(_error!),
+                                                _kind ==
+                                                        MarketplaceKind
+                                                            .workspaces
+                                                    ? context
+                                                          .l10n
+                                                          .workspaceCatalogUnavailable
+                                                    : context.hostLabel(error),
                                                 style: TextStyle(
                                                   color:
                                                       context.palette.mutedText,
@@ -671,7 +831,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                           ),
                                         ),
                                       ),
-                                    if (_loading)
+                                    if (loading)
                                       const SliverToBoxAdapter(
                                         child: Padding(
                                           padding: EdgeInsets.all(24),
@@ -687,8 +847,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                         ),
                                       ),
                                     if (items.isEmpty &&
-                                        !_loading &&
-                                        _error == null)
+                                        !loading &&
+                                        error == null)
                                       SliverFillRemaining(
                                         hasScrollBody: false,
                                         child: Center(
@@ -877,20 +1037,23 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
           ),
           const SizedBox(height: 12),
           _filterBlock(context.l10n.textLicense103, [
-            for (final license in ['All', ...licenses])
-              _FilterOption(
-                label:
-                    license == 'All' ||
-                        license == 'Unspecified' ||
-                        license == 'Proprietary'
-                    ? context.hostLabel(license)
-                    : license,
-                selected: _license == license,
-                onTap: () {
-                  _filterChanged(() => _license = license);
-                  onUpdate?.call(() {});
-                },
-              ),
+            DesktopSelectField<String>(
+              key: const ValueKey('marketplace license filter'),
+              label: context.l10n.textLicense103,
+              showLabel: false,
+              valueLabel: context.hostLabel(_license),
+              entries: [
+                for (final license in ['All', ...licenses])
+                  DesktopMenuEntry(
+                    value: license,
+                    label: context.hostLabel(license),
+                  ),
+              ],
+              onSelected: (license) {
+                _filterChanged(() => _license = license);
+                onUpdate?.call(() {});
+              },
+            ),
           ]),
           const SizedBox(height: 12),
           _filterBlock(context.l10n.textPublished465, [
@@ -904,31 +1067,33 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 },
               ),
           ]),
-          const SizedBox(height: 12),
-          _filterBlock(context.l10n.textAvailability466, [
-            _FilterOption(
-              label: _kind == MarketplaceKind.themes
-                  ? context.l10n.textBuiltInConnected467
-                  : context.l10n.textInWorkspace468,
-              selected: _connectedOnly,
-              onTap: () {
-                _filterChanged(() => _connectedOnly = !_connectedOnly);
-                onUpdate?.call(() {});
-              },
-            ),
-            if (widget.includePreviews)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(
-                  context.l10n.textPreviewEntriesAreLocalUIPlaceholdersNot469,
-                  style: TextStyle(
-                    color: context.palette.mutedText,
-                    fontSize: 14,
-                    height: 1.5,
+          if (_kind != MarketplaceKind.workspaces) ...[
+            const SizedBox(height: 12),
+            _filterBlock(context.l10n.textAvailability466, [
+              _FilterOption(
+                label: _kind == MarketplaceKind.themes
+                    ? context.l10n.textBuiltInConnected467
+                    : context.l10n.textInWorkspace468,
+                selected: _connectedOnly,
+                onTap: () {
+                  _filterChanged(() => _connectedOnly = !_connectedOnly);
+                  onUpdate?.call(() {});
+                },
+              ),
+              if (widget.includePreviews)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    context.l10n.textPreviewEntriesAreLocalUIPlaceholdersNot469,
+                    style: TextStyle(
+                      color: context.palette.mutedText,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
                 ),
-              ),
-          ]),
+            ]),
+          ],
         ],
       ),
     );
@@ -999,12 +1164,14 @@ class _FilterOption extends StatelessWidget {
 
 class _CatalogCard extends StatelessWidget {
   const _CatalogCard({
+    super.key,
     required this.entry,
     required this.liked,
     required this.connected,
     required this.onLike,
     required this.onOpen,
     this.horizontal = false,
+    this.adaptive = false,
   });
   final CatalogEntry entry;
   final bool liked;
@@ -1012,11 +1179,13 @@ class _CatalogCard extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onOpen;
   final bool horizontal;
+  final bool adaptive;
+  Widget _fill(Widget child) => adaptive ? child : Expanded(child: child);
   String _count(BuildContext context, int? count) => count == null
       ? '—'
       : NumberFormat.compact(locale: context.l10n.localeName).format(count);
   String _date(BuildContext context, DateTime? date) => date == null
-      ? (entry.module == null ? context.hostLabel('Built-in') : '—')
+      ? (entry.themeMode != null ? context.hostLabel('Built-in') : '—')
       : DateFormat.yMMMd(context.l10n.localeName).format(date.toLocal());
   @override
   Widget build(BuildContext context) => ClipRRect(
@@ -1030,10 +1199,8 @@ class _CatalogCard extends StatelessWidget {
         direction: horizontal ? Axis.horizontal : Axis.vertical,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: horizontal ? 230 : null,
-            height: horizontal ? null : 220,
-            child: Stack(
+          _cover(
+            Stack(
               fit: StackFit.expand,
               children: [
                 CatalogCover(
@@ -1062,10 +1229,11 @@ class _CatalogCard extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(
-            child: Padding(
+          _fill(
+            Padding(
               padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
               child: Column(
+                mainAxisSize: adaptive ? MainAxisSize.min : MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
@@ -1082,6 +1250,7 @@ class _CatalogCard extends StatelessWidget {
                           children: [
                             Text(
                               entry.displayName(context),
+                              maxLines: adaptive ? 2 : 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 14,
@@ -1105,10 +1274,10 @@ class _CatalogCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 7),
-                  Expanded(
-                    child: Text(
+                  _fill(
+                    Text(
                       entry.displayDescription(context),
-                      maxLines: 2,
+                      maxLines: adaptive ? 4 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: context.palette.mutedText,
@@ -1117,6 +1286,7 @@ class _CatalogCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (adaptive) const SizedBox(height: 10),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -1214,4 +1384,15 @@ class _CatalogCard extends StatelessWidget {
       ),
     ),
   );
+
+  Widget _cover(Widget child) {
+    final cover = AspectRatio(
+      key: ValueKey('catalog cover ${entry.id}'),
+      aspectRatio: 16 / 9,
+      child: RepaintBoundary(child: child),
+    );
+    return horizontal
+        ? SizedBox(width: 230, child: Center(child: cover))
+        : cover;
+  }
 }

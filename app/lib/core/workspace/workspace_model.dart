@@ -4,6 +4,33 @@ import 'package:flutter/material.dart';
 
 import '../modules/module_registry.dart';
 
+/// Stable host-owned color groups; never stored in author parameters.
+enum WorkspaceNodeColor {
+  none,
+  red,
+  orange,
+  yellow,
+  green,
+  blue,
+  purple;
+
+  static WorkspaceNodeColor fromJson(dynamic value) =>
+      values.where((color) => color.name == value).firstOrNull ?? none;
+}
+
+/// Host-owned port annotations; independent of manifest IDs and parameters.
+enum WorkspacePortType {
+  any,
+  string,
+  number,
+  boolean,
+  list,
+  object;
+
+  static WorkspacePortType fromJson(dynamic value) =>
+      values.where((type) => type.name == value).firstOrNull ?? any;
+}
+
 /// Host-owned graph. Module instances are distinct from catalog entries.
 class WorkspaceNode {
   WorkspaceNode({
@@ -15,8 +42,21 @@ class WorkspaceNode {
     List<String>? inputs,
     List<String>? outputs,
     Map<String, dynamic>? settings,
+    this.headerColor = WorkspaceNodeColor.none,
+    Map<String, WorkspaceNodeColor>? inputColors,
+    Map<String, WorkspaceNodeColor>? outputColors,
+    Map<String, String>? inputLabels,
+    Map<String, String>? outputLabels,
+    Map<String, WorkspacePortType>? inputTypes,
+    Map<String, WorkspacePortType>? outputTypes,
   }) : inputs = inputs ?? ['input'],
        outputs = outputs ?? ['output'],
+       inputColors = inputColors ?? {},
+       outputColors = outputColors ?? {},
+       inputLabels = inputLabels ?? {},
+       outputLabels = outputLabels ?? {},
+       inputTypes = inputTypes ?? {},
+       outputTypes = outputTypes ?? {},
        settings = settings ?? {},
        width = width.isFinite ? width.clamp(minWidth, maxSize) : defaultWidth,
        preferredHeight = height != null && height.isFinite
@@ -25,20 +65,37 @@ class WorkspaceNode {
   final String id;
   SystemModule module;
   Offset position;
+  WorkspaceNodeColor headerColor;
+  final Map<String, WorkspaceNodeColor> inputColors;
+  final Map<String, WorkspaceNodeColor> outputColors;
+  final Map<String, String> inputLabels;
+  final Map<String, String> outputLabels;
+  final Map<String, WorkspacePortType> inputTypes;
+  final Map<String, WorkspacePortType> outputTypes;
+  String portLabel(String port, bool output) =>
+      (output ? outputLabels : inputLabels)[port] ?? port;
+  WorkspacePortType portType(String port, bool output) =>
+      (output ? outputTypes : inputTypes)[port] ?? WorkspacePortType.any;
+  WorkspaceNodeColor portColor(String port, bool output) =>
+      (output ? outputColors : inputColors)[port] ?? WorkspaceNodeColor.none;
   static const defaultWidth = 300.0;
   static const minWidth = 280.0;
   static const maxSize = 2000.0;
   static const headerHeight = 44.0;
-  static const categoryHeight = 24.0;
+  static const portsTopPadding = 8.0;
   static const portRowHeight = 32.0;
   double width;
   double preferredHeight;
   final List<String> inputs;
   final List<String> outputs;
   final Map<String, dynamic> settings;
+
+  /// Volatile runtime output, never saved into a workspace or author settings.
+  final Map<String, dynamic> runtimeValues = {};
+  String? runtimeStatus;
   // Minimum size follows the port count; manual height never clips new ports.
   double get minHeight =>
-      160 + math.max(inputs.length, outputs.length) * portRowHeight;
+      144 + math.max(inputs.length, outputs.length) * portRowHeight;
   double get height => math.max(minHeight, preferredHeight);
   void resize(Size size) {
     if (!size.width.isFinite || !size.height.isFinite) return;
@@ -52,11 +109,11 @@ class WorkspaceNode {
         output ? width - 6 : 6,
         1 +
             headerHeight +
-            categoryHeight +
+            portsTopPadding +
             portRowHeight / 2 +
             (output ? outputs : inputs).indexOf(port) * portRowHeight,
       );
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'id': id,
     'module': module.toWorkspaceJson(),
     'x': position.dx,
@@ -66,22 +123,77 @@ class WorkspaceNode {
     'inputs': inputs,
     'outputs': outputs,
     'settings': settings,
+    if (includeRuntime) 'runtimeValues': runtimeValues,
+    if (includeRuntime) 'runtimeStatus': runtimeStatus,
+    'headerColor': headerColor.name,
+    'inputColors': inputColors.map((port, color) => MapEntry(port, color.name)),
+    'outputColors': outputColors.map(
+      (port, color) => MapEntry(port, color.name),
+    ),
+    'inputLabels': inputLabels,
+    'outputLabels': outputLabels,
+    'inputTypes': inputTypes.map((port, type) => MapEntry(port, type.name)),
+    'outputTypes': outputTypes.map((port, type) => MapEntry(port, type.name)),
   };
-  factory WorkspaceNode.fromJson(Map<String, dynamic> json) => WorkspaceNode(
-    id: json['id'] as String,
-    module: SystemModule.fromJson(
-      Map<String, dynamic>.from(json['module'] as Map),
-    ),
-    position: Offset(
-      (json['x'] as num).toDouble(),
-      (json['y'] as num).toDouble(),
-    ),
-    width: (json['width'] as num?)?.toDouble() ?? defaultWidth,
-    height: (json['height'] as num?)?.toDouble(),
-    inputs: List<String>.from(json['inputs'] as List),
-    outputs: List<String>.from(json['outputs'] as List),
-    settings: Map<String, dynamic>.from(json['settings'] as Map? ?? {}),
-  );
+  factory WorkspaceNode.fromJson(Map<String, dynamic> json) {
+    final node = WorkspaceNode(
+      id: json['id'] as String,
+      module: SystemModule.fromJson(
+        Map<String, dynamic>.from(json['module'] as Map),
+      ),
+      position: Offset(
+        (json['x'] as num).toDouble(),
+        (json['y'] as num).toDouble(),
+      ),
+      width: (json['width'] as num?)?.toDouble() ?? defaultWidth,
+      height: (json['height'] as num?)?.toDouble(),
+      inputs: List<String>.from(json['inputs'] as List),
+      outputs: List<String>.from(json['outputs'] as List),
+      settings: Map<String, dynamic>.from(json['settings'] as Map? ?? {}),
+      headerColor: WorkspaceNodeColor.fromJson(json['headerColor']),
+      inputColors: _portColorsFromJson(json['inputColors']),
+      outputColors: _portColorsFromJson(json['outputColors']),
+      inputLabels: _portLabelsFromJson(json['inputLabels']),
+      outputLabels: _portLabelsFromJson(json['outputLabels']),
+      inputTypes: _portTypesFromJson(json['inputTypes']),
+      outputTypes: _portTypesFromJson(json['outputTypes']),
+    );
+    if (json['runtimeValues'] is Map) {
+      node.runtimeValues.addAll(
+        Map<String, dynamic>.from(json['runtimeValues'] as Map),
+      );
+    }
+    node.runtimeStatus = json['runtimeStatus'] as String?;
+    return node;
+  }
+
+  static Map<String, WorkspaceNodeColor> _portColorsFromJson(dynamic json) =>
+      json is Map
+      ? {
+          for (final entry in json.entries)
+            if (entry.key is String)
+              entry.key as String: WorkspaceNodeColor.fromJson(entry.value),
+        }
+      : {};
+
+  static Map<String, String> _portLabelsFromJson(dynamic json) => json is Map
+      ? {
+          for (final entry in json.entries)
+            if (entry.key is String &&
+                entry.value is String &&
+                (entry.value as String).trim().isNotEmpty)
+              entry.key as String: (entry.value as String).trim(),
+        }
+      : {};
+
+  static Map<String, WorkspacePortType> _portTypesFromJson(dynamic json) =>
+      json is Map
+      ? {
+          for (final entry in json.entries)
+            if (entry.key is String)
+              entry.key as String: WorkspacePortType.fromJson(entry.value),
+        }
+      : {};
 }
 
 class WorkspaceLink {

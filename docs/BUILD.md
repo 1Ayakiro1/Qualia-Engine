@@ -13,6 +13,8 @@
 ./scripts/check_version.sh   # VERSION == version.h == pubspec.yaml
 ./scripts/analyze.sh         # статический анализ (dart analyze, см. ниже)
 ./scripts/build_core.sh      # ядро + Catch2 тесты
+./scripts/build_native_embedder.sh release # Flutter GTK с native vsync
+./scripts/test_native_vsync.sh # native bridge и перевод времён кадра
 ./scripts/build_linux.sh     # анализ + release-бандл (включая libbci_engine_core.so)
 ./scripts/package_linux.sh   # portable tar.gz
 ./scripts/build_appimage.sh  # AppImage (appimagetool, скачивается в tools/)
@@ -23,14 +25,25 @@
 > кириллицей/пробелами (баг LSP-фрейминга анализ-сервера). Используйте
 > `./scripts/analyze.sh`.
 
+Linux pipeline автоматически собирает pinned custom GTK embedder и включает
+его в bundle/AppImage/tarball, не меняя Flutter SDK пользователя.
+Первая сборка engine требует сети, нескольких десятков GB в
+`~/.cache/qualia-native-vsync` и заметного времени; далее используется
+инкрементальная сборка. `QUALIA_ENGINE_CACHE` меняет каталог,
+`QUALIA_ENGINE_JOBS` — число compile jobs (по умолчанию 4).
+Скрипт проверяет engine revision, чтобы исключить смешивание ABI/snapshot версий.
+Native vsync и диагностика частоты описаны в `docs/PERFORMANCE.md`.
+
 Артефакты складываются в `builds/` (папка в корне репозитория):
 
 - `Ayakiro_BCI_Engine-<v>-x86_64.AppImage`
 - `Ayakiro_BCI_Engine-<v>-linux-x64.tar.gz`
 - бинарник: `builds/binary/bci_engine` (готовый бандл, запускается напрямую)
 
-Старые версии артефактов автоматически удаляются при упаковке — в `builds/`
-всегда лежит только свежая сборка.
+Старые версии артефактов сохраняются. Предыдущий raw bundle при упаковке
+перемещается в `binary-previous-<timestamp>/`. Для проверочной сборки без замены
+пользовательских файлов задайте `DIST_OUT=/tmp/opencode/<каталог>`; после проверки
+обновите актуальные AppImage/tarball/bundle в `builds/`, сохранив прежние файлы.
 
 ## Windows / macOS
 

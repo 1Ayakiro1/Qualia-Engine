@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_palette.dart';
 import '../../l10n/app_strings.dart';
 import '../common/desktop_menu.dart';
+import '../common/widgets.dart';
 
 /// Allowlisted declarative controls. Extension code never receives a context.
 class ModuleControls extends StatelessWidget {
@@ -117,7 +118,7 @@ class _ModuleControl extends StatelessWidget {
                 .take(64)
                 .toList();
         return DesktopSelectField<String>(
-          key: ValueKey('$id-$value'),
+          key: ValueKey('select-$id'),
           label: label,
           valueLabel: options.contains(value)
               ? (localizePreview
@@ -135,13 +136,10 @@ class _ModuleControl extends StatelessWidget {
         );
       case 'text':
       case 'number':
-        return TextFormField(
-          initialValue: value?.toString() ?? '',
-          style: const TextStyle(fontSize: 14),
-          decoration: InputDecoration(labelText: label),
-          keyboardType: field['type'] == 'number'
-              ? TextInputType.number
-              : TextInputType.text,
+        return _ModuleTextField(
+          value: value?.toString() ?? '',
+          label: label,
+          numeric: field['type'] == 'number',
           onChanged: (next) {
             if (field['type'] == 'number') {
               final parsed = num.tryParse(next);
@@ -152,13 +150,16 @@ class _ModuleControl extends StatelessWidget {
           },
         );
       case 'button':
-        return OutlinedButton(
+        return DesktopIconButton(
           onPressed: () => onChanged(id, true),
-          child: Text(label),
+          icon: Icons.play_arrow_outlined,
+          label: label,
+          tooltip: label,
+          size: 34,
         );
       case 'label':
         return Text(
-          label,
+          values.containsKey(id) ? '$label: ${values[id]}' : label,
           style: TextStyle(
             color: context.palette.mutedText,
             fontSize: 14,
@@ -169,4 +170,65 @@ class _ModuleControl extends StatelessWidget {
         return const SizedBox.shrink();
     }
   }
+}
+
+/// Text fields must accept host updates without recreating their focus/caret
+/// on every keystroke (including round trips from a separate module window).
+class _ModuleTextField extends StatefulWidget {
+  const _ModuleTextField({
+    required this.value,
+    required this.label,
+    required this.numeric,
+    required this.onChanged,
+  });
+  final String value;
+  final String label;
+  final bool numeric;
+  final ValueChanged<String> onChanged;
+  @override
+  State<_ModuleTextField> createState() => _ModuleTextFieldState();
+}
+
+class _ModuleTextFieldState extends State<_ModuleTextField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
+  @override
+  void didUpdateWidget(covariant _ModuleTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value && widget.value != _controller.text) {
+      if (widget.numeric &&
+          num.tryParse(_controller.text) == num.tryParse(widget.value)) {
+        return;
+      }
+      final selection = _controller.selection;
+      _controller.value = TextEditingValue(
+        text: widget.value,
+        selection: selection.isValid
+            ? TextSelection(
+                baseOffset: selection.baseOffset.clamp(0, widget.value.length),
+                extentOffset: selection.extentOffset.clamp(
+                  0,
+                  widget.value.length,
+                ),
+              )
+            : TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: _controller,
+    style: const TextStyle(fontSize: 14),
+    decoration: InputDecoration(labelText: widget.label),
+    keyboardType: widget.numeric ? TextInputType.number : TextInputType.text,
+    onChanged: widget.onChanged,
+  );
 }

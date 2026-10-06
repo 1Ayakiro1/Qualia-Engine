@@ -1,4 +1,4 @@
-/// A module authored by a signed-in user and stored in the remote catalog.
+/// Module metadata. Local installation identity is independent of the catalog.
 ///
 /// The name is retained while existing workspace widgets are migrated away
 /// from their old local system-module stubs.
@@ -20,6 +20,7 @@ class SystemModule {
     this.updatedAt,
     this.publisher,
     this.releaseId,
+    this.localPackage,
   });
 
   /// Catalog slug (unique, user-authored id).
@@ -40,6 +41,10 @@ class SystemModule {
   final String? publisher;
   final String? releaseId;
 
+  /// Content hash of a host-installed, explicitly trusted native package.
+  final String? localPackage;
+  bool get isLocal => localPackage != null;
+
   SystemModule withManifest(Map<String, dynamic> value) => SystemModule(
     id: id,
     name: name,
@@ -57,6 +62,7 @@ class SystemModule {
     updatedAt: updatedAt,
     publisher: publisher,
     releaseId: releaseId,
+    localPackage: localPackage,
   );
 
   Map<String, dynamic> toWorkspaceJson() => {
@@ -72,6 +78,7 @@ class SystemModule {
     'manifest': manifest,
     'publisher': publisher,
     'release_id': releaseId,
+    'local_package': localPackage,
     'created_at': createdAt?.toIso8601String(),
     'updated_at': updatedAt?.toIso8601String(),
   };
@@ -92,5 +99,6 @@ class SystemModule {
     updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? ''),
     publisher: json['publisher'] as String?,
     releaseId: json['release_id'] as String?,
+    localPackage: json['local_package'] as String?,
   );
 }

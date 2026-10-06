@@ -7,6 +7,7 @@ import 'features/shell/app_shell.dart';
 import 'state/app_state.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/locale_controller.dart';
+import 'features/common/navigation_bindings.dart';
 
 /// Root widget of the Ayakiro BCI Engine application.
 ///
@@ -77,7 +78,7 @@ class _BciAppState extends ConsumerState<BciApp>
               AppPalette.light,
               _appearance.value,
             ),
-            child: child ?? const SizedBox.shrink(),
+            child: NavigationScope(child: child ?? const SizedBox.shrink()),
           ),
         );
       },

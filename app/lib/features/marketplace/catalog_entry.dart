@@ -4,8 +4,9 @@ import '../../l10n/app_strings.dart';
 import '../../l10n/module_strings.dart';
 
 import '../../core/modules/module_registry.dart';
+import '../../core/workspace/workspace_repository.dart';
 
-enum MarketplaceKind { extensions, modules, themes }
+enum MarketplaceKind { extensions, modules, themes, workspaces }
 
 class CatalogEntry {
   const CatalogEntry({
@@ -20,6 +21,7 @@ class CatalogEntry {
     this.themeMode,
     this.coverUrl,
     this.coverColor = const Color(0xFF35576A),
+    this.coverAspectRatio = 1.6,
     this.pattern = 'waves',
     this.iconName = 'module',
     this.downloads,
@@ -27,6 +29,7 @@ class CatalogEntry {
     this.createdAt,
     this.updatedAt,
     this.license = 'Unspecified',
+    this.workspace,
   });
   final String id;
   final String name;
@@ -39,6 +42,9 @@ class CatalogEntry {
   final ThemeMode? themeMode;
   final String? coverUrl;
   final Color coverColor;
+
+  /// Width / height supplied by the publisher; unknown covers use landscape.
+  final double coverAspectRatio;
   final String pattern;
   final String iconName;
   final int? downloads;
@@ -46,6 +52,7 @@ class CatalogEntry {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String license;
+  final PublishedWorkspace? workspace;
   bool get isPreview => module?.isLocalPreview == true;
   String displayLicense(BuildContext context) =>
       license == 'Unspecified' || license == 'Proprietary'
@@ -73,6 +80,21 @@ class CatalogEntry {
         .replaceFirst('#', '');
     final color = int.tryParse(rawColor, radix: 16);
     final url = cover['image'] is String ? cover['image'] as String : null;
+    final ratio = cover['aspectRatio'];
+    final width = cover['width'];
+    final height = cover['height'];
+    final dimensionsRatio =
+        width is num &&
+            height is num &&
+            width.isFinite &&
+            height.isFinite &&
+            width > 0 &&
+            height > 0
+        ? width / height
+        : null;
+    final aspectRatio = ratio is num && ratio.isFinite && ratio > 0
+        ? ratio.toDouble()
+        : dimensionsRatio ?? 1.6;
     return CatalogEntry(
       id: module.id,
       name: module.name,
@@ -92,6 +114,7 @@ class CatalogEntry {
           .toList(),
       module: module,
       coverUrl: Uri.tryParse(url ?? '')?.scheme == 'https' ? url : null,
+      coverAspectRatio: aspectRatio.clamp(.75, 2.4),
       coverColor: color == null
           ? const Color(0xFF35576A)
           : Color(0xFF000000 | color),
@@ -116,10 +139,12 @@ String marketplaceKindLabel(MarketplaceKind kind) => switch (kind) {
   MarketplaceKind.extensions => 'Extensions',
   MarketplaceKind.modules => 'Modules',
   MarketplaceKind.themes => 'Themes',
+  MarketplaceKind.workspaces => 'Workspaces',
 };
 
 IconData catalogIcon(String name) => switch (name) {
   'signal' => Icons.graphic_eq,
+  'workspace' => Icons.account_tree_outlined,
   'brain' => Icons.psychology_outlined,
   'terrain' => Icons.terrain_outlined,
   'notes' => Icons.sticky_note_2_outlined,

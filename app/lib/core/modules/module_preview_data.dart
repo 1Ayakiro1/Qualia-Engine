@@ -54,6 +54,7 @@ final previewModules = List<SystemModule>.generate(24, (index) {
         'color': const ['#35576A', '#555070', '#3C665A', '#7A5B42'][index % 4],
         'pattern': const ['waves', 'contours', 'grid'][index % 3],
         'icon': const ['signal', 'brain', 'chart', 'terrain'][index % 4],
+        'aspectRatio': const [1.8, 1.0, 1.4, .85][index % 4],
       },
       'ports': {
         'inputs': type == 0 ? <String>[] : ['signal'],
@@ -144,6 +145,7 @@ final previewExtensions = List<SystemModule>.generate(12, (index) {
         'color': const ['#555070', '#35576A', '#3C665A', '#7A5B42'][index % 4],
         'pattern': 'contours',
         'icon': 'notes',
+        'aspectRatio': const [1.8, 1.0, 1.4, .85][index % 4],
       },
       'rail': {'icon': 'notes'},
       'ui': [

@@ -1,299 +1,234 @@
-import '../../l10n/app_strings.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/logging/app_logger.dart';
-import '../../core/logging/log_entry.dart';
 import '../../core/theme/app_palette.dart';
+import '../../l10n/app_strings.dart';
 import '../common/widgets.dart';
+import '../common/navigation_bindings.dart';
+import 'navigation_shortcuts.dart';
 
-/// Shared keyboard-shortcuts surface used by Preferences and global search.
-/// Keeping the editor in one widget prevents the two entry points from drifting
-/// apart visually or functionally.
-class KeyboardShortcutsPanel extends StatefulWidget {
+/// Shared editable navigation preferences, also opened from global search.
+class KeyboardShortcutsPanel extends StatelessWidget {
   const KeyboardShortcutsPanel({super.key, this.compact = false, this.onClose});
-
   final bool compact;
   final VoidCallback? onClose;
 
-  @override
-  State<KeyboardShortcutsPanel> createState() => _KeyboardShortcutsPanelState();
-}
-
-class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
-  bool _editing = false;
-  final Map<String, String> _shortcuts = <String, String>{
-    'Open project': 'Ctrl+O',
-    'Find module': 'Ctrl+Shift+M',
-    'Increase interface scale': 'Ctrl++',
-    'Decrease interface scale': 'Ctrl+-',
-    'Reset interface scale': 'Ctrl+0',
-  };
-
-  static const Map<String, List<String>> _groups = <String, List<String>>{
-    'WORKSPACE': <String>['Open project', 'Find module'],
-    'INTERFACE': <String>[
-      'Increase interface scale',
-      'Decrease interface scale',
-      'Reset interface scale',
-    ],
-  };
+  Future<void> _edit(BuildContext context, NavigationShortcut shortcut) async {
+    final chord = await showDialog<NavigationChord>(
+      context: context,
+      builder: (_) => _CaptureDialog(shortcut: shortcut),
+    );
+    if (chord != null) {
+      await NavigationBindings.instance.setBinding(shortcut.action, chord);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      if (!widget.compact) ...[
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                context.l10n.textKeyboardShortcuts358,
-                style: TextStyle(
-                  color: context.palette.text,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: NavigationBindings.instance,
+    builder: (context, _) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!compact) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.navigationTitle,
+                  style: TextStyle(
+                    color: context.palette.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            if (widget.onClose != null)
-              DesktopIconButton(
-                onPressed: widget.onClose,
-                icon: Icons.close,
-                iconSize: 17,
-                tooltip: context.l10n.textClose110,
-              ),
-          ],
+              if (onClose != null)
+                DesktopIconButton(
+                  onPressed: onClose,
+                  icon: Icons.close,
+                  tooltip: context.l10n.textClose110,
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+        Text(
+          context.l10n.navigationDescription,
+          style: TextStyle(color: context.palette.mutedText, fontSize: 14),
         ),
-        const SizedBox(height: 28),
-      ],
-      Expanded(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              for (final group in _groups.entries) ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
-                    child: Text(
-                      context.hostLabel(group.key),
-                      style: TextStyle(
-                        color: context.palette.mutedText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: .8,
+        const SizedBox(height: 16),
+        Expanded(
+          child: SingleChildScrollView(
+            key: const ValueKey('navigation shortcuts scroll'),
+            child: Column(
+              children: [
+                for (final group in navigationShortcutGroups.entries) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
+                      child: Text(
+                        switch (group.key) {
+                          'workspace' => context.l10n.textWORKSPACE356,
+                          'interface' => context.l10n.textINTERFACE357,
+                          'menus' => context.l10n.navigationMenus,
+                          _ => context.l10n.navigationModules,
+                        },
+                        style: TextStyle(
+                          color: context.palette.mutedText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: .8,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                for (final label in group.value)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 7),
-                    child: _ShortcutSettingRow(
-                      label: label,
-                      shortcut: _shortcuts[label]!,
-                      editing: _editing,
-                      onChanged: (value) {
-                        setState(() => _shortcuts[label] = value);
-                        logI(
-                          LogSource.settings,
-                          'горячая клавиша «$label» → $value',
-                        );
-                      },
+                  for (final shortcut in group.value)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: DesktopPane(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) => Row(
+                              key: ValueKey(
+                                'navigation shortcut ${shortcut.id}',
+                              ),
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    shortcut.label(context.l10n),
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: constraints.maxWidth * .52,
+                                  ),
+                                  child: DesktopIconButton(
+                                    key: ValueKey(
+                                      'edit navigation ${shortcut.id}',
+                                    ),
+                                    icon: Icons.edit_outlined,
+                                    label: shortcut.keys(context.l10n),
+                                    tooltip: context.l10n.textEditShortcuts359,
+                                    onPressed: () => _edit(context, shortcut),
+                                    size: 34,
+                                    iconSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ),
-      const SizedBox(height: 8),
-      const SizedBox(height: 14),
-      Align(
-        alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 152),
-          child: _ShortcutEditButton(
-            editing: _editing,
-            onPressed: () => setState(() => _editing = !_editing),
-          ),
+        const SizedBox(height: 12),
+        Text(
+          context.l10n.navigationEditableHint,
+          style: TextStyle(color: context.palette.mutedText, fontSize: 12),
         ),
-      ),
-    ],
-  );
-}
-
-class _ShortcutSettingRow extends StatelessWidget {
-  const _ShortcutSettingRow({
-    required this.label,
-    required this.shortcut,
-    required this.editing,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String shortcut;
-  final bool editing;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 62),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-    decoration: BoxDecoration(
-      color: context.palette.background.withAlpha(90),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            context.hostLabel(label),
-            style: TextStyle(color: context.palette.text, fontSize: 14),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: DesktopIconButton(
+            key: const ValueKey('navigation reset'),
+            icon: Icons.restore,
+            label: context.l10n.navigationReset,
+            tooltip: context.l10n.navigationReset,
+            onPressed: () => NavigationBindings.instance.reset(),
+            size: 34,
           ),
-        ),
-        const SizedBox(width: 14),
-        _ShortcutCapture(
-          value: shortcut,
-          editing: editing,
-          onChanged: onChanged,
         ),
       ],
     ),
   );
 }
 
-class _ShortcutEditButton extends StatelessWidget {
-  const _ShortcutEditButton({required this.editing, required this.onPressed});
-
-  final bool editing;
-  final VoidCallback onPressed;
-
+class _CaptureDialog extends StatefulWidget {
+  const _CaptureDialog({required this.shortcut});
+  final NavigationShortcut shortcut;
   @override
-  Widget build(BuildContext context) => DesktopIconButton(
-    key: const ValueKey<String>('shortcut edit action'),
-    icon: editing ? Icons.check : Icons.edit_outlined,
-    tooltip: editing
-        ? context.l10n.textDone229
-        : context.l10n.textEditShortcuts359,
-    label: editing
-        ? context.l10n.textDone229
-        : context.l10n.textEditShortcuts359,
-    onPressed: onPressed,
-    size: 30,
-    iconSize: 14,
-    active: editing,
-  );
+  State<_CaptureDialog> createState() => _CaptureDialogState();
 }
 
-class _ShortcutCapture extends StatefulWidget {
-  const _ShortcutCapture({
-    required this.value,
-    required this.editing,
-    required this.onChanged,
-  });
-
-  final String value;
-  final bool editing;
-  final ValueChanged<String> onChanged;
-
+class _CaptureDialogState extends State<_CaptureDialog> {
+  NavigationChord? _chord;
   @override
-  State<_ShortcutCapture> createState() => _ShortcutCaptureState();
-}
-
-class _ShortcutCaptureState extends State<_ShortcutCapture> {
-  late final FocusNode _focusNode;
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-    _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(covariant _ShortcutCapture oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value && _controller.text != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _formatKey(KeyEvent event) {
-    final keyboard = HardwareKeyboard.instance;
-    final parts = <String>[];
-    if (keyboard.isControlPressed) parts.add('Ctrl');
-    if (keyboard.isAltPressed) parts.add('Alt');
-    if (keyboard.isShiftPressed) parts.add('Shift');
-    if (keyboard.isMetaPressed) parts.add('Meta');
-    final modifiers = <LogicalKeyboardKey>{
-      LogicalKeyboardKey.control,
-      LogicalKeyboardKey.controlLeft,
-      LogicalKeyboardKey.controlRight,
-      LogicalKeyboardKey.alt,
-      LogicalKeyboardKey.altLeft,
-      LogicalKeyboardKey.altRight,
-      LogicalKeyboardKey.shift,
-      LogicalKeyboardKey.shiftLeft,
-      LogicalKeyboardKey.shiftRight,
-      LogicalKeyboardKey.meta,
-      LogicalKeyboardKey.metaLeft,
-      LogicalKeyboardKey.metaRight,
-    };
-    if (event.logicalKey.keyLabel.isNotEmpty &&
-        !modifiers.contains(event.logicalKey)) {
-      parts.add(event.logicalKey.keyLabel);
-    }
-    return parts.join('+');
-  }
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 184,
-    height: 38,
-    child: Focus(
-      focusNode: _focusNode,
-      onKeyEvent: (node, event) {
-        if (!widget.editing || event is! KeyDownEvent) {
-          return KeyEventResult.ignored;
-        }
-        final value = _formatKey(event);
-        if (value.isNotEmpty) widget.onChanged(value);
+  Widget build(BuildContext context) => Focus(
+    autofocus: true,
+    onKeyEvent: (_, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.handled;
+      if (_chord != null &&
+          event.logicalKey == LogicalKeyboardKey.enter &&
+          HardwareKeyboard.instance.isControlPressed &&
+          NavigationBindings.instance.conflict(
+                widget.shortcut.action,
+                _chord!,
+              ) ==
+              null) {
+        Navigator.pop(context, _chord);
         return KeyEventResult.handled;
-      },
-      child: TextField(
-        controller: _controller,
-        readOnly: true,
-        enabled: widget.editing,
-        onTap: widget.editing ? _focusNode.requestFocus : null,
-        textAlign: TextAlign.center,
-        decoration: InputDecoration(
-          hintText: widget.editing ? context.l10n.textPressKeys360 : null,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          filled: true,
-          fillColor: widget.editing
-              ? context.palette.panel
-              : Colors.transparent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-        ),
-        style: TextStyle(
-          color: context.palette.text,
-          fontSize: 13,
-          fontFamily: 'monospace',
+      }
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        Navigator.pop(context);
+      } else {
+        final chord = NavigationChord.fromEvent(event);
+        if (chord != null) setState(() => _chord = chord);
+      }
+      return KeyEventResult.handled;
+    },
+    child: AlertDialog(
+      title: Text(widget.shortcut.label(context.l10n)),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(context.l10n.textPressKeys360),
+            const SizedBox(height: 16),
+            Text(
+              _chord?.label ?? widget.shortcut.keys(context.l10n),
+              key: const ValueKey('navigation captured chord'),
+              style: const TextStyle(fontSize: 18),
+            ),
+            if (_chord != null &&
+                NavigationBindings.instance.conflict(
+                      widget.shortcut.action,
+                      _chord!,
+                    ) !=
+                    null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(context.l10n.navigationConflict),
+              ),
+          ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.textCancel198),
+        ),
+        FilledButton(
+          onPressed:
+              _chord == null ||
+                  NavigationBindings.instance.conflict(
+                        widget.shortcut.action,
+                        _chord!,
+                      ) !=
+                      null
+              ? null
+              : () => Navigator.pop(context, _chord),
+          child: Text(context.l10n.workspacePortSave),
+        ),
+      ],
     ),
   );
 }

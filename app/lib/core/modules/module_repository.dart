@@ -46,6 +46,46 @@ class ModuleRepository {
     return modules;
   }
 
+  Future<List<SystemModule>> findPublishedVersions(
+    List<SystemModule> requested,
+  ) async {
+    if (!_auth.isInitialized || requested.isEmpty) return [];
+    final result = <SystemModule>[];
+    final ids = requested.map((m) => m.id).toSet().toList();
+    for (var offset = 0; offset < ids.length; offset += 50) {
+      final rows = await _client
+          .from('modules')
+          .select(
+            '*, module_releases(id, version, manifest, published_at, review_state)',
+          )
+          .eq('review_state', 'published')
+          .inFilter('slug', ids.skip(offset).take(50).toList());
+      for (final row in rows) {
+        for (final release
+            in (row['module_releases'] as List? ?? []).whereType<Map>()) {
+          if (release['review_state'] != 'published' ||
+              !requested.any(
+                (m) =>
+                    m.id == row['slug'] &&
+                    m.version == release['version'] &&
+                    (m.releaseId == null || m.releaseId == release['id']),
+              )) {
+            continue;
+          }
+          result.add(
+            SystemModule.fromJson({
+              ...row,
+              'version': release['version'],
+              'manifest': release['manifest'],
+              'release_id': release['id'],
+            }),
+          );
+        }
+      }
+    }
+    return result;
+  }
+
   List<SystemModule> _publishedModules(List<dynamic> rows) {
     return rows.map((row) {
       final json = Map<String, dynamic>.from(row as Map);

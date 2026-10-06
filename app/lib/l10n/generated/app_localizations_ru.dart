@@ -10,6 +10,256 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get moduleCreateLocal => 'Создать локально';
+
+  @override
+  String get moduleCreateOnline => 'Создать онлайн';
+
+  @override
+  String get moduleAddLocal => 'Добавить локально (.qmod)';
+
+  @override
+  String get moduleAddOnline => 'Добавить онлайн';
+
+  @override
+  String get localModuleProject => 'Локальный проект C++-модуля';
+
+  @override
+  String get localModuleEditHint =>
+      'Редактируйте C++-исходники в папке проекта, соберите новую версию .qmod и добавьте её локально. Инструкция: docs/LOCAL_MODULES.md.';
+
+  @override
+  String get localModuleTrustTitle => 'Доверять нативному модулю?';
+
+  @override
+  String get localModuleTrustWarning =>
+      'Пакет содержит нативный C++-код. Каждый узел работает отдельным процессом, но это НЕ защитная песочница: код имеет доступ к файлам, сети и устройствам от имени вашего пользователя. Устанавливайте только доверенный код. Добавление узла запускает его исполняемый файл.';
+
+  @override
+  String get localModuleError => 'Ошибка локального модуля';
+
+  @override
+  String get workspacesTitle => 'Воркспейсы';
+
+  @override
+  String get workspaceManager => 'Менеджер рабочих зон';
+
+  @override
+  String get workspaceCreate => 'Новый воркспейс';
+
+  @override
+  String get workspaceEdit => 'Редактировать воркспейс';
+
+  @override
+  String get workspaceDelete => 'Удалить воркспейс';
+
+  @override
+  String workspaceDeleteConfirm(String name) {
+    return 'Удалить «$name» и его граф? Модули останутся в библиотеке.';
+  }
+
+  @override
+  String get workspaceImport => 'Импорт воркспейса';
+
+  @override
+  String get workspaceExport => 'Экспорт / поделиться';
+
+  @override
+  String get workspaceSubmit => 'Отправить в Marketplace';
+
+  @override
+  String get workspaceSubmitted =>
+      'Воркспейс отправлен на проверку. После одобрения он появится в Marketplace.';
+
+  @override
+  String get workspaceReviewNotice =>
+      'Для отправки войдите через GitHub. Публикация требует проверки: отправка не размещает воркспейс в каталоге мгновенно.';
+
+  @override
+  String get workspaceShareWarning =>
+      'Граф содержит параметры модулей и подписи. Перед отправкой удалите приватные значения, токены и локальные пути. Делитесь только тем, что имеете право распространять.';
+
+  @override
+  String get workspaceContinue => 'Продолжить';
+
+  @override
+  String get workspaceProjectName => 'Название воркспейса';
+
+  @override
+  String get workspaceProjectDescription => 'Описание';
+
+  @override
+  String get workspaceProjectActions => 'Действия с воркспейсом';
+
+  @override
+  String workspaceGraphSummary(int nodes, int links) {
+    return 'Модулей: $nodes · Связей: $links';
+  }
+
+  @override
+  String get workspaceDependenciesUnavailable =>
+      'Нужные версии модулей недоступны';
+
+  @override
+  String get workspaceOperationFailed => 'Не удалось выполнить действие';
+
+  @override
+  String get workspaceInstall => 'Установить воркспейс';
+
+  @override
+  String get workspaceInstallNotice =>
+      'Создаёт отдельный проект и автоматически подгружает доступные версии модулей. Для запуска внешних пакетов нужен подписанный runtime; импорт ничего не исполняет.';
+
+  @override
+  String get workspaceCatalogUnavailable =>
+      'Каталог воркспейсов недоступен. Проверьте подключение и повторите попытку. На сервере также нужна миграция каталога рабочих зон.';
+
+  @override
+  String get navigationMenuDown => 'Следующий пункт меню';
+
+  @override
+  String get navigationMenuUp => 'Предыдущий пункт меню';
+
+  @override
+  String get navigationEditableHint =>
+      'Нажмите на сочетание для изменения, затем «Сохранить» или Ctrl+Enter. Изменения сохраняются и действуют в интерфейсе и меню. Esc отменяет ввод; сброс возвращает исходные сочетания.';
+
+  @override
+  String get navigationReset => 'Сбросить сочетания';
+
+  @override
+  String get navigationConflict =>
+      'Это сочетание уже используется другим навигационным действием.';
+
+  @override
+  String get navigationTitle => 'Навигация';
+
+  @override
+  String get navigationDescription =>
+      'Управляйте без мыши. Рамка фокуса появляется только при навигации клавишами и скрывается при использовании мыши. В текстовых полях сохраняются обычные команды редактирования.';
+
+  @override
+  String get navigationFixedBindings =>
+      'Навигационные сочетания встроены в элементы интерфейса и здесь не переназначаются. Полноэкранные команды работают в активной области модуля.';
+
+  @override
+  String get navigationMenus => 'Меню';
+
+  @override
+  String get navigationModules => 'Модули и порты';
+
+  @override
+  String get navigationKeyUpDown => 'Вверх / Вниз';
+
+  @override
+  String get navigationKeyRight => 'Вправо';
+
+  @override
+  String get navigationKeyLeft => 'Влево';
+
+  @override
+  String get navigationNext => 'Перейти к следующему элементу';
+
+  @override
+  String get navigationPrevious => 'Перейти к предыдущему элементу';
+
+  @override
+  String get navigationActivate => 'Активировать выбранный элемент';
+
+  @override
+  String get navigationContext => 'Открыть контекстное меню узла или порта';
+
+  @override
+  String get navigationMenuMove => 'Перейти между пунктами меню';
+
+  @override
+  String get navigationSubmenuOpen => 'Открыть подменю';
+
+  @override
+  String get navigationSubmenuBack => 'Вернуться из подменю';
+
+  @override
+  String get navigationDismiss =>
+      'Закрыть меню или диалог / выйти из полноэкранного режима';
+
+  @override
+  String get navigationConnect =>
+      'Выбрать и активировать каждый порт для соединения';
+
+  @override
+  String get navigationFullscreen => 'Переключить полноэкранный режим модуля';
+
+  @override
+  String get navigationExitFullscreen =>
+      'Вернуться из полноэкранного режима модуля';
+
+  @override
+  String get workspacePortName => 'Название';
+
+  @override
+  String get workspacePortRename => 'Переименовать порт';
+
+  @override
+  String get workspacePortNameHint => 'Пустое поле вернёт исходное название.';
+
+  @override
+  String get workspacePortSave => 'Сохранить';
+
+  @override
+  String get workspacePortValue => 'Значение';
+
+  @override
+  String get workspacePortColor => 'Цвет';
+
+  @override
+  String get workspacePortAny => 'Любое';
+
+  @override
+  String get workspacePortString => 'Строка';
+
+  @override
+  String get workspacePortNumber => 'Число';
+
+  @override
+  String get workspacePortBoolean => 'Логическое';
+
+  @override
+  String get workspacePortList => 'Список';
+
+  @override
+  String get workspacePortObject => 'Объект';
+
+  @override
+  String get moduleOpenWindow => 'Открыть в отдельном окне';
+
+  @override
+  String get moduleFullscreen => 'Модуль на весь экран';
+
+  @override
+  String get moduleExitFullscreen => 'Выйти из полноэкранного режима';
+
+  @override
+  String get moduleWindowFailed => 'Не удалось открыть окно модуля.';
+
+  @override
+  String get workspaceAppearance => 'ОФОРМЛЕНИЕ';
+
+  @override
+  String get workspaceInstance => 'ЭКЗЕМПЛЯР';
+
+  @override
+  String get workspaceParameters => 'ПАРАМЕТРЫ';
+
+  @override
+  String get workspacePorts => 'ВХОДЫ / ВЫХОДЫ';
+
+  @override
+  String get workspaceInputColor => 'Подсветка входа';
+
+  @override
+  String get workspaceOutputColor => 'Подсветка выхода';
+
+  @override
   String get workspaceSelect => 'Выделение';
 
   @override
@@ -1041,6 +1291,54 @@ class AppLocalizationsRu extends AppLocalizations {
   String textArg0ModulesArg1Connections298(String arg0, String arg1) {
     return 'Модулей: $arg0 · Соединений: $arg1';
   }
+
+  @override
+  String get workspaceHideSidebar => 'Скрыть правую панель';
+
+  @override
+  String get workspaceShowSidebar => 'Показать правую панель';
+
+  @override
+  String get workspaceColorNone => 'Без цвета';
+
+  @override
+  String get workspaceColorRed => 'Красный';
+
+  @override
+  String get workspaceColorOrange => 'Оранжевый';
+
+  @override
+  String get workspaceColorYellow => 'Жёлтый';
+
+  @override
+  String get workspaceColorGreen => 'Зелёный';
+
+  @override
+  String get workspaceColorBlue => 'Синий';
+
+  @override
+  String get workspaceColorPurple => 'Фиолетовый';
+
+  @override
+  String get workspaceHeaderColor => 'Цвет модуля';
+
+  @override
+  String get workspaceSelectSameColor => 'Выбрать модули этого цвета';
+
+  @override
+  String get workspaceSelectByColor => 'Выбрать по цвету';
+
+  @override
+  String get workspaceColorSelected => 'Цвет выделенных';
+
+  @override
+  String get workspaceFilterByColor => 'Фильтр по цвету';
+
+  @override
+  String get workspaceAllColors => 'Все цвета';
+
+  @override
+  String get workspaceNoSearchResults => 'Модули не найдены';
 
   @override
   String get textAddModuleToCanvas299 => 'Добавить модуль на канвас';

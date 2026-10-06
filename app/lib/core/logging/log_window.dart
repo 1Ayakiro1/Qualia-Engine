@@ -5,6 +5,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../features/common/desktop_scroll.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_palette.dart';
@@ -33,7 +36,9 @@ class LogConsoleScreen extends ConsumerStatefulWidget {
 
 class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
   final List<LogEntry> _entries = <LogEntry>[];
-  final ScrollController _scroll = ScrollController();
+  final ScrollController _scroll = DesktopScrollController(
+    debugLabel: 'debug log',
+  );
   final TextEditingController _search = TextEditingController();
   Timer? _poller;
   RandomAccessFile? _tail;

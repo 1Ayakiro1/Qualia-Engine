@@ -9,6 +9,8 @@ import 'package:bci_engine/core/theme/app_palette.dart';
 import 'package:bci_engine/state/workspace_state.dart';
 import 'package:bci_engine/features/marketplace/marketplace_screen.dart';
 import 'package:bci_engine/features/modules/module_ui.dart';
+import 'package:bci_engine/features/modules/workspace_colors.dart';
+import 'package:bci_engine/features/modules/workspace_grid.dart';
 import 'package:bci_engine/app.dart';
 import 'package:bci_engine/core/modules/module_preview_data.dart';
 import 'package:bci_engine/features/marketplace/catalog_entry.dart';
@@ -17,6 +19,8 @@ import 'package:bci_engine/features/common/widgets.dart';
 import 'package:bci_engine/features/common/desktop_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,10 +55,62 @@ const _module = SystemModule(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  test('intermediate grid dots fade continuously across zoom thresholds', () {
+    for (final level in WorkspaceGridLevel.levels.skip(1)) {
+      expect(level.opacity(level.fadeStart), 0);
+      expect(level.opacity(level.fadeEnd), 1);
+      final midpoint = (level.fadeStart + level.fadeEnd) / 2;
+      expect(level.opacity(midpoint), closeTo(.5, .0001));
+      expect(
+        level.opacity(midpoint + .001) - level.opacity(midpoint - .001),
+        lessThan(.02),
+      );
+      var previous = 0.0;
+      for (var scale = .25; scale <= 2; scale += .01) {
+        final opacity = level.opacity(scale);
+        expect(opacity, inInclusiveRange(previous, 1));
+        previous = opacity;
+      }
+    }
+    expect(WorkspaceGridLevel.levels.first.opacity(.25), 1);
+  });
+  test('port colors round-trip separately from module author settings', () {
+    final node = WorkspaceNode(
+      id: 'port-colors',
+      module: _module,
+      inputColors: {'input': WorkspaceNodeColor.blue},
+      outputColors: {'output': WorkspaceNodeColor.orange},
+    );
+    final restored = WorkspaceNode.fromJson(node.toJson());
+    expect(restored.portColor('input', false), WorkspaceNodeColor.blue);
+    expect(restored.portColor('output', true), WorkspaceNodeColor.orange);
+    expect(restored.settings, isEmpty);
+    final old = node.toJson()
+      ..remove('inputColors')
+      ..remove('outputColors');
+    expect(WorkspaceNode.fromJson(old).inputColors, isEmpty);
+    final invalid = node.toJson()..['inputColors'] = {'input': 'unknown'};
+    expect(
+      WorkspaceNode.fromJson(invalid).portColor('input', false),
+      WorkspaceNodeColor.none,
+    );
+  });
   test(
     'node sizes clamp safely, grow with ports and round-trip old graphs',
     () {
       final node = WorkspaceNode(id: 'size', module: _module);
+      expect(node.headerColor, WorkspaceNodeColor.none);
+      expect(
+        WorkspaceNode.fromJson(node.toJson()..['headerColor'] = 'unknown')
+            .headerColor,
+        WorkspaceNodeColor.none,
+      );
+      expect(
+        WorkspaceNode.fromJson(node.toJson()..remove('headerColor'))
+            .headerColor,
+        WorkspaceNodeColor.none,
+      );
+      node.headerColor = WorkspaceNodeColor.blue;
       final old = node.toJson()
         ..remove('width')
         ..remove('height');
@@ -64,6 +120,7 @@ void main() {
       expect(node.height, 360);
       expect(node.portPosition('output', true).dx, node.position.dx + 444);
       final restored = WorkspaceNode.fromJson(node.toJson());
+      expect(restored.headerColor, WorkspaceNodeColor.blue);
       expect(restored.width, 450);
       expect(restored.height, 360);
       for (var index = 0; index < 10; index++) {
@@ -187,9 +244,31 @@ void main() {
       final b = controller.addNode(_module, const Offset(5300, 4900));
       await tester.pumpAndSettle();
       expect(find.text('Test Filter'), findsNWidgets(2));
-      await tester.tap(find.text('output').first);
+      final outputPort = find.byKey(
+        ValueKey('workspace port ${a.id} true output'),
+      );
+      final inputPort = find.byKey(
+        ValueKey('workspace port ${b.id} false input'),
+      );
+      expect(tester.getSize(outputPort).height, WorkspaceNode.portRowHeight);
+      final rightClick = await tester.startGesture(
+        tester.getCenter(inputPort),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await rightClick.up();
+      await tester.pumpAndSettle();
+      expect(find.byType(DesktopMenuSurface<String>), findsOneWidget);
+      expect(find.byKey(const ValueKey('desktop menu search')), findsNothing);
+      await tester.tap(find.text('Color'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Blue'));
+      await tester.pumpAndSettle();
+      expect(b.portColor('input', false), WorkspaceNodeColor.blue);
+      // Blank space beside the label is a port target too.
+      await tester.tapAt(tester.getTopLeft(outputPort) + const Offset(20, 16));
       await tester.pump();
-      await tester.tap(find.text('input').last);
+      await tester.tapAt(tester.getTopLeft(inputPort) + const Offset(100, 16));
       await tester.pumpAndSettle();
       expect(container.read(workspaceProvider).links.length, 1);
       final viewer = tester.widget<InteractiveViewer>(
@@ -243,6 +322,10 @@ void main() {
       );
       controller.setParameter(a.id, 'gain', 7);
       controller.resizeNode(a.id, const Size(440, 380));
+      controller.setNodeColors({a.id}, WorkspaceNodeColor.green);
+      controller.setPortColor(a.id, 'input', false, WorkspaceNodeColor.blue);
+      controller.setPortColor(a.id, 'output', true, WorkspaceNodeColor.orange);
+      controller.setPortColor(a.id, 'absent', false, WorkspaceNodeColor.red);
       controller.addPort(a.id, false);
       const preset = WorkspacePreset(
         id: 'research',
@@ -264,12 +347,44 @@ void main() {
       expect(restored.links.length, 1);
       expect(restored.nodes.first.settings['gain'], 7);
       expect(restored.nodes.first.width, 440);
+      expect(restored.nodes.first.headerColor, WorkspaceNodeColor.green);
+      expect(restored.nodes.first.inputColors, {
+        'input': WorkspaceNodeColor.blue,
+      });
+      expect(restored.nodes.first.outputColors, {
+        'output': WorkspaceNodeColor.orange,
+      });
       expect(restored.nodes.first.height, 380);
       expect(restored.nodes.first.inputs, ['input', 'input 2']);
       expect(restored.nodes.first.position, const Offset(4900, 4900));
       expect(restored.library.single.id, _module.id);
       expect(restored.presets.single.name, 'Research');
       expect(restored.presetModuleIds, preset.moduleIds);
+    },
+  );
+  testWidgets(
+    'group movement emits one graph update and leaves other nodes intact',
+    (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(workspaceProvider);
+      await tester.pump();
+      final controller = container.read(workspaceProvider.notifier);
+      final a = controller.addNode(_module, const Offset(80, 80));
+      final b = controller.addNode(_module, const Offset(480, 80));
+      final c = controller.addNode(_module, const Offset(880, 80));
+      var updates = 0;
+      final listener = container.listen(workspaceProvider, (_, _) => updates++);
+      addTearDown(listener.close);
+      controller.moveNodes({a.id, b.id}, const Offset(20, -10));
+      expect(updates, 1);
+      expect(a.position, const Offset(100, 70));
+      expect(b.position, const Offset(500, 70));
+      expect(c.position, const Offset(880, 80));
+      controller.moveNodes({a.id}, Offset.zero);
+      expect(updates, 1);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
     },
   );
   testWidgets(
@@ -387,11 +502,27 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('workspace view menu')));
       await tester.pumpAndSettle();
       expect(find.byType(DesktopMenuSurface<String>), findsOneWidget);
+      expect(
+        tester
+            .widget<DesktopMenuSurface<String>>(
+              find.byType(DesktopMenuSurface<String>),
+            )
+            .itemHeight,
+        48,
+      );
+      expect(
+        tester.getSize(find.byType(DesktopMenuSurface<String>)).width,
+        greaterThanOrEqualTo(360),
+      );
       await tester.tap(find.text('Actual size (100%)'));
       await tester.pumpAndSettle();
       expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 1);
       await tester.tap(find.byKey(const ValueKey('workspace add menu')));
       await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byType(DesktopMenuSurface<String>)).width,
+        greaterThanOrEqualTo(320),
+      );
       await tester.tap(find.text('Add module'));
       await tester.pumpAndSettle();
       expect(
@@ -410,6 +541,633 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(workspaceProvider).nodes, isEmpty);
       expect(container.read(workspaceProvider).links, isEmpty);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'area selection and modifier panning stay independent at every scale',
+    (tester) async {
+      tester.view.physicalSize = const Size(1500, 950);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            builder: (_, child) =>
+                AppThemeScope(palette: AppPalette.dark, child: child!),
+            home: Scaffold(
+              body: ModulesScreen(
+                modules: const [_module],
+                onAdd: () {},
+                onEdit: (_) {},
+                onRemove: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final node = controller.addNode(_module, const Offset(4900, 4900));
+      final other = controller.addNode(_module, const Offset(5400, 4900));
+      await tester.pumpAndSettle();
+      final viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer),
+      );
+      final transform = viewer.transformationController!;
+      bool isSelected(WorkspaceNode node) =>
+          tester
+              .widget<Semantics>(
+                find.byKey(ValueKey('workspace selection ${node.id}')),
+              )
+              .properties
+              .selected ==
+          true;
+      for (final scale in [.5, 1.0, 2.0]) {
+        transform.value = Matrix4.identity()
+          ..translateByDouble(
+            160 - node.position.dx * scale,
+            140 - node.position.dy * scale,
+            0,
+            1,
+          )
+          ..scaleByDouble(scale, scale, scale, 1);
+        await tester.pumpAndSettle();
+        final before = transform.value.clone();
+        final rect = tester.getRect(
+          find.byKey(ValueKey('workspace node ${node.id}')),
+        );
+        final area = await tester.startGesture(
+          rect.bottomRight + const Offset(20, 20),
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await area.moveTo(rect.topLeft - const Offset(20, 20));
+        await tester.pump();
+        expect(
+          find.byKey(const ValueKey('workspace selection area')),
+          findsOneWidget,
+        );
+        expect(isSelected(node), isTrue);
+        expect(isSelected(other), isFalse);
+        expect(transform.value, before);
+        await area.up();
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('workspace selection area')),
+          findsNothing,
+        );
+        final blank =
+            tester.getTopLeft(find.byType(InteractiveViewer)) +
+            const Offset(40, 40);
+        await tester.tapAt(blank);
+        await tester.pumpAndSettle();
+        expect(isSelected(node), isFalse);
+        final reselect = await tester.startGesture(
+          rect.topLeft - const Offset(20, 20),
+          kind: PointerDeviceKind.mouse,
+        );
+        await reselect.moveTo(rect.bottomRight + const Offset(20, 20));
+        await tester.pump();
+        await reselect.up();
+        await tester.pumpAndSettle();
+        expect(isSelected(node), isTrue);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        final additive = await tester.startGesture(
+          blank,
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        await additive.up();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        expect(isSelected(node), isTrue);
+        final cancelled = await tester.startGesture(
+          blank,
+          kind: PointerDeviceKind.mouse,
+        );
+        await tester.pump();
+        expect(isSelected(node), isFalse);
+        await cancelled.cancel();
+        await tester.pumpAndSettle();
+        expect(isSelected(node), isTrue);
+        for (final modifier in [
+          LogicalKeyboardKey.space,
+          LogicalKeyboardKey.altLeft,
+        ]) {
+          await tester.sendKeyDownEvent(modifier);
+          await tester.pump();
+          final position = node.position;
+          final matrix = transform.value.clone();
+          final pan = await tester.startGesture(
+            tester.getCenter(
+              find.descendant(
+                of: find.byKey(ValueKey('workspace node ${node.id}')),
+                matching: find.text('Test Filter'),
+              ),
+            ),
+            kind: PointerDeviceKind.mouse,
+          );
+          await tester.pump();
+          await pan.moveBy(const Offset(60, 40));
+          await tester.pump();
+          await pan.up();
+          await tester.sendKeyUpEvent(modifier);
+          await tester.pumpAndSettle();
+          expect(node.position, position);
+          expect(
+            transform.value.storage[12] - matrix.storage[12],
+            closeTo(60, .1),
+          );
+          expect(
+            transform.value.storage[13] - matrix.storage[13],
+            closeTo(40, .1),
+          );
+          expect(transform.value.getMaxScaleOnAxis(), scale);
+          expect(isSelected(node), isTrue);
+        }
+        final matrix = transform.value.clone();
+        final middle = await tester.startGesture(
+          tester.getTopLeft(find.byType(InteractiveViewer)) +
+              const Offset(40, 40),
+          kind: PointerDeviceKind.mouse,
+          buttons: kMiddleMouseButton,
+        );
+        await middle.moveBy(const Offset(-30, -20));
+        await tester.pump();
+        await middle.up();
+        await tester.pumpAndSettle();
+        expect(
+          transform.value.storage[12] - matrix.storage[12],
+          closeTo(-30, .1),
+        );
+        expect(
+          transform.value.storage[13] - matrix.storage[13],
+          closeTo(-20, .1),
+        );
+      }
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+      expect(container.read(workspaceProvider).nodes.single.id, other.id);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'wheel dragging, two-finger scrolling and pinch respect canvas and shell scales',
+    (tester) async {
+      tester.view.physicalSize = const Size(1500, 950);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            builder: (_, child) =>
+                AppThemeScope(palette: AppPalette.dark, child: child!),
+            home: Scaffold(
+              body: Transform.scale(
+                scale: 1.2,
+                alignment: Alignment.topLeft,
+                child: ModulesScreen(
+                  modules: const [_module],
+                  onAdd: () {},
+                  onEdit: (_) {},
+                  onRemove: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final node = controller.addNode(_module, const Offset(4900, 4900));
+      await tester.pumpAndSettle();
+      final transform = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      for (final scale in [.5, 1.0, 2.0]) {
+        transform.value = Matrix4.identity()
+          ..translateByDouble(
+            160 - node.position.dx * scale,
+            140 - node.position.dy * scale,
+            0,
+            1,
+          )
+          ..scaleByDouble(scale, scale, scale, 1);
+        await tester.pumpAndSettle();
+        final title = find.descendant(
+          of: find.byKey(ValueKey('workspace node ${node.id}')),
+          matching: find.text('Test Filter'),
+        );
+        final before = transform.value.clone();
+        final position = node.position;
+        // Wheel-button drag works directly over a node, without keyboard focus.
+        final middle = await tester.startGesture(
+          tester.getCenter(title),
+          kind: PointerDeviceKind.mouse,
+          buttons: kMiddleMouseButton,
+        );
+        await tester.pump();
+        await middle.moveBy(const Offset(72, 48));
+        await tester.pump();
+        await middle.up();
+        await tester.pumpAndSettle();
+        expect(
+          transform.value.storage[12] - before.storage[12],
+          closeTo(60, .1),
+        );
+        expect(
+          transform.value.storage[13] - before.storage[13],
+          closeTo(40, .1),
+        );
+        expect(node.position, position);
+        expect(transform.value.getMaxScaleOnAxis(), scale);
+        for (final kind in [
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        ]) {
+          final matrix = transform.value.clone();
+          await tester.sendEventToBinding(
+            PointerScrollEvent(
+              position: tester.getCenter(title),
+              kind: kind,
+              scrollDelta: const Offset(48, 72),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            transform.value.storage[12] - matrix.storage[12],
+            closeTo(-40, .1),
+          );
+          expect(
+            transform.value.storage[13] - matrix.storage[13],
+            closeTo(-60, .1),
+          );
+          expect(transform.value.getMaxScaleOnAxis(), scale);
+          expect(node.position, position);
+        }
+        final focal = tester.getCenter(title);
+        final matrix = transform.value.clone();
+        final trackpad = await tester.createGesture(
+          kind: PointerDeviceKind.trackpad,
+        );
+        await trackpad.panZoomStart(focal);
+        await trackpad.panZoomUpdate(focal, pan: const Offset(24, 36));
+        await tester.pump();
+        expect(
+          transform.value.storage[12] - matrix.storage[12],
+          closeTo(20, .1),
+        );
+        expect(
+          transform.value.storage[13] - matrix.storage[13],
+          closeTo(30, .1),
+        );
+        await trackpad.panZoomUpdate(focal, pan: const Offset(72, 48));
+        await tester.pump();
+        expect(
+          transform.value.storage[12] - matrix.storage[12],
+          closeTo(60, .1),
+        );
+        expect(
+          transform.value.storage[13] - matrix.storage[13],
+          closeTo(40, .1),
+        );
+        expect(transform.value.getMaxScaleOnAxis(), scale);
+        await trackpad.panZoomUpdate(
+          focal,
+          pan: const Offset(72, 48),
+          scale: .8,
+        );
+        await tester.pump();
+        expect(transform.value.getMaxScaleOnAxis(), closeTo(scale * .8, .001));
+        await trackpad.panZoomEnd();
+        await tester.pumpAndSettle();
+        expect(node.position, position);
+        final viewport = tester.renderObject<RenderBox>(
+          find.byType(InteractiveViewer),
+        );
+        final zoomFocal = tester.getCenter(title);
+        final scene = transform.toScene(viewport.globalToLocal(zoomFocal));
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            position: zoomFocal,
+            scrollDelta: const Offset(0, -20),
+          ),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+        expect(
+          transform.value.getMaxScaleOnAxis(),
+          closeTo(scale * .8 * 1.105170918, .001),
+        );
+        final afterScene = transform.toScene(viewport.globalToLocal(zoomFocal));
+        expect(afterScene.dx, closeTo(scene.dx, .001));
+        expect(afterScene.dy, closeTo(scene.dy, .001));
+        expect(
+          find.byKey(const ValueKey('workspace selection area')),
+          findsNothing,
+        );
+      }
+      final focal =
+          tester.getTopLeft(find.byType(InteractiveViewer)) +
+          const Offset(100, 100);
+      for (final entry in [(-10000.0, 2.0), (10000.0, .25)]) {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendEventToBinding(
+          PointerScrollEvent(position: focal, scrollDelta: Offset(0, entry.$1)),
+        );
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+        expect(transform.value.getMaxScaleOnAxis(), entry.$2);
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'node right-click opens only one menu and canvas search adds at the clicked position',
+    (tester) async {
+      tester.view.physicalSize = const Size(1500, 950);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            builder: (_, child) =>
+                AppThemeScope(palette: AppPalette.dark, child: child!),
+            home: Scaffold(
+              body: ModulesScreen(
+                modules: const [_module],
+                onAdd: () {},
+                onEdit: (_) {},
+                onRemove: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final node = controller.addNode(_module, const Offset(4900, 4900));
+      await tester.pumpAndSettle();
+      final transform = tester
+          .widget<InteractiveViewer>(find.byType(InteractiveViewer))
+          .transformationController!;
+      for (final scale in [.5, 1.0, 2.0]) {
+        transform.value = Matrix4.identity()
+          ..translateByDouble(
+            160 - node.position.dx * scale,
+            140 - node.position.dy * scale,
+            0,
+            1,
+          )
+          ..scaleByDouble(scale, scale, scale, 1);
+        await tester.pumpAndSettle();
+        final tile = find.byKey(ValueKey('workspace node ${node.id}'));
+        final portTarget = find.descendant(
+          of: tile,
+          matching: find.text('input'),
+        );
+        for (final target in [
+          find.byKey(ValueKey('workspace header ${node.id}')),
+          portTarget,
+          find.descendant(of: tile, matching: find.text('Open')),
+        ]) {
+          final pointer = await tester.startGesture(
+            tester.getCenter(target),
+            kind: PointerDeviceKind.mouse,
+            buttons: kSecondaryMouseButton,
+          );
+          await pointer.up();
+          await tester.pumpAndSettle();
+          final surface = find.byType(DesktopMenuSurface<String>);
+          expect(surface, findsOneWidget);
+          expect(
+            tester
+                .widget<DesktopMenuSurface<String>>(surface)
+                .entries
+                .map((entry) => entry.value),
+            target == portTarget
+                ? containsAll(['rename', 'type', 'color'])
+                : containsAll([
+                    'open',
+                    'replace',
+                    'delete',
+                    'color',
+                    'sameColor',
+                  ]),
+          );
+          expect(
+            find.byKey(const ValueKey('desktop menu search')),
+            findsNothing,
+          );
+          expect(
+            tester
+                .widget<DesktopMenuSurface<String>>(surface)
+                .entries
+                .any((entry) => entry.value == 'add'),
+            isFalse,
+          );
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+          expect(surface, findsNothing);
+        }
+      }
+      final viewport = tester.renderObject<RenderBox>(
+        find.byType(InteractiveViewer),
+      );
+      final destination =
+          tester.getTopLeft(find.byType(InteractiveViewer)) +
+          const Offset(50, 60);
+      final scene = transform.toScene(viewport.globalToLocal(destination));
+      final pointer = await tester.startGesture(
+        destination,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await pointer.up();
+      await tester.pumpAndSettle();
+      final search = find.byKey(const ValueKey('desktop menu search'));
+      expect(search, findsOneWidget);
+      final add = find.descendant(
+        of: find.byType(DesktopMenuSurface<String>),
+        matching: find.text('Add'),
+      );
+      expect(tester.getRect(search).bottom, lessThan(tester.getRect(add).top));
+      await tester.enterText(search, 'no such module');
+      await tester.pumpAndSettle();
+      expect(find.text('No matching modules'), findsOneWidget);
+      expect(add, findsNothing);
+      await tester.enterText(search, 'test.filter');
+      await tester.pumpAndSettle();
+      expect(add, findsNothing);
+      final match = find.descendant(
+        of: find.byType(DesktopMenuSurface<String>),
+        matching: find.text('Test Filter'),
+      );
+      expect(match, findsOneWidget);
+      await tester.tap(match);
+      await tester.pumpAndSettle();
+      expect(container.read(workspaceProvider).nodes.length, 2);
+      expect(container.read(workspaceProvider).nodes.last.position, scene);
+      expect(find.byType(DesktopMenuSurface<String>), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'colors group, filter and select nodes without changing hidden graph data',
+    (tester) async {
+      tester.view.physicalSize = const Size(1500, 950);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final capture = GlobalKey();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            builder: (_, child) =>
+                AppThemeScope(palette: AppPalette.dark, child: child!),
+            home: RepaintBoundary(
+              key: capture,
+              child: Scaffold(
+                body: ModulesScreen(
+                  modules: const [_module],
+                  onAdd: () {},
+                  onEdit: (_) {},
+                  onRemove: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final a = controller.addNode(_module, const Offset(4900, 4900));
+      final b = controller.addNode(_module, const Offset(5300, 4900));
+      final c = controller.addNode(_module, const Offset(5700, 4900));
+      controller.setNodeColors({a.id, c.id}, WorkspaceNodeColor.red);
+      controller.setNodeColors({b.id}, WorkspaceNodeColor.blue);
+      controller.connect(
+        WorkspaceLink(
+          source: a.id,
+          output: 'output',
+          target: b.id,
+          input: 'input',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Container>(find.byKey(ValueKey('workspace header ${a.id}')))
+            .decoration,
+        BoxDecoration(
+          color: WorkspaceNodeColor.red.headerBackground(
+            tester.element(find.byType(ModulesScreen)),
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+        ),
+      );
+      Future<void> choose(String menu, String action, String color) async {
+        await tester.tap(find.byKey(ValueKey('workspace $menu menu')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(action));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(color));
+        await tester.pumpAndSettle();
+      }
+
+      await choose('view', 'Filter by color', 'Red');
+      expect(find.byKey(ValueKey('workspace node ${b.id}')), findsNothing);
+      expect(find.byKey(ValueKey('workspace node ${a.id}')), findsOneWidget);
+      expect(find.byKey(ValueKey('workspace node ${c.id}')), findsOneWidget);
+      expect(container.read(workspaceProvider).nodes.length, 3);
+      expect(container.read(workspaceProvider).links.length, 1);
+      await _capture(tester, capture, 'workspace-filter-red.png');
+      // Select all applies only to visible nodes; batch recoloring reveals all.
+      await tester.tap(find.byKey(const ValueKey('workspace select menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select all'));
+      await tester.pumpAndSettle();
+      await choose('select', 'Color selected', 'Green');
+      expect(a.headerColor, WorkspaceNodeColor.green);
+      expect(c.headerColor, WorkspaceNodeColor.green);
+      expect(b.headerColor, WorkspaceNodeColor.blue);
+      expect(find.byKey(ValueKey('workspace node ${b.id}')), findsOneWidget);
+      await choose('select', 'Select by color', 'Blue');
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+      expect(container.read(workspaceProvider).nodes.map((node) => node.id), [
+        a.id,
+        c.id,
+      ]);
+      expect(container.read(workspaceProvider).links, isEmpty);
+      await _capture(tester, capture, 'workspace-colored-headers.png');
+      final header = find.byKey(ValueKey('workspace header ${a.id}'));
+      final pointer = await tester.startGesture(
+        tester.getCenter(header),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await pointer.up();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Module color'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Purple'));
+      await tester.pumpAndSettle();
+      expect(a.headerColor, WorkspaceNodeColor.purple);
+      expect(c.headerColor, WorkspaceNodeColor.green);
+      await tester.tap(header);
+      await tester.pumpAndSettle();
+      final field = find.descendant(
+        of: find.byType(DesktopSelectField<String>),
+        matching: find.text('Purple'),
+      );
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DesktopMenuSurface<String>),
+          matching: find.text('No color'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(a.headerColor, WorkspaceNodeColor.none);
       expect(tester.takeException(), isNull);
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpWidget(const SizedBox());
@@ -487,7 +1245,7 @@ void main() {
         findsWidgets,
       );
       await _capture(tester, capture, 'marketplace-dark-preview.png');
-      final license = find.descendant(of: filters, matching: find.text('MIT'));
+      final license = find.byKey(const ValueKey('marketplace license filter'));
       await tester.scrollUntilVisible(
         license,
         100,
@@ -499,6 +1257,13 @@ void main() {
       await Scrollable.ensureVisible(tester.element(license), alignment: .5);
       await tester.pumpAndSettle();
       await tester.tap(license);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DesktopMenuSurface<String>),
+          matching: find.text('MIT'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Signal Source · Preview'), findsOneWidget);
       expect(find.text('Bandpass Filter · Preview'), findsNothing);
@@ -521,7 +1286,7 @@ void main() {
       await tester.pumpAndSettle();
       final compactLicense = find.descendant(
         of: find.byType(Dialog),
-        matching: find.text('MIT'),
+        matching: find.byKey(const ValueKey('marketplace license filter')),
       );
       await tester.scrollUntilVisible(
         compactLicense,
@@ -537,6 +1302,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(compactLicense);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DesktopMenuSurface<String>),
+          matching: find.text('MIT'),
+        ),
+      );
       await tester.pumpAndSettle();
       await _capture(tester, capture, 'marketplace-narrow-license-dialog.png');
       await tester.tapAt(const Offset(10, 10));
@@ -577,13 +1349,26 @@ void main() {
     await tester.pumpAndSettle();
     final target = find.byType(DragTarget<SystemModule>);
     final destination = tester.getCenter(target);
-    final gesture = await tester.startGesture(tester.getCenter(source));
+    final sourcePosition = tester.getCenter(source);
+    final gesture = await tester.startGesture(sourcePosition);
     await gesture.moveBy(const Offset(30, 0));
     await tester.pump();
     await gesture.moveTo(destination);
     await tester.pump();
+    final hint = find.byKey(const ValueKey('workspace module drop hint'));
+    expect(hint, findsNothing);
+    final canvasRect = tester.getRect(target);
+    final shellScale = canvasRect.width / tester.getSize(target).width;
+    expect(find.byKey(const ValueKey('workspace drop blur')), findsNothing);
+    expect(find.text('Add module to canvas'), findsNothing);
+    await gesture.moveTo(sourcePosition);
+    await tester.pump();
+    expect(hint, findsNothing);
+    await gesture.moveTo(destination);
+    await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();
+    expect(hint, findsNothing);
     final graph = container.read(workspaceProvider);
     expect(find.byTooltip('Create new tab'), findsNothing);
     expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
@@ -592,6 +1377,24 @@ void main() {
     expect(graph.nodes.length, 1);
     expect(graph.nodes.single.module.id, previewWorkspaceModules.first.id);
     expect(graph.nodes.single.inputs, isEmpty);
+    expect(find.text('MODULE SETTINGS'), findsOneWidget);
+    final toggle = find.byKey(const ValueKey('workspace toggle inspector'));
+    expect(
+      tester.getRect(toggle).center.dy,
+      tester
+          .getRect(find.byKey(const ValueKey('workspace add menu')))
+          .center
+          .dy,
+    );
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('MODULE SETTINGS'), findsNothing);
+    expect(
+      tester.getRect(toggle).right,
+      closeTo(tester.getRect(target).right - 14 * shellScale, .1),
+    );
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
     expect(find.text('MODULE SETTINGS'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('workspace view menu')));
     await tester.pumpAndSettle();
@@ -712,7 +1515,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('List'));
       await tester.pumpAndSettle();
-      expect(find.byType(SliverFixedExtentList), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(CustomScrollView),
+          matching: find.byType(SliverList),
+        ),
+        findsOneWidget,
+      );
       expect(
         tester.getTopLeft(find.text('A New Filter')).dy,
         lessThan(tester.getTopLeft(find.text('Test Filter')).dy),

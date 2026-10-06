@@ -21,33 +21,28 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Ayakiro BCI Engine'), findsOneWidget);
-    // The mode selector is now available from the activity rail, not the top bar.
-    expect(find.byTooltip('user&dev switcher'), findsOneWidget);
+    expect(find.byTooltip('user&dev switcher'), findsNothing);
     expect(find.text('Потребитель'), findsNothing);
     // Dashboard header.
     expect(find.text('Dashboard'), findsWidgets);
   });
 
-  testWidgets('mode switch panel reveals researcher mode', (
+  testWidgets('Workspace remains available without the rail mode switcher', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Open the rail mode switcher and pick "Исследователь".
-    await tester.tap(find.byTooltip('user&dev switcher'));
-    await tester.pumpAndSettle();
+    expect(find.byTooltip('user&dev switcher'), findsNothing);
     expect(find.text('Change mode'), findsNothing);
-    await tester.tap(
-      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
-    );
+    await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
 
     expect(find.text('Исследователь'), findsNothing);
     expect(find.byTooltip('Workspace'), findsOneWidget);
-    expect(find.text('No active workspace items'), findsOneWidget);
-    expect(find.text('ACTIVE MODULES'), findsNothing);
-    expect(find.text('MODULE CATALOG'), findsNothing);
+    expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
+    expect(find.text('ACTIVE MODULES'), findsWidgets);
+    expect(find.text('MODULE CATALOG'), findsWidgets);
   });
 
   testWidgets('Entity section supports adding and installing neural networks', (
@@ -57,12 +52,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byTooltip('user&dev switcher'));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
-    );
-    await tester.pumpAndSettle();
 
     expect(find.byTooltip('Entity'), findsWidgets);
     await tester.tap(find.byTooltip('Entity').last);
@@ -87,6 +76,24 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
+  });
+
+  testWidgets('Explorer separates offline and online module actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add module').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Create locally'), findsOneWidget);
+    expect(find.text('Create online'), findsOneWidget);
+    expect(find.text('Add locally (.qmod)'), findsOneWidget);
+    expect(find.text('Add online'), findsOneWidget);
+    await tester.tap(find.text('Add online'));
+    await tester.pumpAndSettle();
+    expect(find.text('EXPLORER'), findsNothing);
   });
 
   testWidgets('interface scale starts at 100% with a denser 120% visual base', (
@@ -133,6 +140,45 @@ void main() {
     expect(find.text('110%'), findsOneWidget);
   });
 
+  testWidgets('canvas zoom shortcuts follow hover without a canvas click', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1500, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(const ProviderScope(child: BciApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Workspace'));
+    await tester.pumpAndSettle();
+    final viewer = find.byType(InteractiveViewer);
+    final transform = tester
+        .widget<InteractiveViewer>(viewer)
+        .transformationController!;
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(1, 1));
+    await mouse.moveTo(tester.getTopLeft(viewer) + const Offset(100, 100));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(transform.value.getMaxScaleOnAxis(), lessThan(1));
+    expect(find.text('100%'), findsOneWidget);
+    await mouse.moveTo(tester.getCenter(find.byTooltip('Workspace')));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('90%'), findsOneWidget);
+    await mouse.removePointer();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('header menus remain available across interface scales', (
     WidgetTester tester,
   ) async {
@@ -177,6 +223,15 @@ void main() {
       await tester.pump();
     }
     expect(find.text('80%'), findsOneWidget);
+    // The transformed scaffold must fill the window, even below the base scale.
+    final shell = find
+        .descendant(of: find.byType(AppShell), matching: find.byType(Scaffold))
+        .first;
+    final shellRect = tester.getRect(shell);
+    expect(shellRect.left, closeTo(0, .01));
+    expect(shellRect.top, closeTo(0, .01));
+    expect(shellRect.width, closeTo(1400, .01));
+    expect(shellRect.height, closeTo(800, .01));
     expect(
       find.byKey(const ValueKey<String>('File menu button')),
       findsOneWidget,
@@ -262,23 +317,10 @@ void main() {
     expect(find.text('Shortcuts'), findsOneWidget);
     await tester.tap(find.text('Shortcuts'));
     await tester.pumpAndSettle();
-    expect(find.text('Keyboard shortcuts'), findsWidgets);
+    expect(find.text('Navigation'), findsWidgets);
     expect(find.text('WORKSPACE'), findsOneWidget);
     expect(find.text('INTERFACE'), findsOneWidget);
-    expect(find.text('Edit shortcuts'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('shortcut edit action')),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .getSize(find.byKey(const ValueKey<String>('shortcut edit action')))
-          .width,
-      lessThanOrEqualTo(152),
-    );
-    await tester.tap(find.text('Edit shortcuts'));
-    await tester.pump();
-    expect(find.text('Done'), findsOneWidget);
+    expect(find.byKey(const ValueKey('edit navigation next')), findsOneWidget);
 
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -410,19 +452,17 @@ void main() {
     await tester.tap(find.byTooltip('Marketplace'));
     await tester.pumpAndSettle();
     expect(find.text('EXPLORER'), findsNothing);
-    expect(find.byTooltip('Filters'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace search field')),
+      findsOneWidget,
+    );
 
     expect(
       find.byKey(const ValueKey<String>('toggle extension inspector')),
       findsNothing,
     );
 
-    await tester.tap(find.byTooltip('user&dev switcher'));
-    await tester.pumpAndSettle();
-    expect(
-      find.byTooltip('Researcher: Datasets, spectrograms, experiments'),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('user&dev switcher'), findsNothing);
   });
 
   testWidgets('bug report opens as an empty rail workspace', (
@@ -628,11 +668,11 @@ void main() {
     expect(find.byTooltip('configs'), findsNothing);
     expect(find.text('EXPLORER'), findsNothing);
 
-    await tester.ensureVisible(find.text('Keyboard shortcuts').last);
+    await tester.ensureVisible(find.text('Navigation').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Keyboard shortcuts').last);
+    await tester.tap(find.text('Navigation').last);
     await tester.pumpAndSettle();
-    expect(find.text('Keyboard shortcuts'), findsWidgets);
+    expect(find.text('Navigation'), findsWidgets);
     expect(find.text('WORKSPACE'), findsOneWidget);
   });
 
@@ -786,7 +826,7 @@ void main() {
                         of: tooltip,
                         matching: find.byType(DecoratedBox),
                       )
-                      .first,
+                      .last,
                 )
                 .decoration
             as BoxDecoration;

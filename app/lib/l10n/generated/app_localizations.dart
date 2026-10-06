@@ -98,6 +98,468 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @moduleCreateLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Create locally'**
+  String get moduleCreateLocal;
+
+  /// No description provided for @moduleCreateOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Create online'**
+  String get moduleCreateOnline;
+
+  /// No description provided for @moduleAddLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Add locally (.qmod)'**
+  String get moduleAddLocal;
+
+  /// No description provided for @moduleAddOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Add online'**
+  String get moduleAddOnline;
+
+  /// No description provided for @localModuleProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Local C++ module project'**
+  String get localModuleProject;
+
+  /// No description provided for @localModuleEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit the C++ source in your project directory, build a new .qmod version and add it locally. See docs/LOCAL_MODULES.md.'**
+  String get localModuleEditHint;
+
+  /// No description provided for @localModuleTrustTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust this native module?'**
+  String get localModuleTrustTitle;
+
+  /// No description provided for @localModuleTrustWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This package contains native C++ code. Each node runs in a separate process, but this is NOT a security sandbox: it has your user\'s access to files, network and devices. Install only code you trust. Adding a node starts its executable.'**
+  String get localModuleTrustWarning;
+
+  /// No description provided for @localModuleError.
+  ///
+  /// In en, this message translates to:
+  /// **'Local module operation failed'**
+  String get localModuleError;
+
+  /// No description provided for @workspacesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get workspacesTitle;
+
+  /// No description provided for @workspaceManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace manager'**
+  String get workspaceManager;
+
+  /// No description provided for @workspaceCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'New workspace'**
+  String get workspaceCreate;
+
+  /// No description provided for @workspaceEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit workspace'**
+  String get workspaceEdit;
+
+  /// No description provided for @workspaceDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete workspace'**
+  String get workspaceDelete;
+
+  /// No description provided for @workspaceDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete “{name}” and its graph? This does not remove modules from the library.'**
+  String workspaceDeleteConfirm(String name);
+
+  /// No description provided for @workspaceImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import workspace'**
+  String get workspaceImport;
+
+  /// No description provided for @workspaceExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export / share'**
+  String get workspaceExport;
+
+  /// No description provided for @workspaceSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit to Marketplace'**
+  String get workspaceSubmit;
+
+  /// No description provided for @workspaceSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace submitted for review. It will appear in Marketplace after approval.'**
+  String get workspaceSubmitted;
+
+  /// No description provided for @workspaceReviewNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with GitHub to submit. Publication requires review; submitting does not immediately publish the workspace.'**
+  String get workspaceReviewNotice;
+
+  /// No description provided for @workspaceShareWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The graph includes module parameters and labels. Remove private values, tokens and local paths before sharing. Only share content you have permission to distribute.'**
+  String get workspaceShareWarning;
+
+  /// No description provided for @workspaceContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get workspaceContinue;
+
+  /// No description provided for @workspaceProjectName.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace name'**
+  String get workspaceProjectName;
+
+  /// No description provided for @workspaceProjectDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get workspaceProjectDescription;
+
+  /// No description provided for @workspaceProjectActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace actions'**
+  String get workspaceProjectActions;
+
+  /// No description provided for @workspaceGraphSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{nodes} modules · {links} connections'**
+  String workspaceGraphSummary(int nodes, int links);
+
+  /// No description provided for @workspaceDependenciesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Required module versions are unavailable'**
+  String get workspaceDependenciesUnavailable;
+
+  /// No description provided for @workspaceOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace operation failed'**
+  String get workspaceOperationFailed;
+
+  /// No description provided for @workspaceInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install workspace'**
+  String get workspaceInstall;
+
+  /// No description provided for @workspaceInstallNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Creates a separate project and resolves available module versions automatically. External package execution requires a signed runtime; nothing is executed during import.'**
+  String get workspaceInstallNotice;
+
+  /// No description provided for @workspaceCatalogUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace catalog is unavailable. Check your connection and try again. The backend also needs the workspace catalog migration.'**
+  String get workspaceCatalogUnavailable;
+
+  /// No description provided for @navigationMenuDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Next menu action'**
+  String get navigationMenuDown;
+
+  /// No description provided for @navigationMenuUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous menu action'**
+  String get navigationMenuUp;
+
+  /// No description provided for @navigationEditableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a combination to change it, then Save or Ctrl+Enter to confirm. Changes are saved and apply to controls and menus. Esc cancels capture; Reset restores defaults.'**
+  String get navigationEditableHint;
+
+  /// No description provided for @navigationReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset shortcuts'**
+  String get navigationReset;
+
+  /// No description provided for @navigationConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This combination is already used by another navigation action.'**
+  String get navigationConflict;
+
+  /// No description provided for @navigationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get navigationTitle;
+
+  /// No description provided for @navigationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate without a mouse. Focus borders appear only during keyboard navigation and disappear when you use the mouse. Text fields keep their usual editing shortcuts.'**
+  String get navigationDescription;
+
+  /// No description provided for @navigationFixedBindings.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation bindings are built into the controls and cannot be reassigned here. Fullscreen shortcuts apply inside an active module view.'**
+  String get navigationFixedBindings;
+
+  /// No description provided for @navigationMenus.
+  ///
+  /// In en, this message translates to:
+  /// **'Menus'**
+  String get navigationMenus;
+
+  /// No description provided for @navigationModules.
+  ///
+  /// In en, this message translates to:
+  /// **'Modules and ports'**
+  String get navigationModules;
+
+  /// No description provided for @navigationKeyUpDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Up / Down'**
+  String get navigationKeyUpDown;
+
+  /// No description provided for @navigationKeyRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get navigationKeyRight;
+
+  /// No description provided for @navigationKeyLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get navigationKeyLeft;
+
+  /// No description provided for @navigationNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus the next control'**
+  String get navigationNext;
+
+  /// No description provided for @navigationPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus the previous control'**
+  String get navigationPrevious;
+
+  /// No description provided for @navigationActivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate the focused control'**
+  String get navigationActivate;
+
+  /// No description provided for @navigationContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a node or port context menu'**
+  String get navigationContext;
+
+  /// No description provided for @navigationMenuMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move between menu actions'**
+  String get navigationMenuMove;
+
+  /// No description provided for @navigationSubmenuOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open a submenu'**
+  String get navigationSubmenuOpen;
+
+  /// No description provided for @navigationSubmenuBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Return from a submenu'**
+  String get navigationSubmenuBack;
+
+  /// No description provided for @navigationDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Close a menu or dialog / return from fullscreen'**
+  String get navigationDismiss;
+
+  /// No description provided for @navigationConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus and activate each port to connect them'**
+  String get navigationConnect;
+
+  /// No description provided for @navigationFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle the active module fullscreen'**
+  String get navigationFullscreen;
+
+  /// No description provided for @navigationExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Return from module fullscreen'**
+  String get navigationExitFullscreen;
+
+  /// No description provided for @workspacePortName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get workspacePortName;
+
+  /// No description provided for @workspacePortRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename port'**
+  String get workspacePortRename;
+
+  /// No description provided for @workspacePortNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to restore the original name.'**
+  String get workspacePortNameHint;
+
+  /// No description provided for @workspacePortSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get workspacePortSave;
+
+  /// No description provided for @workspacePortValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value type'**
+  String get workspacePortValue;
+
+  /// No description provided for @workspacePortColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get workspacePortColor;
+
+  /// No description provided for @workspacePortAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any'**
+  String get workspacePortAny;
+
+  /// No description provided for @workspacePortString.
+  ///
+  /// In en, this message translates to:
+  /// **'String'**
+  String get workspacePortString;
+
+  /// No description provided for @workspacePortNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Number'**
+  String get workspacePortNumber;
+
+  /// No description provided for @workspacePortBoolean.
+  ///
+  /// In en, this message translates to:
+  /// **'Boolean'**
+  String get workspacePortBoolean;
+
+  /// No description provided for @workspacePortList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get workspacePortList;
+
+  /// No description provided for @workspacePortObject.
+  ///
+  /// In en, this message translates to:
+  /// **'Object'**
+  String get workspacePortObject;
+
+  /// No description provided for @moduleOpenWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in separate window'**
+  String get moduleOpenWindow;
+
+  /// No description provided for @moduleFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen module'**
+  String get moduleFullscreen;
+
+  /// No description provided for @moduleExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit fullscreen'**
+  String get moduleExitFullscreen;
+
+  /// No description provided for @moduleWindowFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the module window.'**
+  String get moduleWindowFailed;
+
+  /// No description provided for @workspaceAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'APPEARANCE'**
+  String get workspaceAppearance;
+
+  /// No description provided for @workspaceInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'INSTANCE'**
+  String get workspaceInstance;
+
+  /// No description provided for @workspaceParameters.
+  ///
+  /// In en, this message translates to:
+  /// **'PARAMETERS'**
+  String get workspaceParameters;
+
+  /// No description provided for @workspacePorts.
+  ///
+  /// In en, this message translates to:
+  /// **'INPUTS / OUTPUTS'**
+  String get workspacePorts;
+
+  /// No description provided for @workspaceInputColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Input highlight'**
+  String get workspaceInputColor;
+
+  /// No description provided for @workspaceOutputColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Output highlight'**
+  String get workspaceOutputColor;
+
   /// No description provided for @workspaceSelect.
   ///
   /// In en, this message translates to:
@@ -1959,6 +2421,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{arg0} modules · {arg1} connections'**
   String textArg0ModulesArg1Connections298(String arg0, String arg1);
+
+  /// No description provided for @workspaceHideSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide right sidebar'**
+  String get workspaceHideSidebar;
+
+  /// No description provided for @workspaceShowSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Show right sidebar'**
+  String get workspaceShowSidebar;
+
+  /// No description provided for @workspaceColorNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No color'**
+  String get workspaceColorNone;
+
+  /// No description provided for @workspaceColorRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get workspaceColorRed;
+
+  /// No description provided for @workspaceColorOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get workspaceColorOrange;
+
+  /// No description provided for @workspaceColorYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get workspaceColorYellow;
+
+  /// No description provided for @workspaceColorGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get workspaceColorGreen;
+
+  /// No description provided for @workspaceColorBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get workspaceColorBlue;
+
+  /// No description provided for @workspaceColorPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get workspaceColorPurple;
+
+  /// No description provided for @workspaceHeaderColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Module color'**
+  String get workspaceHeaderColor;
+
+  /// No description provided for @workspaceSelectSameColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Select modules with this color'**
+  String get workspaceSelectSameColor;
+
+  /// No description provided for @workspaceSelectByColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Select by color'**
+  String get workspaceSelectByColor;
+
+  /// No description provided for @workspaceColorSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Color selected'**
+  String get workspaceColorSelected;
+
+  /// No description provided for @workspaceFilterByColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by color'**
+  String get workspaceFilterByColor;
+
+  /// No description provided for @workspaceAllColors.
+  ///
+  /// In en, this message translates to:
+  /// **'All colors'**
+  String get workspaceAllColors;
+
+  /// No description provided for @workspaceNoSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching modules'**
+  String get workspaceNoSearchResults;
 
   /// Host UI: Add module to canvas
   ///

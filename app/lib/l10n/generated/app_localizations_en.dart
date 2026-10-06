@@ -10,6 +10,256 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get moduleCreateLocal => 'Create locally';
+
+  @override
+  String get moduleCreateOnline => 'Create online';
+
+  @override
+  String get moduleAddLocal => 'Add locally (.qmod)';
+
+  @override
+  String get moduleAddOnline => 'Add online';
+
+  @override
+  String get localModuleProject => 'Local C++ module project';
+
+  @override
+  String get localModuleEditHint =>
+      'Edit the C++ source in your project directory, build a new .qmod version and add it locally. See docs/LOCAL_MODULES.md.';
+
+  @override
+  String get localModuleTrustTitle => 'Trust this native module?';
+
+  @override
+  String get localModuleTrustWarning =>
+      'This package contains native C++ code. Each node runs in a separate process, but this is NOT a security sandbox: it has your user\'s access to files, network and devices. Install only code you trust. Adding a node starts its executable.';
+
+  @override
+  String get localModuleError => 'Local module operation failed';
+
+  @override
+  String get workspacesTitle => 'Workspaces';
+
+  @override
+  String get workspaceManager => 'Workspace manager';
+
+  @override
+  String get workspaceCreate => 'New workspace';
+
+  @override
+  String get workspaceEdit => 'Edit workspace';
+
+  @override
+  String get workspaceDelete => 'Delete workspace';
+
+  @override
+  String workspaceDeleteConfirm(String name) {
+    return 'Delete “$name” and its graph? This does not remove modules from the library.';
+  }
+
+  @override
+  String get workspaceImport => 'Import workspace';
+
+  @override
+  String get workspaceExport => 'Export / share';
+
+  @override
+  String get workspaceSubmit => 'Submit to Marketplace';
+
+  @override
+  String get workspaceSubmitted =>
+      'Workspace submitted for review. It will appear in Marketplace after approval.';
+
+  @override
+  String get workspaceReviewNotice =>
+      'Sign in with GitHub to submit. Publication requires review; submitting does not immediately publish the workspace.';
+
+  @override
+  String get workspaceShareWarning =>
+      'The graph includes module parameters and labels. Remove private values, tokens and local paths before sharing. Only share content you have permission to distribute.';
+
+  @override
+  String get workspaceContinue => 'Continue';
+
+  @override
+  String get workspaceProjectName => 'Workspace name';
+
+  @override
+  String get workspaceProjectDescription => 'Description';
+
+  @override
+  String get workspaceProjectActions => 'Workspace actions';
+
+  @override
+  String workspaceGraphSummary(int nodes, int links) {
+    return '$nodes modules · $links connections';
+  }
+
+  @override
+  String get workspaceDependenciesUnavailable =>
+      'Required module versions are unavailable';
+
+  @override
+  String get workspaceOperationFailed => 'Workspace operation failed';
+
+  @override
+  String get workspaceInstall => 'Install workspace';
+
+  @override
+  String get workspaceInstallNotice =>
+      'Creates a separate project and resolves available module versions automatically. External package execution requires a signed runtime; nothing is executed during import.';
+
+  @override
+  String get workspaceCatalogUnavailable =>
+      'Workspace catalog is unavailable. Check your connection and try again. The backend also needs the workspace catalog migration.';
+
+  @override
+  String get navigationMenuDown => 'Next menu action';
+
+  @override
+  String get navigationMenuUp => 'Previous menu action';
+
+  @override
+  String get navigationEditableHint =>
+      'Click a combination to change it, then Save or Ctrl+Enter to confirm. Changes are saved and apply to controls and menus. Esc cancels capture; Reset restores defaults.';
+
+  @override
+  String get navigationReset => 'Reset shortcuts';
+
+  @override
+  String get navigationConflict =>
+      'This combination is already used by another navigation action.';
+
+  @override
+  String get navigationTitle => 'Navigation';
+
+  @override
+  String get navigationDescription =>
+      'Navigate without a mouse. Focus borders appear only during keyboard navigation and disappear when you use the mouse. Text fields keep their usual editing shortcuts.';
+
+  @override
+  String get navigationFixedBindings =>
+      'Navigation bindings are built into the controls and cannot be reassigned here. Fullscreen shortcuts apply inside an active module view.';
+
+  @override
+  String get navigationMenus => 'Menus';
+
+  @override
+  String get navigationModules => 'Modules and ports';
+
+  @override
+  String get navigationKeyUpDown => 'Up / Down';
+
+  @override
+  String get navigationKeyRight => 'Right';
+
+  @override
+  String get navigationKeyLeft => 'Left';
+
+  @override
+  String get navigationNext => 'Focus the next control';
+
+  @override
+  String get navigationPrevious => 'Focus the previous control';
+
+  @override
+  String get navigationActivate => 'Activate the focused control';
+
+  @override
+  String get navigationContext => 'Open a node or port context menu';
+
+  @override
+  String get navigationMenuMove => 'Move between menu actions';
+
+  @override
+  String get navigationSubmenuOpen => 'Open a submenu';
+
+  @override
+  String get navigationSubmenuBack => 'Return from a submenu';
+
+  @override
+  String get navigationDismiss =>
+      'Close a menu or dialog / return from fullscreen';
+
+  @override
+  String get navigationConnect =>
+      'Focus and activate each port to connect them';
+
+  @override
+  String get navigationFullscreen => 'Toggle the active module fullscreen';
+
+  @override
+  String get navigationExitFullscreen => 'Return from module fullscreen';
+
+  @override
+  String get workspacePortName => 'Name';
+
+  @override
+  String get workspacePortRename => 'Rename port';
+
+  @override
+  String get workspacePortNameHint =>
+      'Leave empty to restore the original name.';
+
+  @override
+  String get workspacePortSave => 'Save';
+
+  @override
+  String get workspacePortValue => 'Value type';
+
+  @override
+  String get workspacePortColor => 'Color';
+
+  @override
+  String get workspacePortAny => 'Any';
+
+  @override
+  String get workspacePortString => 'String';
+
+  @override
+  String get workspacePortNumber => 'Number';
+
+  @override
+  String get workspacePortBoolean => 'Boolean';
+
+  @override
+  String get workspacePortList => 'List';
+
+  @override
+  String get workspacePortObject => 'Object';
+
+  @override
+  String get moduleOpenWindow => 'Open in separate window';
+
+  @override
+  String get moduleFullscreen => 'Fullscreen module';
+
+  @override
+  String get moduleExitFullscreen => 'Exit fullscreen';
+
+  @override
+  String get moduleWindowFailed => 'Could not open the module window.';
+
+  @override
+  String get workspaceAppearance => 'APPEARANCE';
+
+  @override
+  String get workspaceInstance => 'INSTANCE';
+
+  @override
+  String get workspaceParameters => 'PARAMETERS';
+
+  @override
+  String get workspacePorts => 'INPUTS / OUTPUTS';
+
+  @override
+  String get workspaceInputColor => 'Input highlight';
+
+  @override
+  String get workspaceOutputColor => 'Output highlight';
+
+  @override
   String get workspaceSelect => 'Select';
 
   @override
@@ -1034,6 +1284,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String textArg0ModulesArg1Connections298(String arg0, String arg1) {
     return '$arg0 modules · $arg1 connections';
   }
+
+  @override
+  String get workspaceHideSidebar => 'Hide right sidebar';
+
+  @override
+  String get workspaceShowSidebar => 'Show right sidebar';
+
+  @override
+  String get workspaceColorNone => 'No color';
+
+  @override
+  String get workspaceColorRed => 'Red';
+
+  @override
+  String get workspaceColorOrange => 'Orange';
+
+  @override
+  String get workspaceColorYellow => 'Yellow';
+
+  @override
+  String get workspaceColorGreen => 'Green';
+
+  @override
+  String get workspaceColorBlue => 'Blue';
+
+  @override
+  String get workspaceColorPurple => 'Purple';
+
+  @override
+  String get workspaceHeaderColor => 'Module color';
+
+  @override
+  String get workspaceSelectSameColor => 'Select modules with this color';
+
+  @override
+  String get workspaceSelectByColor => 'Select by color';
+
+  @override
+  String get workspaceColorSelected => 'Color selected';
+
+  @override
+  String get workspaceFilterByColor => 'Filter by color';
+
+  @override
+  String get workspaceAllColors => 'All colors';
+
+  @override
+  String get workspaceNoSearchResults => 'No matching modules';
 
   @override
   String get textAddModuleToCanvas299 => 'Add module to canvas';

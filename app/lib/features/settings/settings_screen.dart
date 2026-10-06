@@ -2,6 +2,9 @@ import '../../l10n/app_strings.dart';
 import '../common/desktop_menu.dart';
 
 import 'package:flutter/material.dart';
+
+import '../common/desktop_focus.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_info.dart';
@@ -131,7 +134,7 @@ class _PreferencesSidebar extends StatelessWidget {
     ('Voice', Icons.mic_none_outlined),
     ('Configuration', Icons.verified_user_outlined),
     ('Personalization', Icons.history_outlined),
-    ('Keyboard shortcuts', Icons.keyboard_alt_outlined),
+    ('Navigation', Icons.navigation_outlined),
     ('Account', Icons.account_circle_outlined),
   ];
 
@@ -309,12 +312,12 @@ class _PreferencesContent extends ConsumerWidget {
         ],
       );
     }
-    if (selectedItem == 'Keyboard shortcuts') {
+    if (selectedItem == 'Navigation') {
       return Padding(
         padding: const EdgeInsets.fromLTRB(48, 42, 48, 38),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1000),
-          child: const KeyboardShortcutsPanel(),
+          child: KeyboardShortcutsPanel(key: ValueKey(selectedItem)),
         ),
       );
     }
@@ -505,34 +508,38 @@ class _PreferenceNavButtonState extends State<_PreferenceNavButton> {
     onEnter: (_) => setState(() => _hovered = true),
     onExit: (_) => setState(() => _hovered = false),
     cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: AppTheme.hoverDuration,
-        curve: AppTheme.hoverCurve,
-        height: 39,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: widget.selected
-              ? context.palette.hover
-              : _hovered
-              ? context.palette.hover.withAlpha(130)
-              : context.palette.hover.withAlpha(0),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Row(
-          children: [
-            Icon(widget.icon, size: 18, color: context.palette.text),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                context.hostLabel(widget.label),
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
+    child: DesktopFocusableAction(
+      onActivate: widget.onTap,
+      label: context.hostLabel(widget.label),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: AppTheme.hoverDuration,
+          curve: AppTheme.hoverCurve,
+          height: 39,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? context.palette.hover
+                : _hovered
+                ? context.palette.hover.withAlpha(130)
+                : context.palette.hover.withAlpha(0),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Row(
+            children: [
+              Icon(widget.icon, size: 18, color: context.palette.text),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  context.hostLabel(widget.label),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14),
+                ),
               ),
-            ),
-            if (widget.trailing != null) widget.trailing!,
-          ],
+              if (widget.trailing != null) widget.trailing!,
+            ],
+          ),
         ),
       ),
     ),

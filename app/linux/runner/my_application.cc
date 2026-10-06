@@ -35,7 +35,11 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_title(window, "Ayakiro BCI Engine");
 
   gtk_window_set_default_size(window, 1280, 720);
-  gtk_widget_set_size_request(GTK_WIDGET(window), 1080, 640);
+  const bool module_window = self->dart_entrypoint_arguments != nullptr &&
+      g_strv_contains(const_cast<const gchar* const*>(self->dart_entrypoint_arguments),
+                      "--module-window");
+  gtk_widget_set_size_request(GTK_WIDGET(window), module_window ? 480 : 1080,
+                              module_window ? 360 : 640);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

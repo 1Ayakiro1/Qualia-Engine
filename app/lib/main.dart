@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,7 @@ import 'core/logging/debug_terminal_launcher.dart';
 import 'core/logging/log_entry.dart';
 import 'core/auth/auth_service.dart';
 import 'core/auth/supabase_config.dart';
+import 'features/modules/module_window_app.dart';
 
 Future<RandomAccessFile?> _acquireDebugTerminalLock() async {
   final File lockFile = LogLocations.debugTerminalLockFile();
@@ -39,6 +42,49 @@ void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   final bool debugTerminal = args.contains('--debug-terminal');
   final bool withDebugTerminal = args.contains('--with-debug-terminal');
+
+  if (args.contains('--module-window')) {
+    try {
+      final index = args.indexOf('--module-window');
+      final port = int.parse(args[index + 1]);
+      final token = args[index + 2];
+      if (port < 1 ||
+          port > 65535 ||
+          !RegExp(r'^[a-f0-9]{64}$').hasMatch(token)) {
+        throw const FormatException('Invalid module window session');
+      }
+      final socket = await WebSocket.connect('ws://127.0.0.1:$port/$token');
+      // Keep one subscription: updates arriving during native initialization
+      // stay buffered instead of disappearing between broadcast listeners.
+      final messages = StreamIterator<dynamic>(socket);
+      if (!await messages.moveNext().timeout(const Duration(seconds: 10))) {
+        throw const FormatException('Module window host disconnected');
+      }
+      final initial =
+          jsonDecode(messages.current as String) as Map<String, dynamic>;
+      await windowManager.ensureInitialized();
+      await windowManager.waitUntilReadyToShow(
+        WindowOptions(
+          size: const Size(960, 700),
+          minimumSize: const Size(480, 360),
+          center: true,
+          title: '${(initial['node'] as Map)['module']['name']} — Qualia',
+          titleBarStyle: TitleBarStyle.normal,
+        ),
+        () async {
+          await windowManager.show();
+          await windowManager.focus();
+        },
+      );
+      runApp(
+        ModuleWindowApp(socket: socket, messages: messages, initial: initial),
+      );
+    } catch (error) {
+      debugPrint('Module window unavailable: $error');
+      exit(1);
+    }
+    return;
+  }
 
   if (debugTerminal) {
     final RandomAccessFile? lockHandle = await _acquireDebugTerminalLock();

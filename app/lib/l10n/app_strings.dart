@@ -450,6 +450,7 @@ extension AppStrings on BuildContext {
     "WORKSPACE" => l10n.textWORKSPACE356,
     "INTERFACE" => l10n.textINTERFACE357,
     "Keyboard shortcuts" => l10n.textKeyboardShortcuts358,
+    "Navigation" => l10n.navigationTitle,
     "Edit shortcuts" => l10n.textEditShortcuts359,
     "Press keys" => l10n.textPressKeys360,
     "Import" => l10n.textImport361,
@@ -537,6 +538,7 @@ extension AppStrings on BuildContext {
     "Extensions" => l10n.textExtensions427,
     "Modules" => l10n.textModules428,
     "Themes" => l10n.textThemes429,
+    "Workspaces" => l10n.workspacesTitle,
     "The engine’s neutral, dark-first appearance. A quiet workspace for focused research." =>
       l10n.textTheEngineSNeutralDarkFirstAppearance430,
     "Built-in" => l10n.textBuiltIn431,

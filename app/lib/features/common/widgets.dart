@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/app_strings.dart';
 import 'desktop_menu.dart';
+import 'desktop_focus.dart';
 
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
@@ -122,6 +123,9 @@ class DesktopHoverTile extends StatefulWidget {
     this.hoverColor,
     this.borderRadius = const BorderRadius.all(Radius.circular(6)),
     this.cursor = SystemMouseCursors.click,
+    this.keyboardFocusable = true,
+    this.focusNode,
+    this.label,
   });
 
   final VoidCallback? onTap;
@@ -139,6 +143,9 @@ class DesktopHoverTile extends StatefulWidget {
   final Color? hoverColor;
   final BorderRadius borderRadius;
   final MouseCursor cursor;
+  final bool keyboardFocusable;
+  final FocusNode? focusNode;
+  final String? label;
 
   @override
   State<DesktopHoverTile> createState() => _DesktopHoverTileState();
@@ -150,7 +157,7 @@ class _DesktopHoverTileState extends State<DesktopHoverTile> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return MouseRegion(
+    final tile = MouseRegion(
       cursor: widget.onTap == null ? SystemMouseCursors.basic : widget.cursor,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -172,6 +179,14 @@ class _DesktopHoverTileState extends State<DesktopHoverTile> {
         ),
       ),
     );
+    return widget.keyboardFocusable
+        ? DesktopFocusableAction(
+            onActivate: widget.onTap,
+            focusNode: widget.focusNode,
+            label: widget.label,
+            child: tile,
+          )
+        : tile;
   }
 }
 
@@ -239,64 +254,69 @@ class _DesktopIconButtonState extends State<DesktopIconButton> {
     final Color labelColor = widget.onPressed == null
         ? palette.mutedText.withAlpha(120)
         : palette.text;
-    return DesktopTooltip(
-      message: widget.tooltip,
-      child: MouseRegion(
-        cursor: widget.onPressed == null
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: Semantics(
-          button: true,
-          enabled: widget.onPressed != null,
-          label: widget.tooltip,
-          child: GestureDetector(
-            onTap: widget.onPressed,
-            child: AnimatedContainer(
-              duration: AppTheme.hoverDuration,
-              curve: AppTheme.hoverCurve,
-              width: widget.label == null ? widget.size : null,
-              height: widget.size,
-              alignment: Alignment.center,
-              padding: widget.label == null
-                  ? EdgeInsets.zero
-                  : const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: _hovered || widget.active
-                    ? palette.hover
-                    : palette.hover.withAlpha(0),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: widget.label == null
-                    ? MainAxisSize.min
-                    : MainAxisSize.max,
-                children: [
-                  DesktopColorTransition(
-                    color: iconColor,
-                    builder: (context, color) =>
-                        Icon(widget.icon, size: widget.iconSize, color: color),
-                  ),
-                  if (widget.label case final label?) ...[
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: DesktopColorTransition(
-                        color: labelColor,
-                        builder: (context, color) => Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+    return DesktopFocusableAction(
+      onActivate: widget.onPressed,
+      label: widget.tooltip,
+      child: DesktopTooltip(
+        message: widget.tooltip,
+        child: MouseRegion(
+          cursor: widget.onPressed == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: Semantics(
+            button: true,
+            enabled: widget.onPressed != null,
+            label: widget.tooltip,
+            child: GestureDetector(
+              onTap: widget.onPressed,
+              child: AnimatedContainer(
+                duration: AppTheme.hoverDuration,
+                curve: AppTheme.hoverCurve,
+                width: widget.label == null ? widget.size : null,
+                height: widget.size,
+                alignment: Alignment.center,
+                padding: widget.label == null
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: _hovered || widget.active
+                      ? palette.hover
+                      : palette.hover.withAlpha(0),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DesktopColorTransition(
+                      color: iconColor,
+                      builder: (context, color) => Icon(
+                        widget.icon,
+                        size: widget.iconSize,
+                        color: color,
+                      ),
+                    ),
+                    if (widget.label case final label?) ...[
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: DesktopColorTransition(
+                          color: labelColor,
+                          builder: (context, color) => Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -327,46 +347,50 @@ class _ExplorerSectionHeaderState extends State<ExplorerSectionHeader> {
   bool _hovered = false;
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: widget.onToggle,
-      child: AnimatedContainer(
-        duration: AppTheme.hoverDuration,
-        curve: AppTheme.hoverCurve,
-        decoration: BoxDecoration(
-          color: _hovered
-              ? context.palette.hover
-              : context.palette.hover.withAlpha(0),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
-          child: Row(
-            children: [
-              Icon(
-                widget.expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 16,
-                color: context.palette.text,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  widget.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.palette.text,
-                    fontSize: 11,
-                    letterSpacing: .8,
-                    fontWeight: FontWeight.bold,
+  Widget build(BuildContext context) => DesktopFocusableAction(
+    onActivate: widget.onToggle,
+    label: widget.title,
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onToggle,
+        child: AnimatedContainer(
+          duration: AppTheme.hoverDuration,
+          curve: AppTheme.hoverCurve,
+          decoration: BoxDecoration(
+            color: _hovered
+                ? context.palette.hover
+                : context.palette.hover.withAlpha(0),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
+            child: Row(
+              children: [
+                Icon(
+                  widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                  size: 16,
+                  color: context.palette.text,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.palette.text,
+                      fontSize: 11,
+                      letterSpacing: .8,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
