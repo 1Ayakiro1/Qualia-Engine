@@ -1,4 +1,10 @@
 {
+  "moduleDelete": "Delete module",
+  "moduleActivate": "Make active",
+  "moduleDeactivate": "Make inactive",
+  "moduleMoveToWorkspace": "Move to workspace",
+  "moduleMoveConnectionsWarning": "Connections to modules left in the source workspace will be removed. Parameters and connections within the moved group will be preserved. Continue?",
+  "moduleEditorPlaceholder": "Module editing panel placeholder. Editing tools will be added later.",
   "moduleCreateLocal": "Create locally",
   "moduleCreateOnline": "Create online",
   "moduleAddLocal": "Add locally (.qmod)",

@@ -19,6 +19,9 @@ class WorkspaceState {
     this.library = const [],
     this.presets = const [],
     this.presetModuleIds,
+    this.moduleActiveOverrides = const {},
+    this.hiddenModuleIds = const {},
+    this.removedModuleIds = const {},
     this.authorMetadata = const {},
     this.loaded = false,
     this.projects = const [],
@@ -32,6 +35,11 @@ class WorkspaceState {
   final bool loaded;
   final List<WorkspaceProject> projects;
   final String activeProjectId;
+
+  /// Host-owned module state. A missing entry follows the catalog's default.
+  final Map<String, bool> moduleActiveOverrides;
+  final Set<String> hiddenModuleIds;
+  final Set<String> removedModuleIds;
   WorkspaceProject get activeProject =>
       projects.where((p) => p.id == activeProjectId).firstOrNull ??
       WorkspaceProject(
@@ -53,6 +61,9 @@ class WorkspaceState {
     bool? loaded,
     List<WorkspaceProject>? projects,
     String? activeProjectId,
+    Map<String, bool>? moduleActiveOverrides,
+    Set<String>? hiddenModuleIds,
+    Set<String>? removedModuleIds,
   }) => WorkspaceState(
     nodes: nodes ?? this.nodes,
     links: links ?? this.links,
@@ -65,6 +76,9 @@ class WorkspaceState {
     loaded: loaded ?? this.loaded,
     projects: projects ?? this.projects,
     activeProjectId: activeProjectId ?? this.activeProjectId,
+    moduleActiveOverrides: moduleActiveOverrides ?? this.moduleActiveOverrides,
+    hiddenModuleIds: hiddenModuleIds ?? this.hiddenModuleIds,
+    removedModuleIds: removedModuleIds ?? this.removedModuleIds,
   );
 }
 
@@ -79,7 +93,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       onUpdate: (id, status, values) {
         if (_disposed) return;
         final node = state.nodes.where((n) => n.id == id).firstOrNull;
-        if (node == null) return;
+        if (node == null ||
+            node.settings['enabled'] == false ||
+            state.moduleActiveOverrides[node.module.id] == false ||
+            state.hiddenModuleIds.contains(node.module.id)) {
+          return;
+        }
         if (status == 'starting') {
           node.runtimeValues.clear();
           node.runtimeHistory.clear();
@@ -153,6 +172,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         presetModuleIds: json['presetModuleIds'] == null
             ? null
             : List<String>.from(json['presetModuleIds'] as List),
+        moduleActiveOverrides: {
+          for (final entry
+              in (json['moduleActiveOverrides'] as Map? ?? {}).entries)
+            if (entry.key is String && entry.value is bool)
+              entry.key as String: entry.value as bool,
+        },
+        hiddenModuleIds: (json['hiddenModuleIds'] as List? ?? [])
+            .whereType<String>()
+            .toSet(),
+        removedModuleIds: (json['removedModuleIds'] as List? ?? [])
+            .whereType<String>()
+            .toSet(),
         loaded: true,
         authorMetadata: {
           for (final entry in (json['authorMetadata'] as Map? ?? {}).entries)
@@ -210,9 +241,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   void _syncRuntime() {
     for (final node in state.nodes.where((n) => n.module.isLocal)) {
-      if (node.settings['enabled'] == false) {
+      if (node.settings['enabled'] == false ||
+          state.moduleActiveOverrides[node.module.id] == false ||
+          state.hiddenModuleIds.contains(node.module.id)) {
         node.runtimeStatus = 'stopped';
         node.runtimeValues.clear();
+        node.runtimeHistory.clear();
       } else if (!state.library.any(
         (m) =>
             m.localPackage == node.module.localPackage &&
@@ -225,7 +259,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     }
     _runtime.sync(
       state.activeProjectId,
-      state.nodes,
+      state.nodes
+          .where(
+            (node) =>
+                state.moduleActiveOverrides[node.module.id] != false &&
+                !state.hiddenModuleIds.contains(node.module.id),
+          )
+          .toList(),
       state.links,
       state.library,
     );
@@ -243,6 +283,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       'authorMetadata': state.authorMetadata,
       'projects': state.projects.map((p) => p.toJson()).toList(),
       'activeProjectId': state.activeProjectId,
+      'moduleActiveOverrides': state.moduleActiveOverrides,
+      'hiddenModuleIds': state.hiddenModuleIds.toList(),
+      'removedModuleIds': state.removedModuleIds.toList(),
     });
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -554,7 +597,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   void setParameter(String id, String key, dynamic value) {
     final node = state.nodes.where((node) => node.id == id).firstOrNull;
-    if (node == null) return;
+    if (node == null || state.hiddenModuleIds.contains(node.module.id)) return;
     final fields = [
       if (node.module.manifest['parameters'] is List)
         ...node.module.manifest['parameters'] as List,
@@ -587,6 +630,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       );
     }
     state = state.copyWith(
+      removedModuleIds: {...state.removedModuleIds}..remove(module.id),
       library: [
         ...state.library.where(
           (old) =>
@@ -602,6 +646,107 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void removeLocalModule(String id) {
     state = state.copyWith(
       library: state.library.where((m) => m.id != id).toList(),
+    );
+    _changed();
+  }
+
+  void setModuleActive(String id, bool active) {
+    state = state.copyWith(
+      moduleActiveOverrides: {...state.moduleActiveOverrides, id: active},
+    );
+    _changed();
+  }
+
+  /// Remove host references only; never delete an author's remote package.
+  void removeWorkspaceModule(String id) {
+    WorkspaceProject removeFrom(WorkspaceProject project) {
+      final ids = project.nodes
+          .where((n) => n.module.id == id)
+          .map((n) => n.id)
+          .toSet();
+      return project.copyWith(
+        nodes: project.nodes.where((n) => !ids.contains(n.id)).toList(),
+        links: project.links
+            .where((l) => !ids.contains(l.source) && !ids.contains(l.target))
+            .toList(),
+      );
+    }
+
+    final current = removeFrom(
+      state.activeProject.copyWith(nodes: state.nodes, links: state.links),
+    );
+    state = state.copyWith(
+      nodes: current.nodes,
+      links: current.links,
+      library: state.library.where((m) => m.id != id).toList(),
+      projects: state.projects.map(removeFrom).toList(),
+      removedModuleIds: {...state.removedModuleIds, id},
+    );
+    _changed();
+  }
+
+  void setModuleHidden(String id, bool hidden) {
+    final ids = {...state.hiddenModuleIds};
+    if (hidden) {
+      ids.add(id);
+    } else {
+      ids.remove(id);
+    }
+    state = state.copyWith(hiddenModuleIds: ids);
+    _changed();
+  }
+
+  void moveNodesToProject(Set<String> nodeIds, String projectId) {
+    if (projectId == state.activeProjectId) return;
+    final moved = state.nodes
+        .where((item) => nodeIds.contains(item.id))
+        .toList();
+    final target = state.projects
+        .where((item) => item.id == projectId)
+        .firstOrNull;
+    if (moved.isEmpty || target == null) return;
+    if (target.nodes.length + moved.length > 500 ||
+        target.nodes.any((n) => moved.any((m) => m.id == n.id))) {
+      throw const FormatException(
+        'Target workspace cannot accept these nodes.',
+      );
+    }
+    final ids = moved.map((n) => n.id).toSet();
+    final movedLinks = state.links
+        .where((link) => ids.contains(link.source) && ids.contains(link.target))
+        .toList();
+    if (target.links.length + movedLinks.length > 8000) {
+      throw const FormatException('Target workspace has too many connections.');
+    }
+    final currentNodes = state.nodes
+        .where((item) => !ids.contains(item.id))
+        .toList();
+    final currentLinks = state.links
+        .where(
+          (link) => !ids.contains(link.source) && !ids.contains(link.target),
+        )
+        .toList();
+    for (final node in moved) {
+      node.runtimeValues.clear();
+      node.runtimeHistory.clear();
+      node.runtimeStatus = null;
+    }
+    final targetProject = target.copyWith(
+      nodes: [...target.nodes, ...moved],
+      links: [...target.links, ...movedLinks],
+    );
+    state = state.copyWith(
+      nodes: currentNodes,
+      links: currentLinks,
+      projects: [
+        for (final project in state.projects)
+          if (project.id == state.activeProjectId)
+            project.copyWith(nodes: currentNodes, links: currentLinks)
+          else if (project.id == projectId)
+            targetProject
+          else
+            project,
+      ],
     );
     _changed();
   }

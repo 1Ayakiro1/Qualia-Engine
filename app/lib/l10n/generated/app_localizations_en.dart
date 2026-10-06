@@ -10,6 +10,26 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get moduleDelete => 'Delete module';
+
+  @override
+  String get moduleActivate => 'Make active';
+
+  @override
+  String get moduleDeactivate => 'Make inactive';
+
+  @override
+  String get moduleMoveToWorkspace => 'Move to workspace';
+
+  @override
+  String get moduleMoveConnectionsWarning =>
+      'Connections to modules left in the source workspace will be removed. Parameters and connections within the moved group will be preserved. Continue?';
+
+  @override
+  String get moduleEditorPlaceholder =>
+      'Module editing panel placeholder. Editing tools will be added later.';
+
+  @override
   String get moduleCreateLocal => 'Create locally';
 
   @override

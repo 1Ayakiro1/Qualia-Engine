@@ -50,6 +50,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
     this.pendingPort,
     this.pendingOutput = false,
     this.wireEnd,
+    this.dimmedModuleIds = const {},
   });
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
@@ -58,6 +59,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
   final String? pendingPort;
   final bool pendingOutput;
   final Offset? wireEnd;
+  final Set<String> dimmedModuleIds;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -66,12 +68,19 @@ class WorkspaceConnectionsPainter extends CustomPainter {
       final source = byId[link.source];
       final target = byId[link.target];
       if (source == null || target == null) continue;
+      final dimmed =
+          dimmedModuleIds.contains(source.module.id) ||
+          dimmedModuleIds.contains(target.module.id);
       paintWorkspaceConnection(
         canvas,
         source.portPosition(link.output, true),
         target.portPosition(link.input, false),
-        source.portColor(link.output, true).tint ?? neutral,
-        target.portColor(link.input, false).tint ?? neutral,
+        (source.portColor(link.output, true).tint ?? neutral).withAlpha(
+          dimmed ? 70 : 255,
+        ),
+        (target.portColor(link.input, false).tint ?? neutral).withAlpha(
+          dimmed ? 70 : 255,
+        ),
       );
     }
     final node = byId[pendingNode];

@@ -98,6 +98,42 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @moduleDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete module'**
+  String get moduleDelete;
+
+  /// No description provided for @moduleActivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Make active'**
+  String get moduleActivate;
+
+  /// No description provided for @moduleDeactivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Make inactive'**
+  String get moduleDeactivate;
+
+  /// No description provided for @moduleMoveToWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to workspace'**
+  String get moduleMoveToWorkspace;
+
+  /// No description provided for @moduleMoveConnectionsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Connections to modules left in the source workspace will be removed. Parameters and connections within the moved group will be preserved. Continue?'**
+  String get moduleMoveConnectionsWarning;
+
+  /// No description provided for @moduleEditorPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Module editing panel placeholder. Editing tools will be added later.'**
+  String get moduleEditorPlaceholder;
+
   /// No description provided for @moduleCreateLocal.
   ///
   /// In en, this message translates to:

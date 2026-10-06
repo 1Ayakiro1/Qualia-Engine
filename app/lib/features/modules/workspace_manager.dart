@@ -35,6 +35,57 @@ Future<void> showWorkspaceManager(BuildContext context) => showDialog<void>(
   builder: (_) => const _WorkspaceManager(),
 );
 
+/// Moving instances never installs a package or creates cross-project wires.
+Future<void> moveWorkspaceNodes(
+  BuildContext context,
+  WidgetRef ref,
+  Set<String> ids,
+  String projectId,
+) async {
+  final graph = ref.read(workspaceProvider);
+  final crossing = graph.links.any(
+    (link) => ids.contains(link.source) != ids.contains(link.target),
+  );
+  if (crossing) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.moduleMoveToWorkspace),
+        content: SizedBox(
+          width: 440,
+          child: Text(context.l10n.moduleMoveConnectionsWarning),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.textCancel198),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.l10n.workspaceContinue),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true ||
+        !context.mounted ||
+        ref.read(workspaceProvider).activeProjectId != graph.activeProjectId) {
+      return;
+    }
+  }
+  try {
+    ref.read(workspaceProvider.notifier).moveNodesToProject(ids, projectId);
+  } on FormatException catch (error) {
+    if (context.mounted) {
+      await _message(
+        context,
+        context.l10n.workspaceOperationFailed,
+        error.message,
+      );
+    }
+  }
+}
+
 Future<void> _message(BuildContext context, String title, String message) =>
     showDialog<void>(
       context: context,

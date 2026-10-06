@@ -1347,7 +1347,7 @@ void main() {
     final source = find.text('Signal Source · Preview');
     await tester.ensureVisible(source);
     await tester.pumpAndSettle();
-    final target = find.byType(DragTarget<SystemModule>);
+    final target = find.byKey(const ValueKey('workspace canvas drop target'));
     final destination = tester.getCenter(target);
     final sourcePosition = tester.getCenter(source);
     final gesture = await tester.startGesture(sourcePosition);

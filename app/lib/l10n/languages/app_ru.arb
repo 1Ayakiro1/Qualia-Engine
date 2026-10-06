@@ -1,4 +1,10 @@
 {
+  "moduleDelete": "Удалить модуль",
+  "moduleActivate": "Сделать активным",
+  "moduleDeactivate": "Сделать неактивным",
+  "moduleMoveToWorkspace": "Переместить в воркспейс",
+  "moduleMoveConnectionsWarning": "Связи с модулями, оставшимися в исходном воркспейсе, будут удалены. Параметры и связи внутри переносимой группы сохранятся. Продолжить?",
+  "moduleEditorPlaceholder": "Заглушка панели редактирования модуля. Инструменты редактирования будут добавлены позже.",
   "moduleCreateLocal": "Создать локально",
   "moduleCreateOnline": "Создать онлайн",
   "moduleAddLocal": "Добавить локально (.qmod)",

@@ -65,6 +65,26 @@ class SystemModule {
     localPackage: localPackage,
   );
 
+  SystemModule withActive(bool value) => SystemModule(
+    id: id,
+    name: name,
+    category: category,
+    description: description,
+    summary: summary,
+    version: version,
+    active: value,
+    stage: stage,
+    databaseId: databaseId,
+    authorId: authorId,
+    reviewState: reviewState,
+    manifest: manifest,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    publisher: publisher,
+    releaseId: releaseId,
+    localPackage: localPackage,
+  );
+
   Map<String, dynamic> toWorkspaceJson() => {
     'slug': id,
     'name': name,

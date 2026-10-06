@@ -10,6 +10,26 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get moduleDelete => 'Удалить модуль';
+
+  @override
+  String get moduleActivate => 'Сделать активным';
+
+  @override
+  String get moduleDeactivate => 'Сделать неактивным';
+
+  @override
+  String get moduleMoveToWorkspace => 'Переместить в воркспейс';
+
+  @override
+  String get moduleMoveConnectionsWarning =>
+      'Связи с модулями, оставшимися в исходном воркспейсе, будут удалены. Параметры и связи внутри переносимой группы сохранятся. Продолжить?';
+
+  @override
+  String get moduleEditorPlaceholder =>
+      'Заглушка панели редактирования модуля. Инструменты редактирования будут добавлены позже.';
+
+  @override
   String get moduleCreateLocal => 'Создать локально';
 
   @override

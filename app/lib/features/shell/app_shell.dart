@@ -125,27 +125,143 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   List<SystemModule> get _availableModules =>
       {
-            for (final module in [
-              ...previewWorkspaceModules,
-              ..._workspaceModules,
-              ...ref.read(workspaceProvider).library,
-            ])
-              module.id: module,
-          }.values
-          .map(
-            (module) =>
-                ref
-                    .read(workspaceProvider)
-                    .authorMetadata
-                    .containsKey(module.databaseId)
-                ? module.withManifest(
-                    ref
-                        .read(workspaceProvider)
-                        .authorMetadata[module.databaseId]!,
-                  )
-                : module,
-          )
-          .toList();
+        for (final module in [
+          ...previewWorkspaceModules,
+          ..._workspaceModules,
+          ...ref.read(workspaceProvider).library,
+        ])
+          if (!ref.read(workspaceProvider).removedModuleIds.contains(module.id))
+            module.id: module,
+      }.values.map((module) {
+        final workspace = ref.read(workspaceProvider);
+        final manifest = workspace.authorMetadata[module.databaseId];
+        final resolved = manifest == null
+            ? module
+            : module.withManifest(manifest);
+        return resolved.withActive(
+          workspace.moduleActiveOverrides[resolved.id] ??
+              (resolved.active ||
+                  workspace.nodes.any(
+                    (n) =>
+                        n.module.id == resolved.id &&
+                        n.settings['enabled'] != false,
+                  )),
+        );
+      }).toList();
+
+  void _setModuleActive(SystemModule module, bool active) {
+    ref.read(workspaceProvider.notifier).setModuleActive(module.id, active);
+    setState(() {
+      if (_selectedModule?.id == module.id) {
+        _selectedModule = module.withActive(active);
+      }
+    });
+  }
+
+  Future<void> _showModuleSettings(SystemModule module, Offset position) async {
+    final graph = ref.read(workspaceProvider);
+    final action = await showDesktopMenu<String>(
+      context: context,
+      position: position,
+      width: 250,
+      entries: [
+        DesktopMenuEntry(value: 'delete', label: context.l10n.moduleDelete),
+        DesktopMenuEntry(
+          value: 'active',
+          label: module.active
+              ? context.l10n.moduleDeactivate
+              : context.l10n.moduleActivate,
+        ),
+        DesktopMenuEntry(
+          value: 'hidden',
+          label: graph.hiddenModuleIds.contains(module.id)
+              ? context.l10n.textShow232
+              : context.l10n.textHide231,
+        ),
+        DesktopMenuEntry(
+          value: 'edit',
+          label: context.l10n.textEditModule160,
+          dividerBefore: true,
+        ),
+        DesktopMenuEntry(
+          value: 'move',
+          label: context.l10n.moduleMoveToWorkspace,
+          enabled:
+              graph.nodes.any((n) => n.module.id == module.id) &&
+              graph.projects.length > 1,
+          submenu: [
+            for (final project in graph.projects)
+              if (project.id != graph.activeProjectId)
+                DesktopMenuEntry(
+                  value: 'move:${project.id}',
+                  label: project.name,
+                ),
+          ],
+        ),
+      ],
+    );
+    if (!mounted || action == null) return;
+    if (action.startsWith('move:')) {
+      await moveWorkspaceNodes(
+        context,
+        ref,
+        graph.nodes
+            .where((n) => n.module.id == module.id)
+            .map((n) => n.id)
+            .toSet(),
+        action.substring(5),
+      );
+      return;
+    }
+    switch (action) {
+      case 'delete':
+        await _removeModule(module);
+      case 'active':
+        _setModuleActive(module, !module.active);
+      case 'hidden':
+        ref
+            .read(workspaceProvider.notifier)
+            .setModuleHidden(
+              module.id,
+              !graph.hiddenModuleIds.contains(module.id),
+            );
+      case 'edit':
+        await _showModuleEditStub(module);
+    }
+  }
+
+  Future<void> _showModuleEditStub(SystemModule module) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(context.l10n.textEditModule160),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(module.displayName(context)),
+            const SizedBox(height: 12),
+            Text(
+              context.l10n.textModuleSettings301,
+              style: TextStyle(color: context.palette.mutedText),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.moduleEditorPlaceholder,
+              style: TextStyle(color: context.palette.mutedText),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.textClose110),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _addPreset() async {
     final preset = await showWorkspacePresetEditor(context, _availableModules);
@@ -220,6 +336,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   void _handleFileAction(String action) {
     if (action == 'add_workspace_preset') _addPreset();
+    if (action == 'import_workspace_preset') _importPreset();
     if (action == 'new') {
       _selectSection(SectionId.modules, ref.read(appModeProvider));
       editWorkspace(context, ref);
@@ -420,20 +537,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   Future<void> _showModuleEditor([SystemModule? existing]) async {
-    if (existing?.isLocal == true) {
-      _addNotification(
-        context.l10n.localModuleProject,
-        context.l10n.localModuleEditHint,
-        Icons.code,
-      );
-      return;
-    }
-    if (existing?.manifest['preview'] == true) {
-      _addNotification(
-        context.l10n.textPreviewModule77,
-        context.l10n.textDragThisPlaceholderToTheCanvasTo78,
-        Icons.info_outline,
-      );
+    if (existing != null) {
+      await _showModuleEditStub(existing);
       return;
     }
     if (AuthService.instance.currentUser == null) {
@@ -683,40 +788,11 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   Future<void> _removeModule(SystemModule module) async {
-    if (module.isLocal) {
-      ref.read(workspaceProvider.notifier).removeLocalModule(module.id);
-      setState(() => _selectedModule = null);
-      return;
-    }
-    if (module.manifest['preview'] == true) {
-      _addNotification(
-        context.l10n.textPreviewModule77,
-        context.l10n.textThesePlaceholdersBelongToTheLocalUI93,
-        Icons.info_outline,
-      );
-      return;
-    }
-    try {
-      await ModuleRepository().delete(module);
-      if (!mounted) return;
-      logI(LogSource.modules, 'модуль удалён: ${module.name} (${module.id})');
-      setState(() {
-        _workspaceModules = _workspaceModules
-            .where((item) => item.databaseId != module.databaseId)
-            .toList();
-        if (_selectedModule?.databaseId == module.databaseId) {
-          _selectedModule = null;
-        }
-      });
-    } catch (error) {
-      if (mounted) {
-        _addNotification(
-          context.l10n.textModuleNotRemoved94,
-          '$error',
-          Icons.error_outline,
-        );
-      }
-    }
+    ref.read(workspaceProvider.notifier).removeWorkspaceModule(module.id);
+    setState(() {
+      if (_selectedModule?.id == module.id) _selectedModule = null;
+    });
+    logI(LogSource.modules, 'модуль удалён из Workspace: ${module.id}');
   }
 
   void _addNotification(String title, String message, IconData icon) {
@@ -1083,42 +1159,11 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                     active.id ==
                                                                     SectionId
                                                                         .extensions,
-                                                                modules: _availableModules
-                                                                    .where(
-                                                                      (
-                                                                        module,
-                                                                      ) =>
-                                                                          graph.presetModuleIds ==
-                                                                              null ||
-                                                                          graph.presetModuleIds!.contains(
-                                                                            module.id,
-                                                                          ),
-                                                                    )
-                                                                    .toList(),
-                                                                presets: graph
-                                                                    .presets,
-                                                                onLoadPreset:
-                                                                    _loadPreset,
-                                                                onImportPreset:
-                                                                    _importPreset,
-                                                                onExportPreset:
-                                                                    exportWorkspacePreset,
-                                                                missingModuleIds:
+                                                                modules:
+                                                                    _availableModules,
+                                                                hiddenModuleIds:
                                                                     graph
-                                                                        .presetModuleIds
-                                                                        ?.where(
-                                                                          (
-                                                                            id,
-                                                                          ) => !_availableModules.any(
-                                                                            (
-                                                                              module,
-                                                                            ) =>
-                                                                                module.id ==
-                                                                                id,
-                                                                          ),
-                                                                        )
-                                                                        .toList() ??
-                                                                    const [],
+                                                                        .hiddenModuleIds,
                                                                 entities:
                                                                     _entities,
                                                                 extensions:
@@ -1150,7 +1195,17 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                 onRemoveModule:
                                                                     _removeModule,
                                                                 onEditModule:
-                                                                    _showModuleEditor,
+                                                                    _showModuleEditStub,
+                                                                onModuleSettings:
+                                                                    (
+                                                                      module,
+                                                                      position,
+                                                                    ) => _showModuleSettings(
+                                                                      module,
+                                                                      position,
+                                                                    ),
+                                                                onModuleActiveChanged:
+                                                                    _setModuleActive,
                                                                 onAddEntity:
                                                                     _showEntityEditor,
                                                                 onRemoveEntity:
@@ -1915,6 +1970,10 @@ class _TopMenuItem extends StatelessWidget {
           _MenuAction(
             value: 'add_workspace_preset',
             label: context.l10n.textAddWorkspacePreset124,
+          ),
+          _MenuAction(
+            value: 'import_workspace_preset',
+            label: context.l10n.textImportWorkspacePreset165,
           ),
           _MenuAction(value: 'new', label: context.l10n.textNewWorkspace125),
           _MenuAction(
@@ -2907,6 +2966,9 @@ class _Explorer extends StatefulWidget {
     required this.selectedEntity,
     required this.selectedModule,
     required this.onModuleSelected,
+    required this.onModuleSettings,
+    required this.onModuleActiveChanged,
+    required this.hiddenModuleIds,
     this.onAddModule,
     this.onRemoveModule,
     this.onEditModule,
@@ -2916,11 +2978,6 @@ class _Explorer extends StatefulWidget {
     required this.onEntitySelected,
     required this.onExtensionSelected,
     required this.onExtensionNotification,
-    required this.presets,
-    required this.onLoadPreset,
-    required this.onImportPreset,
-    required this.onExportPreset,
-    required this.missingModuleIds,
   });
   final double width;
   final List<NavSection> sections;
@@ -2936,6 +2993,9 @@ class _Explorer extends StatefulWidget {
   final NeuralEntity? selectedEntity;
   final SystemModule? selectedModule;
   final ValueChanged<SystemModule> onModuleSelected;
+  final void Function(SystemModule module, Offset position) onModuleSettings;
+  final void Function(SystemModule module, bool active) onModuleActiveChanged;
+  final Set<String> hiddenModuleIds;
   final VoidCallback? onAddModule;
   final ValueChanged<SystemModule>? onRemoveModule;
   final ValueChanged<SystemModule>? onEditModule;
@@ -2946,11 +3006,6 @@ class _Explorer extends StatefulWidget {
   final ValueChanged<UserExtension> onExtensionSelected;
   final void Function(String title, String message, IconData icon)
   onExtensionNotification;
-  final List<WorkspacePreset> presets;
-  final ValueChanged<WorkspacePreset> onLoadPreset;
-  final VoidCallback onImportPreset;
-  final ValueChanged<WorkspacePreset> onExportPreset;
-  final List<String> missingModuleIds;
 
   @override
   State<_Explorer> createState() => _ExplorerState();
@@ -3124,201 +3179,170 @@ class _ExplorerState extends State<_Explorer> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (widget.showModuleActions) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 10, 10, 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    context.l10n.textWORKSPACEPRESETS164,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      letterSpacing: .8,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                          DragTarget<SystemModule>(
+                            key: const ValueKey('active modules drop target'),
+                            onAcceptWithDetails: (details) => widget
+                                .onModuleActiveChanged(details.data, true),
+                            builder: (context, candidates, rejected) =>
+                                ExplorerDisclosureSection(
+                                  title: context.l10n.textACTIVEMODULES168,
+                                  expanded: _activeModulesExpanded,
+                                  onToggle: () => setState(
+                                    () => _activeModulesExpanded =
+                                        !_activeModulesExpanded,
                                   ),
-                                ),
-                                DesktopIconButton(
-                                  icon: Icons.file_upload_outlined,
-                                  tooltip:
-                                      context.l10n.textImportWorkspacePreset165,
-                                  onPressed: widget.onImportPreset,
-                                  size: 26,
-                                  iconSize: 15,
-                                ),
-                              ],
-                            ),
-                          ),
-                          for (final preset in widget.presets)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: DesktopHoverTile(
-                                      onTap: () => widget.onLoadPreset(preset),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(9),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.layers_outlined,
-                                              size: 16,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                preset.name,
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
+                                  children: [
+                                    _ModuleSearchField(
+                                      fieldKey: const ValueKey<String>(
+                                        'active module search',
+                                      ),
+                                      controller: _activeModuleController,
+                                      hintText: context
+                                          .l10n
+                                          .textSearchActiveModules169,
+                                      query: _activeModuleQuery,
+                                      onChanged: (value) => setState(
+                                        () => _activeModuleQuery = value,
+                                      ),
+                                      onClear: () {
+                                        _activeModuleController.clear();
+                                        setState(() => _activeModuleQuery = '');
+                                      },
+                                    ),
+                                    if (_activeModules.isEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.fromLTRB(
+                                          14,
+                                          4,
+                                          14,
+                                          10,
+                                        ),
+                                        child: Text(
+                                          context
+                                              .l10n
+                                              .textNoActiveModulesFound170,
+                                          style: TextStyle(
+                                            color: context.palette.mutedText,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                  DesktopIconButton(
-                                    icon: Icons.file_download_outlined,
-                                    tooltip: context.l10n.textExportArg0166(
-                                      (preset.name).toString(),
-                                    ),
-                                    onPressed: () =>
-                                        widget.onExportPreset(preset),
-                                    size: 25,
-                                    iconSize: 14,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          for (final id in widget.missingModuleIds)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 4, 12, 4),
-                              child: Text(
-                                context.l10n.textMissingArg0167(
-                                  (id).toString(),
+                                    for (final module in _activeModules)
+                                      Draggable<SystemModule>(
+                                        data: module,
+                                        feedback: Material(
+                                          color: context.palette.panel,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Text(
+                                              module.displayName(context),
+                                            ),
+                                          ),
+                                        ),
+                                        child: _ModuleItem(
+                                          module: module,
+                                          hidden: widget.hiddenModuleIds
+                                              .contains(module.id),
+                                          selected:
+                                              widget.selectedModule?.id ==
+                                              module.id,
+                                          onTap: () =>
+                                              widget.onModuleSelected(module),
+                                          onSettings: (position) =>
+                                              widget.onModuleSettings(
+                                                module,
+                                                position,
+                                              ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                style: TextStyle(
-                                  color: context.palette.mutedText,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                          const Divider(height: 12),
-                          ExplorerDisclosureSection(
-                            title: context.l10n.textACTIVEMODULES168,
-                            expanded: _activeModulesExpanded,
-                            onToggle: () => setState(
-                              () => _activeModulesExpanded =
-                                  !_activeModulesExpanded,
-                            ),
-                            children: [
-                              _ModuleSearchField(
-                                fieldKey: const ValueKey<String>(
-                                  'active module search',
-                                ),
-                                controller: _activeModuleController,
-                                hintText:
-                                    context.l10n.textSearchActiveModules169,
-                                query: _activeModuleQuery,
-                                onChanged: (value) =>
-                                    setState(() => _activeModuleQuery = value),
-                                onClear: () {
-                                  _activeModuleController.clear();
-                                  setState(() => _activeModuleQuery = '');
-                                },
-                              ),
-                              if (_activeModules.isEmpty)
-                                Padding(
-                                  padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                                  child: Text(
-                                    context.l10n.textNoActiveModulesFound170,
-                                    style: TextStyle(
-                                      color: context.palette.mutedText,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              for (final module in _activeModules)
-                                Draggable<SystemModule>(
-                                  data: module,
-                                  feedback: Material(
-                                    color: context.palette.panel,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Text(module.displayName(context)),
-                                    ),
-                                  ),
-                                  child: _ModuleItem(
-                                    module: module,
-                                    selected:
-                                        widget.selectedModule?.id == module.id,
-                                    onTap: () =>
-                                        widget.onModuleSelected(module),
-                                  ),
-                                ),
-                            ],
                           ),
-                          ExplorerDisclosureSection(
-                            title: context.l10n.textMODULECATALOG171,
-                            expanded: _catalogModulesExpanded,
-                            onToggle: () => setState(
-                              () => _catalogModulesExpanded =
-                                  !_catalogModulesExpanded,
-                            ),
-                            showDivider: false,
-                            children: [
-                              _ModuleSearchField(
-                                fieldKey: const ValueKey<String>(
-                                  'catalog module search',
-                                ),
-                                controller: _catalogModuleController,
-                                hintText: context.l10n.textSearchModules172,
-                                query: _catalogModuleQuery,
-                                onChanged: (value) =>
-                                    setState(() => _catalogModuleQuery = value),
-                                onClear: () {
-                                  _catalogModuleController.clear();
-                                  setState(() => _catalogModuleQuery = '');
-                                },
-                              ),
-                              if (_catalogModules.isEmpty)
-                                Padding(
-                                  padding: EdgeInsets.fromLTRB(14, 4, 14, 10),
-                                  child: Text(
-                                    context.l10n.textNoModulesFound173,
-                                    style: TextStyle(
-                                      color: context.palette.mutedText,
-                                      fontSize: 12,
+                          DragTarget<SystemModule>(
+                            key: const ValueKey('inactive modules drop target'),
+                            onAcceptWithDetails: (details) => widget
+                                .onModuleActiveChanged(details.data, false),
+                            builder: (context, candidates, rejected) =>
+                                ExplorerDisclosureSection(
+                                  title: context.l10n.textMODULECATALOG171,
+                                  expanded: _catalogModulesExpanded,
+                                  onToggle: () => setState(
+                                    () => _catalogModulesExpanded =
+                                        !_catalogModulesExpanded,
+                                  ),
+                                  showDivider: false,
+                                  children: [
+                                    _ModuleSearchField(
+                                      fieldKey: const ValueKey<String>(
+                                        'catalog module search',
+                                      ),
+                                      controller: _catalogModuleController,
+                                      hintText:
+                                          context.l10n.textSearchModules172,
+                                      query: _catalogModuleQuery,
+                                      onChanged: (value) => setState(
+                                        () => _catalogModuleQuery = value,
+                                      ),
+                                      onClear: () {
+                                        _catalogModuleController.clear();
+                                        setState(
+                                          () => _catalogModuleQuery = '',
+                                        );
+                                      },
                                     ),
-                                  ),
+                                    if (_catalogModules.isEmpty)
+                                      Padding(
+                                        padding: EdgeInsets.fromLTRB(
+                                          14,
+                                          4,
+                                          14,
+                                          10,
+                                        ),
+                                        child: Text(
+                                          context.l10n.textNoModulesFound173,
+                                          style: TextStyle(
+                                            color: context.palette.mutedText,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    for (final module in _catalogModules)
+                                      Draggable<SystemModule>(
+                                        data: module,
+                                        feedback: Material(
+                                          color: context.palette.panel,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Text(
+                                              module.displayName(context),
+                                            ),
+                                          ),
+                                        ),
+                                        child: _ModuleItem(
+                                          module: module,
+                                          catalog: true,
+                                          hidden: widget.hiddenModuleIds
+                                              .contains(module.id),
+                                          selected:
+                                              widget.selectedModule?.id ==
+                                              module.id,
+                                          onTap: () =>
+                                              widget.onModuleSelected(module),
+                                          onSettings: (position) =>
+                                              widget.onModuleSettings(
+                                                module,
+                                                position,
+                                              ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              for (final module in _catalogModules)
-                                Draggable<SystemModule>(
-                                  data: module,
-                                  feedback: Material(
-                                    color: context.palette.panel,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Text(module.displayName(context)),
-                                    ),
-                                  ),
-                                  child: _ModuleItem(
-                                    module: module,
-                                    catalog: true,
-                                    selected:
-                                        widget.selectedModule?.id == module.id,
-                                    onTap: () =>
-                                        widget.onModuleSelected(module),
-                                  ),
-                                ),
-                            ],
                           ),
                         ] else if (widget.showEntityActions) ...[
                           ExplorerSectionHeader(
@@ -3510,11 +3534,15 @@ class _ModuleItem extends StatefulWidget {
   const _ModuleItem({
     required this.module,
     required this.onTap,
+    required this.onSettings,
+    this.hidden = false,
     this.catalog = false,
     this.selected = false,
   });
   final SystemModule module;
   final VoidCallback onTap;
+  final ValueChanged<Offset> onSettings;
+  final bool hidden;
   final bool catalog;
   final bool selected;
 
@@ -3547,6 +3575,8 @@ class _ModuleItemState extends State<_ModuleItem> {
         label: widget.module.displayName(context),
         child: GestureDetector(
           onTap: widget.onTap,
+          onSecondaryTapUp: (details) =>
+              widget.onSettings(details.globalPosition),
           child: AnimatedContainer(
             duration: AppTheme.hoverDuration,
             curve: AppTheme.hoverCurve,
@@ -3558,31 +3588,66 @@ class _ModuleItemState extends State<_ModuleItem> {
                   : context.palette.hover.withAlpha(0),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  _icon,
-                  size: 17,
-                  color: widget.catalog
-                      ? context.palette.mutedText
-                      : context.palette.text,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.module.displayName(context),
-                    style: TextStyle(color: context.palette.text, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
+            child: Opacity(
+              opacity: widget.hidden ? .58 : 1,
+              child: Row(
+                children: [
+                  Icon(
+                    _icon,
+                    size: 17,
+                    color: widget.catalog
+                        ? context.palette.mutedText
+                        : context.palette.text,
                   ),
-                ),
-                Icon(
-                  Icons.circle,
-                  size: 6,
-                  color: widget.module.active
-                      ? context.palette.text
-                      : context.palette.mutedText,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.module.displayName(context),
+                      style: TextStyle(
+                        color: context.palette.text,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  AnimatedSwitcher(
+                    duration: AppTheme.hoverDuration,
+                    child: _hovered
+                        ? DesktopIconButton(
+                            key: const ValueKey('module settings button'),
+                            icon: Icons.settings_outlined,
+                            tooltip: context.l10n.textModuleSettings301,
+                            onPressed: () {
+                              final box =
+                                  context.findRenderObject() as RenderBox;
+                              widget.onSettings(
+                                box.localToGlobal(Offset(0, box.size.height)),
+                              );
+                            },
+                            size: 27,
+                            iconSize: 16,
+                          )
+                        : Icon(
+                            widget.hidden
+                                ? Icons.visibility_off_outlined
+                                : Icons.circle,
+                            key: const ValueKey('module status dot'),
+                            size: widget.hidden ? 15 : 6,
+                            color: widget.module.active
+                                ? context.palette.text
+                                : context.palette.mutedText,
+                          ),
+                  ),
+                  if (widget.hidden && _hovered) ...[
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.visibility_off_outlined,
+                      size: 15,
+                      color: context.palette.mutedText,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

@@ -506,6 +506,19 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
               label: context.l10n.workspaceSelectSameColor,
             ),
             DesktopMenuEntry(
+              value: 'move',
+              label: context.l10n.moduleMoveToWorkspace,
+              enabled: ref.read(workspaceProvider).projects.length > 1,
+              submenu: [
+                for (final project in ref.read(workspaceProvider).projects)
+                  if (project.id != ref.read(workspaceProvider).activeProjectId)
+                    DesktopMenuEntry(
+                      value: 'move:${project.id}',
+                      label: project.name,
+                    ),
+              ],
+            ),
+            DesktopMenuEntry(
               value: 'delete',
               label: context.l10n.textDelete296,
               dividerBefore: true,
@@ -514,6 +527,23 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         ],
       );
       if (!mounted) return;
+      if (node != null && action != null && action.startsWith('move:')) {
+        await moveWorkspaceNodes(
+          context,
+          ref,
+          _selection.contains(node.id) ? {..._selection} : {node.id},
+          action.substring(5),
+        );
+        if (mounted) {
+          setState(() {
+            _selection.removeWhere(
+              (id) => !ref.read(workspaceProvider).nodes.any((n) => n.id == id),
+            );
+            if (!_selection.contains(_selectedId)) _selectedId = null;
+          });
+        }
+        return;
+      }
       if (action != null && action.startsWith('module:')) {
         final module = modules
             .where((module) => module.id == action.substring(7))
@@ -549,6 +579,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   }
 
   Future<void> _detach(WorkspaceNode node) async {
+    if (ref.read(workspaceProvider).hiddenModuleIds.contains(node.module.id)) {
+      return;
+    }
     final opened = await ref
         .read(moduleWindowSessionsProvider)
         .open(
@@ -561,17 +594,23 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
 
   bool _fullscreenOpen = false;
   Future<void> _fullscreen(WorkspaceNode node) async {
-    if (_fullscreenOpen) return;
+    if (_fullscreenOpen ||
+        ref.read(workspaceProvider).hiddenModuleIds.contains(node.module.id)) {
+      return;
+    }
     _fullscreenOpen = true;
     try {
       await showModuleFullscreen(
         context,
         (routeContext) => Consumer(
           builder: (context, ref, _) {
-            final current = ref
-                .watch(workspaceProvider)
-                .nodes
-                .where((item) => item.id == node.id)
+            final workspace = ref.watch(workspaceProvider);
+            final current = workspace.nodes
+                .where(
+                  (item) =>
+                      item.id == node.id &&
+                      !workspace.hiddenModuleIds.contains(item.module.id),
+                )
                 .firstOrNull;
             if (current == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -738,7 +777,11 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         )
         .toList();
     final opened = graph.nodes
-        .where((node) => node.id == _openedId)
+        .where(
+          (node) =>
+              node.id == _openedId &&
+              !graph.hiddenModuleIds.contains(node.module.id),
+        )
         .firstOrNull;
     final selected = graph.nodes
         .where((node) => node.id == _selectedId)
@@ -1091,6 +1134,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                         child: ColoredBox(
                           color: context.palette.background,
                           child: DragTarget<SystemModule>(
+                            key: const ValueKey('workspace canvas drop target'),
                             onAcceptWithDetails: (details) => _select(
                               _addAt(details.data, _sceneAt(details.offset)),
                             ),
@@ -1248,31 +1292,49 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                               Positioned.fill(
                                                 child: IgnorePointer(
                                                   child: CustomPaint(
-                                                    painter:
-                                                        WorkspaceConnectionsPainter(
-                                                          nodes: visibleNodes,
-                                                          links: graph.links,
-                                                          pendingNode:
-                                                              _pendingPort
-                                                                  ?.node,
-                                                          pendingPort:
-                                                              _pendingPort
-                                                                  ?.port,
-                                                          pendingOutput:
-                                                              _pendingPort
-                                                                  ?.output ??
-                                                              false,
-                                                          wireEnd: _wireEnd,
-                                                          neutral: context
-                                                              .palette
-                                                              .mutedText,
-                                                        ),
+                                                    painter: WorkspaceConnectionsPainter(
+                                                      nodes: visibleNodes,
+                                                      links: graph.links,
+                                                      pendingNode:
+                                                          _pendingPort?.node,
+                                                      pendingPort:
+                                                          _pendingPort?.port,
+                                                      pendingOutput:
+                                                          _pendingPort
+                                                              ?.output ??
+                                                          false,
+                                                      wireEnd: _wireEnd,
+                                                      neutral: context
+                                                          .palette
+                                                          .mutedText,
+                                                      dimmedModuleIds: graph
+                                                          .hiddenModuleIds
+                                                          .union({
+                                                            for (final entry
+                                                                in graph
+                                                                    .moduleActiveOverrides
+                                                                    .entries)
+                                                              if (!entry.value)
+                                                                entry.key,
+                                                          }),
+                                                    ),
                                                   ),
                                                 ),
                                               ),
                                               for (final node in visibleNodes)
                                                 _WorkspaceNodeView(
                                                   node: node,
+                                                  hidden: graph.hiddenModuleIds
+                                                      .contains(node.module.id),
+                                                  dimmed:
+                                                      graph.hiddenModuleIds
+                                                          .contains(
+                                                            node.module.id,
+                                                          ) ||
+                                                      graph.moduleActiveOverrides[node
+                                                              .module
+                                                              .id] ==
+                                                          false,
                                                   ignorePointer:
                                                       _panModifier ||
                                                       _panPointer != null,
@@ -1755,6 +1817,8 @@ class _WorkspaceNodeView extends StatelessWidget {
     required this.onDragEnd,
     required this.onPortMenu,
     this.ignorePointer = false,
+    this.dimmed = false,
+    this.hidden = false,
   });
   final WorkspaceNode node;
   final bool selected;
@@ -1773,12 +1837,14 @@ class _WorkspaceNodeView extends StatelessWidget {
   final VoidCallback onDragEnd;
   final void Function(_PortRef port, Offset position) onPortMenu;
   final bool ignorePointer;
+  final bool dimmed;
+  final bool hidden;
   @override
   Widget build(BuildContext context) => Positioned(
     left: node.position.dx,
     top: node.position.dy,
     child: IgnorePointer(
-      ignoring: ignorePointer,
+      ignoring: ignorePointer || hidden,
       child: Listener(
         onPointerDown: (event) {
           if (event.buttons == kPrimaryMouseButton) onInteraction(true);
@@ -1786,7 +1852,7 @@ class _WorkspaceNodeView extends StatelessWidget {
         onPointerUp: (_) => onInteraction(false),
         onPointerCancel: (_) => onInteraction(false),
         child: DesktopFocusableAction(
-          onActivate: onOpen,
+          onActivate: hidden ? null : onOpen,
           onFocus: onSelect,
           onContextMenu: () {
             final box = context.findRenderObject() as RenderBox;
@@ -1800,272 +1866,37 @@ class _WorkspaceNodeView extends StatelessWidget {
               onTap: onSelect,
               onSecondaryTapUp: (details) => onMenu(details.globalPosition),
               child: RepaintBoundary(
-                child: Container(
-                  key: ValueKey('workspace node ${node.id}'),
-                  width: node.width,
-                  height: node.height,
-                  decoration: BoxDecoration(
-                    color: context.palette.panel,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
+                child: Opacity(
+                  opacity: dimmed || node.settings['enabled'] == false
+                      ? .58
+                      : 1,
+                  child: Container(
+                    key: ValueKey('workspace node ${node.id}'),
+                    width: node.width,
+                    height: node.height,
+                    decoration: BoxDecoration(
+                      color: context.palette.panel,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                      border: Border.all(
+                        color:
+                            selected && NavigationBindings.instance.keyboardMode
+                            ? context.palette.text.withAlpha(150)
+                            : context.palette.hover,
                       ),
-                    ],
-                    border: Border.all(
-                      color:
-                          selected && NavigationBindings.instance.keyboardMode
-                          ? context.palette.text.withAlpha(150)
-                          : context.palette.hover,
                     ),
-                  ),
-                  child: Stack(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Listener(
-                            onPointerDown: (event) {
-                              if (event.buttons != kPrimaryMouseButton) return;
-                              onSelect();
-                              onDragStart(
-                                DragStartDetails(
-                                  globalPosition: event.position,
-                                ),
-                              );
-                              onInteraction(true);
-                            },
-                            onPointerMove: (event) {
-                              if (event.buttons == kPrimaryMouseButton) {
-                                onMove(
-                                  DragUpdateDetails(
-                                    globalPosition: event.position,
-                                    delta: event.delta,
-                                  ),
-                                );
-                              }
-                            },
-                            onPointerUp: (_) => onInteraction(false),
-                            onPointerCancel: (_) => onInteraction(false),
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.move,
-                              child: Container(
-                                key: ValueKey('workspace header ${node.id}'),
-                                height: WorkspaceNode.headerHeight,
-                                decoration: BoxDecoration(
-                                  color: node.headerColor.headerBackground(
-                                    context,
-                                  ),
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(9),
-                                  ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.extension_outlined,
-                                      size: 18,
-                                      color: context.palette.text,
-                                    ),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      child: Text(
-                                        node.module.displayName(context),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.drag_indicator,
-                                      size: 15,
-                                      color: context.palette.mutedText,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: WorkspaceNode.portsTopPadding),
-                          for (
-                            var index = 0;
-                            index <
-                                math.max(
-                                  node.inputs.length,
-                                  node.outputs.length,
-                                );
-                            index++
-                          )
-                            SizedBox(
-                              height: WorkspaceNode.portRowHeight,
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: index < node.inputs.length
-                                        ? _PortView(
-                                            label: node.portLabel(
-                                              node.inputs[index],
-                                              false,
-                                            ),
-                                            type: node.portType(
-                                              node.inputs[index],
-                                              false,
-                                            ),
-                                            ref: _PortRef(
-                                              node.id,
-                                              node.inputs[index],
-                                              false,
-                                            ),
-                                            onTap: onPort,
-                                            onConnect: onConnect,
-                                            onDrag: onDragPort,
-                                            onDragEnd: onDragEnd,
-                                            color: node.portColor(
-                                              node.inputs[index],
-                                              false,
-                                            ),
-                                            onMenu: onPortMenu,
-                                          )
-                                        : const SizedBox(),
-                                  ),
-                                  Expanded(
-                                    child: index < node.outputs.length
-                                        ? _PortView(
-                                            label: node.portLabel(
-                                              node.outputs[index],
-                                              true,
-                                            ),
-                                            type: node.portType(
-                                              node.outputs[index],
-                                              true,
-                                            ),
-                                            ref: _PortRef(
-                                              node.id,
-                                              node.outputs[index],
-                                              true,
-                                            ),
-                                            onTap: onPort,
-                                            onConnect: onConnect,
-                                            onDrag: onDragPort,
-                                            onDragEnd: onDragEnd,
-                                            color: node.portColor(
-                                              node.outputs[index],
-                                              true,
-                                            ),
-                                            onMenu: onPortMenu,
-                                          )
-                                        : const SizedBox(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          SizedBox(
-                            height: 34,
-                            child: Row(
-                              children: [
-                                TextButton(
-                                  onPressed: () => onAddPort(false),
-                                  style: TextButton.styleFrom(
-                                    minimumSize: const Size(72, 28),
-                                    backgroundColor: context.palette.hover,
-                                    foregroundColor: context.palette.text,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                    textStyle: const TextStyle(fontSize: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(context.l10n.textInput307),
-                                ),
-                                const Spacer(),
-                                TextButton(
-                                  onPressed: () => onAddPort(true),
-                                  style: TextButton.styleFrom(
-                                    minimumSize: const Size(72, 28),
-                                    backgroundColor: context.palette.hover,
-                                    foregroundColor: context.palette.text,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                    textStyle: const TextStyle(fontSize: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
-                                  child: Text(context.l10n.textOutput308),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Spacer(),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 3, 28, 12),
-                            child: SizedBox(
-                              height: 34,
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: onOpen,
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            7,
-                                          ),
-                                        ),
-                                      ),
-                                      icon: const Icon(
-                                        Icons.open_in_new,
-                                        size: 13,
-                                      ),
-                                      label: Text(
-                                        context.l10n.textOpen309,
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  DesktopIconButton(
-                                    key: ValueKey(
-                                      'workspace detach ${node.id}',
-                                    ),
-                                    icon: Icons.open_in_new,
-                                    tooltip: context.l10n.moduleOpenWindow,
-                                    onPressed: onDetach,
-                                    size: 34,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: DesktopTooltip(
-                          message: context.l10n.workspaceResizeNode,
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                            child: Listener(
-                              key: ValueKey('workspace resize ${node.id}'),
-                              behavior: HitTestBehavior.opaque,
+                    child: Stack(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Listener(
                               onPointerDown: (event) {
                                 if (event.buttons != kPrimaryMouseButton) {
                                   return;
@@ -2080,7 +1911,7 @@ class _WorkspaceNodeView extends StatelessWidget {
                               },
                               onPointerMove: (event) {
                                 if (event.buttons == kPrimaryMouseButton) {
-                                  onResize(
+                                  onMove(
                                     DragUpdateDetails(
                                       globalPosition: event.position,
                                       delta: event.delta,
@@ -2090,20 +1921,270 @@ class _WorkspaceNodeView extends StatelessWidget {
                               },
                               onPointerUp: (_) => onInteraction(false),
                               onPointerCancel: (_) => onInteraction(false),
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.move,
+                                child: Container(
+                                  key: ValueKey('workspace header ${node.id}'),
+                                  height: WorkspaceNode.headerHeight,
+                                  decoration: BoxDecoration(
+                                    color: node.headerColor.headerBackground(
+                                      context,
+                                    ),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(9),
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.extension_outlined,
+                                        size: 18,
+                                        color: context.palette.text,
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Expanded(
+                                        child: Text(
+                                          node.module.displayName(context),
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (hidden)
+                                        Icon(
+                                          Icons.visibility_off_outlined,
+                                          size: 15,
+                                          color: context.palette.mutedText,
+                                        ),
+                                      Icon(
+                                        Icons.drag_indicator,
+                                        size: 15,
+                                        color: context.palette.mutedText,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: WorkspaceNode.portsTopPadding,
+                            ),
+                            for (
+                              var index = 0;
+                              index <
+                                  math.max(
+                                    node.inputs.length,
+                                    node.outputs.length,
+                                  );
+                              index++
+                            )
+                              SizedBox(
+                                height: WorkspaceNode.portRowHeight,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: index < node.inputs.length
+                                          ? _PortView(
+                                              label: node.portLabel(
+                                                node.inputs[index],
+                                                false,
+                                              ),
+                                              type: node.portType(
+                                                node.inputs[index],
+                                                false,
+                                              ),
+                                              ref: _PortRef(
+                                                node.id,
+                                                node.inputs[index],
+                                                false,
+                                              ),
+                                              onTap: onPort,
+                                              onConnect: onConnect,
+                                              onDrag: onDragPort,
+                                              onDragEnd: onDragEnd,
+                                              color: node.portColor(
+                                                node.inputs[index],
+                                                false,
+                                              ),
+                                              onMenu: onPortMenu,
+                                            )
+                                          : const SizedBox(),
+                                    ),
+                                    Expanded(
+                                      child: index < node.outputs.length
+                                          ? _PortView(
+                                              label: node.portLabel(
+                                                node.outputs[index],
+                                                true,
+                                              ),
+                                              type: node.portType(
+                                                node.outputs[index],
+                                                true,
+                                              ),
+                                              ref: _PortRef(
+                                                node.id,
+                                                node.outputs[index],
+                                                true,
+                                              ),
+                                              onTap: onPort,
+                                              onConnect: onConnect,
+                                              onDrag: onDragPort,
+                                              onDragEnd: onDragEnd,
+                                              color: node.portColor(
+                                                node.outputs[index],
+                                                true,
+                                              ),
+                                              onMenu: onPortMenu,
+                                            )
+                                          : const SizedBox(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            SizedBox(
+                              height: 34,
+                              child: Row(
+                                children: [
+                                  TextButton(
+                                    onPressed: () => onAddPort(false),
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(72, 28),
+                                      backgroundColor: context.palette.hover,
+                                      foregroundColor: context.palette.text,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
+                                      textStyle: const TextStyle(fontSize: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    child: Text(context.l10n.textInput307),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () => onAddPort(true),
+                                    style: TextButton.styleFrom(
+                                      minimumSize: const Size(72, 28),
+                                      backgroundColor: context.palette.hover,
+                                      foregroundColor: context.palette.text,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                      ),
+                                      textStyle: const TextStyle(fontSize: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ),
+                                    child: Text(context.l10n.textOutput308),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 3, 28, 12),
                               child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: Icon(
-                                  Icons.south_east,
-                                  size: 14,
-                                  color: context.palette.mutedText,
+                                height: 34,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: hidden ? null : onOpen,
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              7,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.open_in_new,
+                                          size: 13,
+                                        ),
+                                        label: Text(
+                                          context.l10n.textOpen309,
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    DesktopIconButton(
+                                      key: ValueKey(
+                                        'workspace detach ${node.id}',
+                                      ),
+                                      icon: Icons.open_in_new,
+                                      tooltip: context.l10n.moduleOpenWindow,
+                                      onPressed: hidden ? null : onDetach,
+                                      size: 34,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: DesktopTooltip(
+                            message: context.l10n.workspaceResizeNode,
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.resizeUpLeftDownRight,
+                              child: Listener(
+                                key: ValueKey('workspace resize ${node.id}'),
+                                behavior: HitTestBehavior.opaque,
+                                onPointerDown: (event) {
+                                  if (event.buttons != kPrimaryMouseButton) {
+                                    return;
+                                  }
+                                  onSelect();
+                                  onDragStart(
+                                    DragStartDetails(
+                                      globalPosition: event.position,
+                                    ),
+                                  );
+                                  onInteraction(true);
+                                },
+                                onPointerMove: (event) {
+                                  if (event.buttons == kPrimaryMouseButton) {
+                                    onResize(
+                                      DragUpdateDetails(
+                                        globalPosition: event.position,
+                                        delta: event.delta,
+                                      ),
+                                    );
+                                  }
+                                },
+                                onPointerUp: (_) => onInteraction(false),
+                                onPointerCancel: (_) => onInteraction(false),
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Icon(
+                                    Icons.south_east,
+                                    size: 14,
+                                    color: context.palette.mutedText,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

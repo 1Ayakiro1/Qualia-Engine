@@ -12,11 +12,16 @@ typedef ModuleProcessLauncher = Future<Process> Function(List<String> args);
 
 final moduleWindowSessionsProvider = Provider<ModuleWindowSessions>((ref) {
   final sessions = ModuleWindowSessions(
-    nodeById: (id) => ref
-        .read(workspaceProvider)
-        .nodes
-        .where((node) => node.id == id)
-        .firstOrNull,
+    nodeById: (id) {
+      final workspace = ref.read(workspaceProvider);
+      return workspace.nodes
+          .where(
+            (node) =>
+                node.id == id &&
+                !workspace.hiddenModuleIds.contains(node.module.id),
+          )
+          .firstOrNull;
+    },
     onParameter: (id, key, value) =>
         ref.read(workspaceProvider.notifier).setParameter(id, key, value),
   );
