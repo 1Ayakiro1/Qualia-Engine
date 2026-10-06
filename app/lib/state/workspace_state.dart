@@ -80,9 +80,21 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         if (_disposed) return;
         final node = state.nodes.where((n) => n.id == id).firstOrNull;
         if (node == null) return;
-        if (status == 'starting') node.runtimeValues.clear();
+        if (status == 'starting') {
+          node.runtimeValues.clear();
+          node.runtimeHistory.clear();
+        }
         node.runtimeStatus = status;
         node.runtimeValues.addAll(values);
+        for (final entry in values.entries) {
+          if (entry.value is num && (entry.value as num).isFinite) {
+            final series = node.runtimeHistory.putIfAbsent(entry.key, () => []);
+            series.add((entry.value as num).toDouble());
+            if (series.length > 240) {
+              series.removeRange(0, series.length - 240);
+            }
+          }
+        }
         state = state.copyWith(nodes: [...state.nodes]);
       },
     );
@@ -543,7 +555,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void setParameter(String id, String key, dynamic value) {
     final node = state.nodes.where((node) => node.id == id).firstOrNull;
     if (node == null) return;
-    final field = (node.module.manifest['ui'] as List? ?? const [])
+    final fields = [
+      if (node.module.manifest['parameters'] is List)
+        ...node.module.manifest['parameters'] as List,
+      if (node.module.manifest['ui'] is List)
+        ...node.module.manifest['ui'] as List,
+    ];
+    final field = fields
         .whereType<Map>()
         .where((f) => f['id'] == key)
         .firstOrNull;

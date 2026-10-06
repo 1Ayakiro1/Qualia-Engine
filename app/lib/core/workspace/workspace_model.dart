@@ -92,6 +92,9 @@ class WorkspaceNode {
 
   /// Volatile runtime output, never saved into a workspace or author settings.
   final Map<String, dynamic> runtimeValues = {};
+
+  /// Short-lived numeric series for custom module charts. Never persisted.
+  final Map<String, List<double>> runtimeHistory = {};
   String? runtimeStatus;
   // Minimum size follows the port count; manual height never clips new ports.
   double get minHeight =>
@@ -124,6 +127,7 @@ class WorkspaceNode {
     'outputs': outputs,
     'settings': settings,
     if (includeRuntime) 'runtimeValues': runtimeValues,
+    if (includeRuntime) 'runtimeHistory': runtimeHistory,
     if (includeRuntime) 'runtimeStatus': runtimeStatus,
     'headerColor': headerColor.name,
     'inputColors': inputColors.map((port, color) => MapEntry(port, color.name)),
@@ -162,6 +166,17 @@ class WorkspaceNode {
       node.runtimeValues.addAll(
         Map<String, dynamic>.from(json['runtimeValues'] as Map),
       );
+    }
+    if (json['runtimeHistory'] is Map) {
+      for (final entry in (json['runtimeHistory'] as Map).entries) {
+        if (entry.key is String && entry.value is List) {
+          node.runtimeHistory[entry.key as String] = (entry.value as List)
+              .whereType<num>()
+              .map((value) => value.toDouble())
+              .take(240)
+              .toList();
+        }
+      }
     }
     node.runtimeStatus = json['runtimeStatus'] as String?;
     return node;

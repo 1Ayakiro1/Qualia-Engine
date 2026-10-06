@@ -17,9 +17,11 @@ def check(project):
     assert isinstance(m["name"], str) and 0 < len(m["name"].strip()) <= 80, "Invalid name"
     assert m["runtime"] == "native-process-v1" and m["platform"] == "linux-x64", "Unsupported runtime"
     assert m["entrypoint"] == "bin/module", "Invalid entrypoint"
-    assert len(m["ui"]) <= 64, "Too many UI fields"
+    assert "ui" not in m or isinstance(m["ui"], list), "Invalid UI fields"
+    ui = m.get("ui", [])
+    assert isinstance(ui, list) and len(ui) <= 64, "Invalid UI fields"
     ids = set()
-    for field in m["ui"]:
+    for field in ui:
         assert re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{0,63}", field["id"]), "Invalid field ID"
         assert field["id"] not in ids, "Duplicate field"
         ids.add(field["id"])
@@ -29,7 +31,44 @@ def check(project):
         ports = m["ports"][direction]
         assert len(ports) <= 16 and len(set(ports)) == len(ports), "Invalid ports"
         assert all(re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{0,63}", p) for p in ports), "Invalid port ID"
+    assert "uiLayout" not in m or isinstance(m["uiLayout"], dict), "Invalid custom UI layout"
+    if "uiLayout" in m:
+        validate_layout(m["uiLayout"], ids)
     return m
+
+
+def validate_layout(node, field_ids, depth=0, seen=None, node_count=None):
+    seen = set() if seen is None else seen
+    node_count = [0] if node_count is None else node_count
+    node_count[0] += 1
+    assert depth <= 12 and node_count[0] <= 512, "Custom UI is too deep or large"
+    assert isinstance(node, dict), "Custom UI element must be an object"
+    containers = {"column", "row", "card"}
+    leaves = {"text", "value", "button", "input", "chart", "divider", "spacer"}
+    assert node.get("type") in containers | leaves, "Unsupported custom UI element"
+    interactive = {"input", "button"}
+    state_elements = {"value", "chart"}
+    if "id" in node:
+        assert re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{0,63}", str(node["id"])), "Invalid custom UI ID"
+        assert node["type"] not in interactive or node["id"] in field_ids, "Custom UI references an unknown field"
+        seen.add(node["id"])
+    assert node["type"] not in interactive | state_elements or isinstance(node.get("id"), str), "Custom UI element needs an ID"
+    for key in ["label", "title", "text"]:
+        if key in node:
+            assert isinstance(node[key], str) and len(node[key]) <= 1000, "Invalid custom UI text"
+    if "gap" in node:
+        assert isinstance(node["gap"], (int, float)) and 0 <= node["gap"] <= 96, "Invalid custom UI gap"
+    if node.get("type") == "input":
+        assert node.get("inputType") in ["number", "text"], "Invalid custom UI input type"
+    if node.get("type") == "spacer":
+        assert isinstance(node.get("height"), (int, float)) and 0 <= node["height"] <= 240, "Invalid spacer height"
+    children = node.get("children")
+    if children is not None:
+        assert node["type"] in containers and isinstance(children, list) and len(children) <= 64, "Invalid custom UI children"
+        for child in children:
+            validate_layout(child, field_ids, depth + 1, seen, node_count)
+    else:
+        assert node["type"] not in containers, "Custom UI container needs children"
 
 
 def main():
@@ -59,6 +98,12 @@ def main():
     out.mkdir(exist_ok=True)
     package = out / f'{manifest["id"]}-{manifest["version"]}.qmod'
     entries = [(project / "manifest.json", "manifest.json"), (build / "module", "bin/module")]
+    libraries = project / "lib"
+    if libraries.exists():
+        for file in sorted(libraries.rglob("*")):
+            assert not file.is_symlink() and file.is_file(), "Library symlinks are not allowed"
+            assert re.search(r"\.so(?:\.\d+)*$", file.name), "Only .so libraries are allowed"
+            entries.append((file, file.relative_to(project).as_posix()))
     assets = project / "assets"
     if assets.exists():
         for file in sorted(assets.rglob("*")):

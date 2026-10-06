@@ -38,8 +38,11 @@ class LocalModuleStore {
         'Unsupported or invalid native module manifest.',
       );
     }
-    final ui = m['ui'];
-    if (ui is! List || ui.length > 64) {
+    if (m.containsKey('ui') && m['ui'] is! List) {
+      throw const FormatException('Invalid UI.');
+    }
+    final ui = m['ui'] is List ? m['ui'] as List : const <dynamic>[];
+    if (ui.length > 64) {
       throw const FormatException('Invalid UI.');
     }
     final ids = <String>{};
@@ -81,6 +84,15 @@ class LocalModuleStore {
         throw const FormatException('Invalid select options.');
       }
     }
+    if (m.containsKey('uiLayout') && m['uiLayout'] is! Map) {
+      throw const FormatException('Invalid custom UI layout.');
+    }
+    if (m['uiLayout'] is Map) {
+      _validateCustomLayout(
+        Map<String, dynamic>.from(m['uiLayout'] as Map),
+        ids,
+      );
+    }
     if (m['ports'] is! Map) throw const FormatException('Invalid ports.');
     for (final direction in ['inputs', 'outputs']) {
       final ports = (m['ports'] as Map)[direction];
@@ -96,6 +108,99 @@ class LocalModuleStore {
       }
     }
     return m;
+  }
+
+  static void _validateCustomLayout(
+    Map<String, dynamic> node,
+    Set<String> fieldIds, {
+    int depth = 0,
+    Set<String>? seen,
+    List<int>? nodeCount,
+  }) {
+    final visited = seen ?? <String>{};
+    final count = nodeCount ?? [0];
+    count[0]++;
+    if (depth > 12 || count[0] > 512) {
+      throw const FormatException('Custom UI layout is too deep or too large.');
+    }
+    final type = node['type'];
+    const containers = ['column', 'row', 'card'];
+    const leaves = [
+      'text',
+      'value',
+      'button',
+      'input',
+      'chart',
+      'divider',
+      'spacer',
+    ];
+    if (![...containers, ...leaves].contains(type)) {
+      throw const FormatException('Unsupported custom UI element.');
+    }
+    const interactive = ['input', 'button'];
+    const stateElements = ['value', 'chart'];
+    if (node['id'] != null) {
+      if (node['id'] is! String ||
+          !RegExp(r'^[a-zA-Z][a-zA-Z0-9_]{0,63}$')
+              .hasMatch(node['id'] as String) ||
+          (interactive.contains(type) && !fieldIds.contains(node['id']))) {
+        throw const FormatException('Custom UI references an unknown field.');
+      }
+      visited.add(node['id'] as String);
+    }
+    if ((interactive.contains(type) || stateElements.contains(type)) &&
+        node['id'] is! String) {
+      throw const FormatException('Custom UI element needs an ID.');
+    }
+    for (final key in ['label', 'title', 'text']) {
+      if (node[key] != null &&
+          (node[key] is! String || (node[key] as String).length > 1000)) {
+        throw const FormatException('Custom UI text is invalid.');
+      }
+    }
+    if (node['gap'] != null &&
+        (node['gap'] is! num ||
+            (node['gap'] as num) < 0 ||
+            (node['gap'] as num) > 96)) {
+      throw const FormatException('Custom UI gap is invalid.');
+    }
+    if (type == 'input' &&
+        !const ['number', 'text'].contains(node['inputType'])) {
+      throw const FormatException('Custom UI input type is invalid.');
+    }
+    if (type == 'input') {
+      final field = fieldIds.contains(node['id']) ? node['id'] : null;
+      if (field == null) {
+        throw const FormatException('Custom UI input needs a UI field.');
+      }
+    }
+    if (type == 'spacer' &&
+        (node['height'] is! num ||
+            (node['height'] as num) < 0 ||
+            (node['height'] as num) > 240)) {
+      throw const FormatException('Custom UI spacer height is invalid.');
+    }
+    if (node['children'] != null) {
+      if (!containers.contains(type) ||
+          node['children'] is! List ||
+          (node['children'] as List).length > 64) {
+        throw const FormatException('Custom UI children are invalid.');
+      }
+      for (final child in node['children'] as List) {
+        if (child is! Map) {
+          throw const FormatException('Custom UI child is invalid.');
+        }
+        _validateCustomLayout(
+          Map<String, dynamic>.from(child),
+          fieldIds,
+          depth: depth + 1,
+          seen: visited,
+          nodeCount: count,
+        );
+      }
+    } else if (containers.contains(type)) {
+      throw const FormatException('Custom UI container needs children.');
+    }
   }
 
   /// v1 deliberately accepts ZIP STORE only: no unbounded decompression, links,
@@ -137,6 +242,14 @@ class LocalModuleStore {
       throw const FormatException(
         'Package needs manifest.json and bin/module.',
       );
+    }
+    for (final entry in archive.files) {
+      if (entry.name.startsWith('lib/') &&
+          !RegExp(r'\.so(?:\.\d+)*$').hasMatch(entry.name)) {
+        throw const FormatException(
+          'Only shared libraries are allowed in lib/.',
+        );
+      }
     }
     return archive;
   }

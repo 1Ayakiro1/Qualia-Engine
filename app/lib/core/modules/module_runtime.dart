@@ -80,7 +80,7 @@ class ModuleRuntime {
         return instance;
       });
       final parameters = {
-        for (final f in (installed.manifest['ui'] as List).whereType<Map>())
+        for (final f in _parameterFields(installed).whereType<Map>())
           if (f['type'] != 'button' &&
               f['type'] != 'label' &&
               f.containsKey('default'))
@@ -197,11 +197,13 @@ class ModuleRuntime {
     } else if (!instance.ready) {
       throw const FormatException('Handshake required');
     } else if (data['type'] == 'state' && data['values'] is Map) {
-      final fields = (instance.module.manifest['ui'] as List)
-          .whereType<Map>()
-          .where((f) => f['type'] == 'label')
-          .map((f) => f['id'])
-          .toSet();
+      final fields = <String>{
+        ..._parameterFields(instance.module)
+            .whereType<Map>()
+            .where((f) => f['type'] == 'label')
+            .map((f) => f['id']),
+        ..._customValueFields(instance.module.manifest['uiLayout']),
+      };
       _update(id, instance, 'running', {
         for (final entry in (data['values'] as Map).entries)
           if (fields.contains(entry.key)) entry.key as String: entry.value,
@@ -247,6 +249,31 @@ class ModuleRuntime {
         }
       }
     }
+  }
+
+  static List<dynamic> _parameterFields(SystemModule module) =>
+      module.manifest['parameters'] is List
+      ? module.manifest['parameters'] as List
+      : module.manifest['ui'] is List
+      ? module.manifest['ui'] as List
+      : const [];
+
+  static Set<String> _customValueFields(dynamic value) {
+    final result = <String>{};
+    void visit(dynamic node) {
+      if (node is! Map) return;
+      if (node['type'] == 'value' || node['type'] == 'chart') {
+        if (node['id'] is String) result.add(node['id'] as String);
+      }
+      if (node['children'] is List) {
+        for (final child in node['children'] as List) {
+          visit(child);
+        }
+      }
+    }
+
+    visit(value);
+    return result;
   }
 
   void event(String id, String field, dynamic value) {

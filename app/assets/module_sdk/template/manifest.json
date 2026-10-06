@@ -14,5 +14,18 @@
     {"id": "sample", "type": "number", "label": "Sample", "default": 1},
     {"id": "run", "type": "button", "label": "Run"},
     {"id": "result", "type": "label", "label": "Result", "default": "—"}
-  ]
+  ],
+  "uiLayout": {
+    "type": "column",
+    "gap": 14,
+    "children": [
+      {"type": "card", "gap": 12, "children": [
+        {"type": "text", "text": "Signal gain", "size": 20, "weight": "bold"},
+        {"type": "input", "id": "sample", "inputType": "number", "label": "Sample"},
+        {"type": "button", "id": "run", "label": "Run", "icon": "play"}
+      ]},
+      {"type": "chart", "id": "result", "title": "Output history", "tone": "accent"},
+      {"type": "value", "id": "result", "label": "Current result"}
+    ]
+  }
 }

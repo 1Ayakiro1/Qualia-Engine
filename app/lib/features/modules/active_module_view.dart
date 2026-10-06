@@ -8,6 +8,7 @@ import '../../l10n/app_strings.dart';
 import '../../l10n/module_strings.dart';
 import '../common/widgets.dart';
 import 'module_ui.dart';
+import 'module_custom_ui.dart';
 import '../common/navigation_bindings.dart';
 
 /// Same declarative module surface in the workspace, fullscreen and child window.
@@ -122,7 +123,16 @@ class ActiveModuleView extends StatelessWidget {
                   DesktopPane(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: node.module.manifest['ui'] is List
+                      child: node.module.manifest['uiLayout'] is Map
+                          ? ModuleCustomUi(
+                              schema: Map<String, dynamic>.from(
+                                node.module.manifest['uiLayout'] as Map,
+                              ),
+                              values: {...node.settings, ...node.runtimeValues},
+                              history: node.runtimeHistory,
+                              onChanged: onChanged,
+                            )
+                          : node.module.manifest['ui'] is List
                           ? ModuleControls(
                               localizePreview: node.module.isLocalPreview,
                               schema: node.module.manifest['ui'] as List,
