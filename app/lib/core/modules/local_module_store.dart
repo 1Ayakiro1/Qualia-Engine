@@ -467,8 +467,13 @@ class LocalModuleStore {
         'Packaged runtime integrity index is missing.',
       );
     }
-    if (!ModulePlatform.matches(await File(path).readAsBytes(), ModulePlatform.current)) {
-      throw const FormatException('Installed executable does not match the host ABI.');
+    if (!ModulePlatform.matches(
+      await File(path).readAsBytes(),
+      ModulePlatform.current,
+    )) {
+      throw const FormatException(
+        'Installed executable does not match the host ABI.',
+      );
     }
     return ModuleLaunchCommand(
       path,

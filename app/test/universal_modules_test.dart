@@ -103,6 +103,10 @@ void main() {
     addTearDown(() => dir.delete(recursive: true));
     final store = LocalModuleStore(root: dir);
     final module = await store.install(bytes);
+    final nativeFixture = Platform.environment['QUALIA_NATIVE_LIBRARY_QMOD'];
+    final native = nativeFixture == null
+        ? null
+        : await store.install(await File(nativeFixture).readAsBytes());
     final command = await store.command(module);
     expect(command.executable, contains(ModulePlatform.current));
     expect(ModulePlatform.launches(module.manifest), hasLength(6));
@@ -141,6 +145,7 @@ void main() {
       [
         WorkspaceNode(id: 'a', module: module),
         WorkspaceNode(id: 'b', module: module),
+        if (native != null) WorkspaceNode(id: 'cpp', module: native),
         WorkspaceNode(
           id: 'source',
           module: LogicBlocks.module(LogicBlockType.select),
@@ -167,11 +172,21 @@ void main() {
           target: 'b',
           input: 'input',
         ),
+        if (native != null)
+          const WorkspaceLink(
+            source: 'source-cpp',
+            output: 'output',
+            target: 'cpp',
+            input: 'input',
+          ),
       ],
-      [module],
+      [module, if (native != null) native],
     );
     await wait(() => statuses['a'] == 'running' && statuses['b'] == 'running');
-    expect(children.map((p) => p.pid).toSet(), hasLength(2));
+    expect(
+      children.map((p) => p.pid).toSet(),
+      hasLength(native == null ? 2 : 3),
+    );
     runtime.routeOutput('source', 'output', {'mean': 2.5}, 32);
     await wait(() => values['a']?['result'] != null);
     final result = values['a']!['result'] as Map;
@@ -184,6 +199,37 @@ void main() {
     runtime.routeOutput('source-b', 'output', {'mean': 4}, 32);
     await wait(() => values['b']?['result'] != null);
     expect((values['b']!['result'] as Map)['calls'], 1);
+    if (native != null) {
+      await wait(() => statuses['cpp'] == 'running');
+      // Reuse source because its output may feed multiple target modules.
+      runtime.sync(
+        'universal',
+        [
+          WorkspaceNode(id: 'a', module: module),
+          WorkspaceNode(id: 'b', module: module),
+          WorkspaceNode(id: 'cpp', module: native),
+          WorkspaceNode(
+            id: 'source-cpp',
+            module: LogicBlocks.module(LogicBlockType.select),
+            kind: WorkspaceNodeKind.logic,
+            logicType: LogicBlockType.select,
+          ),
+        ],
+        [
+          const WorkspaceLink(
+            source: 'source-cpp',
+            output: 'output',
+            target: 'cpp',
+            input: 'input',
+          ),
+        ],
+        [module, native],
+      );
+      runtime.routeOutput('source-cpp', 'output', {'mean': 2.5}, 32);
+      await wait(() => values['cpp']?['result'] != null);
+      expect((values['cpp']!['result'] as Map)['energy'], 6.25);
+      expect((values['cpp']!['result'] as Map)['cppCalls'], 1);
+    }
     runtime.sync('other', [], [], [module]);
     await Future.wait(children.map((p) => p.exitCode))
         .timeout(const Duration(seconds: 3));
