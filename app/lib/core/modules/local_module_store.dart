@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'module_registry.dart';
 import 'port_schema.dart';
+import 'module_platform.dart';
 
 class ModuleLaunchCommand {
   const ModuleLaunchCommand(this.executable, this.arguments, this.directory);
@@ -32,12 +33,22 @@ class LocalModuleStore {
       !path.contains('\\') &&
       !path.contains(':') &&
       !path.contains('\u0000') &&
+      !RegExp(r'[<>"|?*\x00-\x1f]').hasMatch(path) &&
+      !path
+          .split('/')
+          .any(
+            (s) =>
+                s.endsWith('.') ||
+                s.endsWith(' ') ||
+                RegExp(
+                  r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)',
+                  caseSensitive: false,
+                ).hasMatch(s),
+          ) &&
       !path.split('/').any((s) => s == '..' || s == '.' || s.isEmpty);
 
   static String entrypoint(Map<String, dynamic> manifest) =>
-      manifest['runtime'] == 'process-v1'
-      ? (manifest['launch'] as Map)['executable'] as String
-      : 'bin/module';
+      ModulePlatform.select(manifest)['executable'] as String;
   Future<Directory> get directory async =>
       root ??
       Directory(p.join((await getApplicationSupportDirectory()).path, 'qmod'));
@@ -48,9 +59,10 @@ class LocalModuleStore {
     if (m['format'] != 'qualia-module' ||
         m['schemaVersion'] != 1 ||
         !['native-process-v1', 'process-v1'].contains(m['runtime']) ||
-        m['platform'] != 'linux-x64' ||
         (m['runtime'] == 'native-process-v1' &&
-            m['entrypoint'] != 'bin/module') ||
+            (m['entrypoint'] != 'bin/module' ||
+                m['platform'] != 'linux-x64' ||
+                m.containsKey('targets'))) ||
         m['id'] is! String ||
         !RegExp(r'^[a-z][a-z0-9-]{1,63}$').hasMatch(m['id'] as String) ||
         m['version'] is! String ||
@@ -63,15 +75,37 @@ class LocalModuleStore {
       );
     }
     if (m['runtime'] == 'process-v1') {
-      final launch = m['launch'];
-      if (launch is! Map ||
-          !safePath(launch['executable']) ||
-          launch['arguments'] is! List ||
-          (launch['arguments'] as List).length > 32 ||
-          (launch['arguments'] as List).any(
-            (a) => a is! String || a.length > 4096 || a.contains('\u0000'),
-          )) {
-        throw const FormatException('Invalid packaged launch command.');
+      if (m.containsKey('targets')) {
+        if (m['targets'] is! Map ||
+            (m['targets'] as Map).isEmpty ||
+            (m['targets'] as Map).length > ModulePlatform.supported.length ||
+            m.containsKey('platform') ||
+            m.containsKey('launch') ||
+            m.containsKey('entrypoint') ||
+            (m['targets'] as Map).keys.any(
+              (key) => !ModulePlatform.supported.contains(key),
+            )) {
+          throw const FormatException('Invalid or ambiguous platform targets.');
+        }
+      } else if (!ModulePlatform.supported.contains(m['platform'])) {
+        throw const FormatException('Unsupported module platform.');
+      }
+      final launches = m['targets'] is Map
+          ? (m['targets'] as Map).values
+          : [m['launch']];
+      for (final launch in launches) {
+        if (launch is! Map ||
+            launch.keys.any(
+              (key) => !['executable', 'arguments'].contains(key),
+            ) ||
+            !safePath(launch['executable']) ||
+            launch['arguments'] is! List ||
+            (launch['arguments'] as List).length > 32 ||
+            (launch['arguments'] as List).any(
+              (a) => a is! String || a.length > 4096 || a.contains('\u0000'),
+            )) {
+          throw const FormatException('Invalid packaged launch command.');
+        }
       }
     }
     if (m.containsKey('ui') && m['ui'] is! List) {
@@ -264,7 +298,7 @@ class LocalModuleStore {
           name.contains('\\') ||
           name.contains(':') ||
           name.split('/').any((s) => s == '..' || s == '.' || s.isEmpty) ||
-          !names.add(name) ||
+          !names.add(name.toLowerCase()) ||
           h.compressionMethod != 0 ||
           h.file?.compressionMethod != 0 ||
           (h.generalPurposeBitFlag & 1) != 0 ||
@@ -281,7 +315,10 @@ class LocalModuleStore {
     }
     for (final entry in archive.files) {
       if (entry.name.startsWith('lib/') &&
-          !RegExp(r'\.so(?:\.\d+)*$').hasMatch(entry.name)) {
+          !RegExp(
+            r'(\.so(?:\.\d+)*|\.dll|\.dylib)$',
+            caseSensitive: false,
+          ).hasMatch(entry.name)) {
         throw const FormatException(
           'Only shared libraries are allowed in lib/.',
         );
@@ -291,9 +328,6 @@ class LocalModuleStore {
   }
 
   Future<SystemModule> install(List<int> bytes) async {
-    if (!Platform.isLinux) {
-      throw const FormatException('Executable .qmod packages currently require Linux x64. Windows/macOS package runtimes are not supported yet.');
-    }
     final archive = validateArchive(bytes);
     final manifestFile = archive.findFile('manifest.json')!;
     if (manifestFile.size > 65536) {
@@ -302,22 +336,21 @@ class LocalModuleStore {
     final m = validateManifest(
       jsonDecode(utf8.decode(manifestFile.content as List<int>)),
     );
-    final executableEntry = archive.findFile(entrypoint(m));
+    final selected = ModulePlatform.select(m);
+    for (final variant in ModulePlatform.launches(m).entries) {
+      final entry = archive.findFile(variant.value['executable'] as String);
+      if (entry == null ||
+          !ModulePlatform.matches(entry.content as List<int>, variant.key)) {
+        throw FormatException(
+          'Missing or wrong executable for ${variant.key}.',
+        );
+      }
+    }
+    final executableEntry = archive.findFile(selected['executable'] as String);
     if (executableEntry == null) {
       throw const FormatException('Packaged executable is missing.');
     }
     final binary = executableEntry.content as List<int>;
-    if (binary.length < 20 ||
-        binary[0] != 127 ||
-        binary[1] != 69 ||
-        binary[2] != 76 ||
-        binary[3] != 70 ||
-        binary[4] != 2 ||
-        binary[5] != 1 ||
-        binary[18] != 62 ||
-        binary[19] != 0) {
-      throw const FormatException('Expected a Linux x64 ELF executable.');
-    }
     final hash = sha256.convert(bytes).toString();
     final base = await directory;
     await base.create(recursive: true);
@@ -333,17 +366,22 @@ class LocalModuleStore {
         final executables = archive.files
             .where((entry) {
               final bytes = entry.content as List<int>;
-              return bytes.length >= 4 &&
-                  bytes[0] == 127 &&
-                  bytes[1] == 69 &&
-                  bytes[2] == 76 &&
-                  bytes[3] == 70;
+              return ModulePlatform.needsExecutePermission(bytes);
             })
             .map((entry) => p.join(staging.path, entry.name))
             .toList();
-        final chmod = await Process.run('chmod', ['700', ...executables]);
-        if (chmod.exitCode != 0) {
-          throw const FileSystemException('Cannot set executable permission.');
+        if (!Platform.isWindows) {
+          for (var i = 0; i < executables.length; i += 64) {
+            final chmod = await Process.run('/bin/chmod', [
+              '700',
+              ...executables.skip(i).take(64),
+            ]);
+            if (chmod.exitCode != 0) {
+              throw const FileSystemException(
+                'Cannot set executable permission.',
+              );
+            }
+          }
         }
         await File(p.join(staging.path, '.package.sha256')).writeAsString(hash);
         await File(p.join(staging.path, '.executable.sha256'))
@@ -377,9 +415,6 @@ class LocalModuleStore {
   }
 
   Future<ModuleLaunchCommand> command(SystemModule installed) async {
-    if (!Platform.isLinux) {
-      throw const FormatException('Linux module packages cannot run on this operating system.');
-    }
     final hash = installed.localPackage;
     if (hash == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(hash)) {
       throw const FormatException('Module is not installed locally.');
@@ -396,14 +431,16 @@ class LocalModuleStore {
         'Installed module metadata does not match the package.',
       );
     }
-    final path = p.join(base, entrypoint(manifest));
+    final selected = ModulePlatform.select(manifest);
+    final path = p.join(base, selected['executable'] as String);
     if (!await File(path).exists()) {
       throw const FileSystemException('Module executable is missing.');
     }
     final digest = File(p.join(base, '.executable.sha256'));
-    if (!await digest.exists() ||
-        await digest.readAsString() !=
-            (await sha256.bind(File(path).openRead()).first).toString()) {
+    if (!manifest.containsKey('targets') &&
+        (!await digest.exists() ||
+            await digest.readAsString() !=
+                (await sha256.bind(File(path).openRead()).first).toString())) {
       throw const FileSystemException(
         'Installed executable is damaged. Install a new package version.',
       );
@@ -430,11 +467,12 @@ class LocalModuleStore {
         'Packaged runtime integrity index is missing.',
       );
     }
+    if (!ModulePlatform.matches(await File(path).readAsBytes(), ModulePlatform.current)) {
+      throw const FormatException('Installed executable does not match the host ABI.');
+    }
     return ModuleLaunchCommand(
       path,
-      manifest['runtime'] == 'process-v1'
-          ? List<String>.from((manifest['launch'] as Map)['arguments'])
-          : [],
+      List<String>.from(selected['arguments'] as List),
       base,
     );
   }

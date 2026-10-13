@@ -82,9 +82,12 @@ jobs:
         run: |
           python -m pip install --only-binary=:all: numpy==2.4.6
           python modules/examples/library-suite/prepare.py "$GITHUB_WORKSPACE/ci-libraries"
+      - name: Build universal six-target Go package (offline cross-compilation)
+        run: python modules/examples/universal/prepare.py "$GITHUB_WORKSPACE/ci-universal"
       - name: Flutter tests
         env:
           QUALIA_LIBRARY_FIXTURES: ${{ runner.os == 'Linux' && format('{0}/ci-libraries', github.workspace) || '' }}
+          QUALIA_UNIVERSAL_QMOD: ${{ github.workspace }}/ci-universal/dist/universal-go-0.1.0.qmod
         working-directory: app
         run: flutter test --reporter expanded
       - name: SDK Go example (offline, static Linux x64 module)
@@ -132,6 +135,13 @@ jobs:
         with:
           name: Go-module-linux-x64
           path: ci-go/dist/*.qmod
+          if-no-files-found: error
+      - name: Upload universal module example
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Universal-Go-module-six-targets
+          path: ci-universal/dist/*.qmod
           if-no-files-found: error
       - name: Failure diagnostics
         if: failure()

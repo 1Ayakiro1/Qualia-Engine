@@ -11,6 +11,8 @@
 - macOS Xcode builds automatically embed the native core; Windows packages
   verify the core DLL. GitHub Actions desktop build/test matrix for three OSes.
 - Authoring guide for AI assistants and C++/Python/Go examples.
+- Universal `.qmod` archives with six OS/ABI targets (Linux/Windows/macOS,
+  x64/arm64), automatic executable selection and ELF/PE/Mach-O validation.
 
 ## Verification scenarios
 
@@ -44,8 +46,12 @@ and platform baseline before independently distributing module binaries.
 
 ## Alpha limitations
 
-- Executable `.qmod` currently supports **Linux x64 only**. Windows/macOS engine
-  builds do not execute Linux ELF packages. Built-in logic is platform-neutral.
+- Universal `.qmod` requires packaged executable/runtime dependencies for each
+  target. Linux-only packages remain Linux-only; one archive can contain six
+  variants. See [UNIVERSAL_MODULES.md](../UNIVERSAL_MODULES.md). Cross-compiling
+  an ARM binary is not the same as executing it on an ARM device.
+- macOS App Sandbox is disabled to allow explicitly trusted executable modules;
+  this desktop app is not an App Store sandbox distribution.
 - Modules are trusted user processes, not security sandboxes.
 - JSON ports are for bounded control data, not hard-real-time EEG/SampleBlock.
 - Windows portable ZIP has no Authenticode signature. macOS application ZIP is

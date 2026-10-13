@@ -13,7 +13,10 @@ Inspector, Open, fullscreen и отдельное окно — разные пр
 Кнопки отправляют события, а не сохраняют `true` как параметр. Результаты `state`
 живут отдельно от параметров и не попадают в файл Workspace.
 
-Пакеты поддерживают **Linux x64**. Готовый C++17 SDK использует CMake и Python 3
+Пакеты поддерживают **Linux/Windows/macOS x64/arm64**, включая один архив с `targets`.
+Контракт: [UNIVERSAL_MODULES.md](UNIVERSAL_MODULES.md). Legacy C++ build helper
+пока собирает одиночный Linux x64 пакет; для других ОС используйте готовый payload и `pack`.
+Готовый C++17 SDK использует CMake и Python 3
 только для сборки/упаковки. `process-v1` запускает bundled executable/runtime
 на любом языке, не требует системного интерпретатора. Команда `pack` упаковывает
 готовый payload без компиляции и скачивания. JSON-библиотека включена в C++ SDK.

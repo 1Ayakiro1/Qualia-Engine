@@ -2,9 +2,9 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: v0.4.3 — Profile login and shortcuts polish.** Каркас-оболочка собран,
-сборка и запуск проверяются на каждую версию (бинарник + AppImage + portable
-tar.gz; Windows/macOS — в CI). Готовые сборки — в папке [`builds/`](builds/README.md).
+**Статус: Alpha 0.5.0 — logic blocks and universal module packages.**
+Готовые release-пакеты и исходники — в [GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases).
+Linux AppImage/tarball и Windows/macOS ZIP собираются матрицей GitHub Actions.
 
 ## Режимы использования
 
@@ -14,7 +14,13 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 | Исследователь | + Конвейер, Спектрограмма, Модули, Датасеты, Модели |
 | Разработчик | + FFI-консоль ядра |
 
-## Что уже работает (v0.4.3)
+## Что уже работает
+
+- **Универсальные `.qmod`**: один архив с executable/runtime вариантами для
+  Linux/Windows/macOS x64/arm64; общий языконезависимый stdin/stdout протокол.
+  [Контракт и ограничения](docs/UNIVERSAL_MODULES.md).
+- **Логические блоки**: IF, фильтр, выбор полей, проверка схемы и ограниченный
+  script с редактором/dry-run, отдельным Explorer и фильтрами отображения.
 
 - **Логгер сессии** (`AppLogger`): с момента запуска и до завершения пишет
   форматированные логи ядра и UI в `~/.local/share/bci_engine/logs/`
@@ -41,7 +47,7 @@ tar.gz; Windows/macOS — в CI). Готовые сборки — в папке 
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Ayakiro_BCI_Engine-0.4.1-x86_64.AppImage
+./builds/Ayakiro_BCI_Engine-0.5.0-x86_64.AppImage
 ```
 
 ### Отдельный debug terminal

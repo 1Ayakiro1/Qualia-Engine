@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0] — Alpha: logic and universal modules
+
+- Host-owned IF/filter/select/validate/script nodes and schema-checked routing.
+- Language-independent bundled runtimes and universal `.qmod` target selection
+  for Linux/Windows/macOS x64/arm64, backward-compatible legacy Linux packages.
+- Cross-language NumPy/OpenBLAS/C FFI/C++ shared library/Go integration tests.
+- Automatic macOS native-core embedding, Windows DLL verification and desktop CI.
+- Module management, custom active views and independent workspace transfers.
+- AI authoring guide and release notes: `docs/releases/ALPHA_0.5.0.md`.
+
 ## [0.4.3] — Profile login and shortcuts polish
 
 - Profile workspace заменён на экран `Log in with:` с провайдерами Github,

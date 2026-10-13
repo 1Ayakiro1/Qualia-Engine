@@ -59,9 +59,9 @@ Native vsync и диагностика частоты описаны в `docs/PE
   Xcode/Visual Studio приложения. macOS архитектуры определяются Xcode/Flutter,
   проверяются `lipo -info` при необходимости; CI артефакт не обещает universal
   Intel/ARM без проверки содержимого bundle.
-- macOS сохраняет App Sandbox, добавлены разрешения network client/server для
-  каталога и loopback окон и user-selected files для импорта/экспорта. Это не
-  разрешение запуска произвольных `.qmod` и не App Store readiness.
+- macOS App Sandbox выключен для разрешённого пользователем запуска packaged
+  модулей из Application Support. Это обычное desktop-приложение, не App Store
+  sandbox; модули доверенные и работают с правами пользователя.
 - ZIP macOS подписан локальной identity, но **не notarized**. Для публичного
   распространения нужны Developer ID, notarization и соответствующие secrets;
   Windows ZIP также не имеет Authenticode-подписи/инсталлятора.
@@ -70,8 +70,10 @@ Native vsync и диагностика частоты описаны в `docs/PE
 
 Flutter desktop shell и FFI loader имеют пути для Linux/Windows/macOS; Windows
 CMake и macOS Xcode включают нативное ядро. Linux-only native vsync не переносится
-на другие embedder-ы; они используют штатный Flutter. Пакеты `.qmod` пока
-**Linux x64**, Windows PE и macOS Mach-O/signed-runtime контракт ещё не реализован.
+на другие embedder-ы; они используют штатный Flutter. Пакеты `.qmod` используют
+ELF/PE/Mach-O и могут иметь `targets` для всех ОС x64/arm64. Проверка executable
+формата не заменяет OS baseline, signing и фактическое тестирование runtime.
+Контракт: [UNIVERSAL_MODULES.md](UNIVERSAL_MODULES.md).
 Мобильные Android/iOS, сенсорное управление и драйверы EEG не входят в эту
 desktop-матрицу. Сборка не заменяет проверку на реальных устройствах.
 
