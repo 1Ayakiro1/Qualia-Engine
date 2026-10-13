@@ -1,0 +1,145 @@
+name: Desktop builds
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      linux_embedder:
+        description: 'Linux GTK embedder (native requires a large engine build)'
+        type: choice
+        options: [stock, native]
+        default: stock
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: windows-x64
+            runner: windows-2022
+          - platform: macos
+            runner: macos-15
+    env:
+      FLUTTER_VERSION: '3.47.5'
+      QUALIA_LINUX_EMBEDDER: ${{ inputs.linux_embedder || 'stock' }}
+      CMAKE_POLICY_VERSION_MINIMUM: '3.5'
+      DIST_OUT: ${{ github.workspace }}/ci-dist
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libfuse2 xvfb libgl1-mesa-dev
+      - name: Flutter SDK (pinned to custom embedder ABI)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.6'
+          cache: false
+      - name: Resolve application dependencies
+        working-directory: app
+        run: flutter pub get
+      - name: Versions
+        run: bash scripts/check_version.sh
+      - name: Analyze
+        working-directory: app
+        run: dart analyze
+      - name: Core configure
+        run: cmake -S core -B ci-core -DBCI_BUILD_TESTS=ON -DBCI_FETCH_DEPS=OFF -DCMAKE_BUILD_TYPE=Release
+      - name: Core build
+        run: cmake --build ci-core --config Release --parallel 2
+      - name: Core tests (must exist)
+        run: ctest --test-dir ci-core -C Release --output-on-failure --no-tests=error
+      - name: Build self-contained library fixtures (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install --only-binary=:all: numpy==2.4.6
+          python modules/examples/library-suite/prepare.py "$GITHUB_WORKSPACE/ci-libraries"
+      - name: Flutter tests
+        env:
+          QUALIA_LIBRARY_FIXTURES: ${{ runner.os == 'Linux' && format('{0}/ci-libraries', github.workspace) || '' }}
+        working-directory: app
+        run: flutter test --reporter expanded
+      - name: SDK Go example (offline, static Linux x64 module)
+        run: |
+          mkdir -p ci-go/payload/bin
+          cp modules/examples/go/manifest.json ci-go/manifest.json
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o ci-go/payload/bin/module modules/examples/go/main.go
+          python app/assets/module_sdk/qmod.py pack ci-go
+      - name: Windows release + portable ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+      - name: macOS release + application ZIP
+        if: runner.os == 'macOS'
+        run: bash scripts/build_macos.sh
+      - name: Linux release + AppImage + tarball
+        if: runner.os == 'Linux'
+        run: |
+          bash scripts/build_linux.sh
+          bash scripts/package_linux.sh
+          bash scripts/build_appimage.sh
+      - name: Bundle native core smoke test
+        run: python scripts/smoke_native_core.py
+      - name: Linux AppImage launch smoke test
+        if: runner.os == 'Linux'
+        run: |
+          set +e
+          timeout 15s xvfb-run -a bash -c 'ci-dist/*.AppImage --appimage-extract-and-run' > appimage-smoke.log 2>&1
+          status=$?
+          cat appimage-smoke.log
+          if [[ "$status" != 124 ]]; then exit 1; fi
+      - name: Upload desktop packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Qualia-${{ matrix.platform }}-${{ runner.os == 'Linux' && env.QUALIA_LINUX_EMBEDDER || 'standard' }}-${{ github.sha }}
+          path: |
+            ci-dist/*.AppImage
+            ci-dist/*.tar.gz
+            ci-dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Linux Go module example
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Go-module-linux-x64
+          path: ci-go/dist/*.qmod
+          if-no-files-found: error
+      - name: Failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Diagnostics-${{ matrix.platform }}-${{ github.sha }}
+          path: |
+            ci-core/Testing/Temporary/*.log
+            appimage-smoke.log
+          if-no-files-found: ignore
+          retention-days: 7

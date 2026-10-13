@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Offline Qualia native module SDK. Python standard library + CMake + C++17."""
+"""Offline Qualia process SDK. Language-neutral pack/check plus C++ build helper."""
 import argparse
 import json
 import pathlib
 import re
 import shutil
 import subprocess
+import tempfile
 import zipfile
 
 
@@ -15,8 +16,14 @@ def check(project):
     assert re.fullmatch(r"[a-z][a-z0-9-]{1,63}", m["id"]), "Invalid ID"
     assert re.fullmatch(r"\d+\.\d+\.\d+", m["version"]), "Invalid version"
     assert isinstance(m["name"], str) and 0 < len(m["name"].strip()) <= 80, "Invalid name"
-    assert m["runtime"] == "native-process-v1" and m["platform"] == "linux-x64", "Unsupported runtime"
-    assert m["entrypoint"] == "bin/module", "Invalid entrypoint"
+    assert m["runtime"] in ["native-process-v1", "process-v1"] and m["platform"] == "linux-x64", "Unsupported process/platform"
+    if m["runtime"] == "native-process-v1":
+        assert m["entrypoint"] == "bin/module", "Invalid entrypoint"
+    else:
+        launch = m["launch"]
+        assert safe_path(launch["executable"]), "Executable must be package-relative"
+        assert isinstance(launch["arguments"], list) and len(launch["arguments"]) <= 32
+        assert all(isinstance(a, str) and len(a) <= 4096 and "\0" not in a for a in launch["arguments"])
     assert "ui" not in m or isinstance(m["ui"], list), "Invalid UI fields"
     ui = m.get("ui", [])
     assert isinstance(ui, list) and len(ui) <= 64, "Invalid UI fields"
@@ -31,10 +38,70 @@ def check(project):
         ports = m["ports"][direction]
         assert len(ports) <= 16 and len(set(ports)) == len(ports), "Invalid ports"
         assert all(re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{0,63}", p) for p in ports), "Invalid port ID"
+    schemas = m.get("portSchemas", {})
+    assert isinstance(schemas, dict) and set(schemas) <= {"inputs", "outputs"}
+    for direction, entries in schemas.items():
+        assert isinstance(entries, dict) and set(entries) <= set(m["ports"][direction])
+        for schema in entries.values():
+            validate_schema(schema)
     assert "uiLayout" not in m or isinstance(m["uiLayout"], dict), "Invalid custom UI layout"
     if "uiLayout" in m:
         validate_layout(m["uiLayout"], ids)
     return m
+
+
+def safe_path(name):
+    return isinstance(name, str) and 0 < len(name) <= 240 and not name.startswith(("/", ".")) and not any(c in name for c in ["\\", ":", "\0"]) and all(s not in ["", ".", ".."] for s in name.split("/"))
+
+
+def validate_schema(schema, depth=0):
+    assert depth <= 8 and isinstance(schema, dict), "Invalid schema depth"
+    assert schema.get("type") in ["any", "null", "boolean", "number", "string", "array", "object"]
+    assert set(schema) <= {"type", "properties", "required", "additionalProperties", "items"}
+    if "properties" in schema:
+        assert schema["type"] == "object" and isinstance(schema["properties"], dict) and len(schema["properties"]) <= 64
+        for key, child in schema["properties"].items():
+            assert isinstance(key, str) and 0 < len(key) <= 64
+            validate_schema(child, depth + 1)
+    if "required" in schema:
+        assert schema["type"] == "object" and isinstance(schema["required"], list) and len(schema["required"]) <= 64
+        assert all(isinstance(k, str) and k in schema.get("properties", {}) for k in schema["required"])
+    if "additionalProperties" in schema:
+        assert schema["type"] == "object" and isinstance(schema["additionalProperties"], bool)
+    if "items" in schema:
+        assert schema["type"] == "array"
+        validate_schema(schema["items"], depth + 1)
+
+
+def pack(project, manifest, payload):
+    """Package an already built, self-contained payload. Never download runtimes."""
+    entries = [(project / "manifest.json", "manifest.json")]
+    for file in sorted(payload.rglob("*")):
+        assert not file.is_symlink(), "Dereference runtime symlinks before packaging"
+        if file.is_file():
+            name = file.relative_to(payload).as_posix()
+            assert safe_path(name) and name != "manifest.json", "Unsafe/duplicate payload path"
+            if name.startswith("lib/"):
+                assert re.search(r"\.so(?:\.\d+)*$", name), "Only .so files in lib/; put interpreters in runtime/"
+            entries.append((file, name))
+    entrypoint = manifest["launch"]["executable"] if manifest["runtime"] == "process-v1" else "bin/module"
+    binary = payload / entrypoint
+    assert binary.is_file(), "Missing executable"
+    header = binary.read_bytes()[:20]
+    assert len(header) >= 20 and header[:6] == b"\x7fELF\x02\x01" and header[18:20] == b"\x3e\0", "Expected Linux x64 ELF launcher/runtime"
+    assert len(entries) <= 4096 and sum(f.stat().st_size for f, _ in entries) <= 256 * 1024 * 1024, "Package too large"
+    assert (project / "manifest.json").stat().st_size <= 65536, "Manifest too large"
+    out = project / "dist"
+    out.mkdir(exist_ok=True)
+    package = out / f'{manifest["id"]}-{manifest["version"]}.qmod'
+    with tempfile.TemporaryDirectory(dir=out) as staging:
+        temporary = pathlib.Path(staging) / "package.qmod"
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as archive:
+            for file, name in entries:
+                archive.write(file, name)
+        assert temporary.stat().st_size <= 256 * 1024 * 1024, "ZIP including headers exceeds package limit"
+        shutil.move(temporary, package)
+    print(package)
 
 
 def validate_layout(node, field_ids, depth=0, seen=None, node_count=None):
@@ -73,8 +140,9 @@ def validate_layout(node, field_ids, depth=0, seen=None, node_count=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["create", "check", "build"])
+    parser.add_argument("command", choices=["create", "check", "build", "pack"])
     parser.add_argument("project", type=pathlib.Path)
+    parser.add_argument("--payload", type=pathlib.Path, help="Prebuilt self-contained payload directory")
     args = parser.parse_args()
     project = args.project.resolve()
     if args.command == "create":
@@ -91,6 +159,10 @@ def main():
     if args.command == "check":
         print("Manifest OK")
         return
+    if args.command == "pack":
+        pack(project, manifest, (args.payload or project / "payload").resolve())
+        return
+    assert manifest["runtime"] == "native-process-v1", "Use pack for language-neutral process-v1 payloads"
     build = project / "build"
     subprocess.run(["cmake", "-S", str(project), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"], check=True)
     subprocess.run(["cmake", "--build", str(build), "--parallel", "2"], check=True)

@@ -89,7 +89,7 @@ class WorkspaceProject {
   }
 
   /// Values are declarative only. Installing executable packages is a separate
-  /// signed-runtime operation; module references must be resolved by the host.
+  /// trusted installation operation; module references are resolved by the host.
   Map<String, dynamic> toPackage() => {
     'format': 'qualia-workspace',
     'version': 1,
@@ -97,8 +97,9 @@ class WorkspaceProject {
     'dependencies': [
       for (final module in {
         for (final n in nodes)
-          '${n.module.id}@${n.module.version}:${n.module.releaseId ?? ''}':
-              n.module,
+          if (!n.isLogic)
+            '${n.module.id}@${n.module.version}:${n.module.releaseId ?? ''}':
+                n.module,
       }.values)
         {
           'slug': module.id,

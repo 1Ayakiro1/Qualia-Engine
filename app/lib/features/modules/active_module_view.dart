@@ -9,6 +9,7 @@ import '../../l10n/module_strings.dart';
 import '../common/widgets.dart';
 import 'module_ui.dart';
 import 'module_custom_ui.dart';
+import 'logic_block_editor.dart';
 import '../common/navigation_bindings.dart';
 
 /// Same declarative module surface in the workspace, fullscreen and child window.
@@ -73,7 +74,9 @@ class ActiveModuleView extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      node.module.displayName(context),
+                      node.isLogic
+                          ? context.logicBlockLabel(node.logicType.name)
+                          : node.module.displayName(context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -105,7 +108,9 @@ class ActiveModuleView extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 children: [
                   Text(
-                    node.module.displayName(context),
+                    node.isLogic
+                        ? context.logicBlockLabel(node.logicType.name)
+                        : node.module.displayName(context),
                     style: const TextStyle(
                       fontSize: 23,
                       fontWeight: FontWeight.w600,
@@ -123,7 +128,13 @@ class ActiveModuleView extends StatelessWidget {
                   DesktopPane(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: node.module.manifest['uiLayout'] is Map
+                      child: node.isLogic
+                          ? LogicBlockEditor(
+                              key: ValueKey(node.id),
+                              node: node,
+                              onChanged: onChanged,
+                            )
+                          : node.module.manifest['uiLayout'] is Map
                           ? ModuleCustomUi(
                               schema: Map<String, dynamic>.from(
                                 node.module.manifest['uiLayout'] as Map,
@@ -166,8 +177,10 @@ class ActiveModuleView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    node.module.isLocal
-                        ? '${node.runtimeStatus ?? "stopped"} · native-process-v1'
+                    node.isLogic
+                        ? '${node.runtimeStatus ?? "idle"} · host-logic-v1'
+                        : node.module.isLocal
+                        ? '${node.runtimeStatus ?? "stopped"} · ${node.module.manifest['runtime']}'
                         : context
                               .l10n
                               .textGraphEditingIsAvailableExecutingExternalPackages322,

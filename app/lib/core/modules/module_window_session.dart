@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../workspace/workspace_model.dart';
+import '../logic/logic_blocks.dart';
 import '../../state/workspace_state.dart';
 
 typedef ModuleProcessLauncher = Future<Process> Function(List<String> args);
@@ -115,6 +116,14 @@ class ModuleWindowSessions {
                 ...current.module.manifest['ui'] as List,
             ];
             final value = data['value'];
+            if (current.isLogic &&
+                LogicBlocks.defaults(current.logicType).containsKey(key)) {
+              if (value is String && value.length <= 8192) {
+                onParameter(node.id, key, value);
+                _sendNode(node.id, session);
+              }
+              return;
+            }
             final field = fields
                 .whereType<Map>()
                 .where((field) => field['id'] == key)

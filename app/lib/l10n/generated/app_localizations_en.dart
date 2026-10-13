@@ -10,6 +10,46 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get logicBlocks => 'Logic blocks';
+
+  @override
+  String get logicAdd => 'Add logic block';
+
+  @override
+  String get logicFilter => 'Filter';
+
+  @override
+  String get logicSelectFields => 'Select fields';
+
+  @override
+  String get logicValidate => 'Validate input / output';
+
+  @override
+  String get logicScript => 'Script';
+
+  @override
+  String get logicScriptHelp =>
+      'No files, network or loops. Use value.field, has(value, \"field\"), comparisons, and / or / not. Scripts support nested IF / ELSE and emit. select(value, \"field\") keeps only selected fields. Schema uses type, properties, required and additionalProperties.';
+
+  @override
+  String get logicTestInput => 'Test input (JSON)';
+
+  @override
+  String get logicTest => 'Test without sending to graph';
+
+  @override
+  String get logicShow => 'Show logic blocks';
+
+  @override
+  String get logicHide => 'Hide logic blocks';
+
+  @override
+  String get moduleBlocksShow => 'Show module blocks';
+
+  @override
+  String get moduleBlocksHide => 'Hide module blocks';
+
+  @override
   String get moduleDelete => 'Delete module';
 
   @override

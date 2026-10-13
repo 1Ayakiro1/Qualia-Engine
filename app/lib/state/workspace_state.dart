@@ -11,6 +11,7 @@ import '../core/workspace/workspace_model.dart';
 import '../core/workspace/workspace_project.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/log_entry.dart';
+import '../core/logic/logic_blocks.dart';
 
 class WorkspaceState {
   const WorkspaceState({
@@ -22,6 +23,8 @@ class WorkspaceState {
     this.moduleActiveOverrides = const {},
     this.hiddenModuleIds = const {},
     this.removedModuleIds = const {},
+    this.showLogicBlocks = true,
+    this.showModuleBlocks = true,
     this.authorMetadata = const {},
     this.loaded = false,
     this.projects = const [],
@@ -40,6 +43,7 @@ class WorkspaceState {
   final Map<String, bool> moduleActiveOverrides;
   final Set<String> hiddenModuleIds;
   final Set<String> removedModuleIds;
+  final bool showLogicBlocks, showModuleBlocks;
   WorkspaceProject get activeProject =>
       projects.where((p) => p.id == activeProjectId).firstOrNull ??
       WorkspaceProject(
@@ -64,6 +68,8 @@ class WorkspaceState {
     Map<String, bool>? moduleActiveOverrides,
     Set<String>? hiddenModuleIds,
     Set<String>? removedModuleIds,
+    bool? showLogicBlocks,
+    bool? showModuleBlocks,
   }) => WorkspaceState(
     nodes: nodes ?? this.nodes,
     links: links ?? this.links,
@@ -79,6 +85,8 @@ class WorkspaceState {
     moduleActiveOverrides: moduleActiveOverrides ?? this.moduleActiveOverrides,
     hiddenModuleIds: hiddenModuleIds ?? this.hiddenModuleIds,
     removedModuleIds: removedModuleIds ?? this.removedModuleIds,
+    showLogicBlocks: showLogicBlocks ?? this.showLogicBlocks,
+    showModuleBlocks: showModuleBlocks ?? this.showModuleBlocks,
   );
 }
 
@@ -184,6 +192,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         removedModuleIds: (json['removedModuleIds'] as List? ?? [])
             .whereType<String>()
             .toSet(),
+        showLogicBlocks: json['showLogicBlocks'] != false,
+        showModuleBlocks: json['showModuleBlocks'] != false,
         loaded: true,
         authorMetadata: {
           for (final entry in (json['authorMetadata'] as Map? ?? {}).entries)
@@ -240,13 +250,19 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   void _syncRuntime() {
-    for (final node in state.nodes.where((n) => n.module.isLocal)) {
+    for (final node in state.nodes.where(
+      (n) => n.module.isLocal || n.isLogic,
+    )) {
       if (node.settings['enabled'] == false ||
           state.moduleActiveOverrides[node.module.id] == false ||
           state.hiddenModuleIds.contains(node.module.id)) {
         node.runtimeStatus = 'stopped';
         node.runtimeValues.clear();
         node.runtimeHistory.clear();
+      } else if (node.isLogic) {
+        if (node.runtimeStatus == null || node.runtimeStatus == 'stopped' || node.runtimeStatus == 'not installed') {
+          node.runtimeStatus = 'idle';
+        }
       } else if (!state.library.any(
         (m) =>
             m.localPackage == node.module.localPackage &&
@@ -286,6 +302,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       'moduleActiveOverrides': state.moduleActiveOverrides,
       'hiddenModuleIds': state.hiddenModuleIds.toList(),
       'removedModuleIds': state.removedModuleIds.toList(),
+      'showLogicBlocks': state.showLogicBlocks,
+      'showModuleBlocks': state.showModuleBlocks,
     });
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -386,6 +404,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       ],
     });
     for (final node in project.nodes) {
+      if (node.isLogic) continue;
       final module = resolved
           .where(
             (m) =>
@@ -447,6 +466,28 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     return node;
   }
 
+  WorkspaceNode addLogicBlock(LogicBlockType type, Offset position) {
+    final node = WorkspaceNode(
+      id: 'logic-${DateTime.now().microsecondsSinceEpoch}',
+      module: LogicBlocks.module(type),
+      kind: WorkspaceNodeKind.logic,
+      logicType: type,
+      position: position,
+      inputs: ['input'],
+      outputs: LogicBlocks.outputs(type),
+      settings: LogicBlocks.defaults(type),
+    );
+    state = state.copyWith(nodes: [...state.nodes, node]);
+    _changed();
+    return node;
+  }
+
+  /// View filters never stop execution or mutate graph connections.
+  void setBlockVisibility({bool? logic, bool? modules}) {
+    state = state.copyWith(showLogicBlocks: logic, showModuleBlocks: modules);
+    _changed();
+  }
+
   void moveNode(String id, Offset position) {
     final node = state.nodes.where((node) => node.id == id).firstOrNull;
     if (node == null) return;
@@ -500,7 +541,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   void replaceNode(String id, SystemModule module) {
     final node = state.nodes.where((node) => node.id == id).firstOrNull;
-    if (node == null) return;
+    if (node == null || node.isLogic) return;
     node.module = module;
     node.settings.clear();
     _changed();
@@ -584,7 +625,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   void addPort(String id, bool output) {
     final node = state.nodes.where((node) => node.id == id).firstOrNull;
-    if (node == null) return;
+    if (node == null || node.isLogic) return;
     final ports = output ? node.outputs : node.inputs;
     if (ports.length >= 16) return;
     var index = ports.length + 1;

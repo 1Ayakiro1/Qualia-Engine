@@ -98,6 +98,84 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @logicBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'Logic blocks'**
+  String get logicBlocks;
+
+  /// No description provided for @logicAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add logic block'**
+  String get logicAdd;
+
+  /// No description provided for @logicFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get logicFilter;
+
+  /// No description provided for @logicSelectFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Select fields'**
+  String get logicSelectFields;
+
+  /// No description provided for @logicValidate.
+  ///
+  /// In en, this message translates to:
+  /// **'Validate input / output'**
+  String get logicValidate;
+
+  /// No description provided for @logicScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Script'**
+  String get logicScript;
+
+  /// No description provided for @logicScriptHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'No files, network or loops. Use value.field, has(value, \"field\"), comparisons, and / or / not. Scripts support nested IF / ELSE and emit. select(value, \"field\") keeps only selected fields. Schema uses type, properties, required and additionalProperties.'**
+  String get logicScriptHelp;
+
+  /// No description provided for @logicTestInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Test input (JSON)'**
+  String get logicTestInput;
+
+  /// No description provided for @logicTest.
+  ///
+  /// In en, this message translates to:
+  /// **'Test without sending to graph'**
+  String get logicTest;
+
+  /// No description provided for @logicShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show logic blocks'**
+  String get logicShow;
+
+  /// No description provided for @logicHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide logic blocks'**
+  String get logicHide;
+
+  /// No description provided for @moduleBlocksShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show module blocks'**
+  String get moduleBlocksShow;
+
+  /// No description provided for @moduleBlocksHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide module blocks'**
+  String get moduleBlocksHide;
+
   /// No description provided for @moduleDelete.
   ///
   /// In en, this message translates to:

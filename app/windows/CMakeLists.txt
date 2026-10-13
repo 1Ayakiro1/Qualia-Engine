@@ -1,5 +1,5 @@
 # Project-level configuration.
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 project(bci_engine LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
@@ -76,6 +76,7 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 set(BCI_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../core")
 if(EXISTS "${BCI_CORE_DIR}/CMakeLists.txt")
   set(BCI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(BCI_FETCH_DEPS OFF CACHE BOOL "" FORCE)
   add_subdirectory("${BCI_CORE_DIR}" "${CMAKE_BINARY_DIR}/bci_core")
   install(TARGETS bci_engine_core
     RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"

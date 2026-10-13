@@ -5,17 +5,29 @@ import 'package:archive/archive.dart';
 import 'package:bci_engine/core/modules/local_module_store.dart';
 import 'package:bci_engine/core/modules/module_runtime.dart';
 import 'package:bci_engine/core/modules/module_registry.dart';
+import 'package:bci_engine/core/logic/logic_blocks.dart';
 import 'package:bci_engine/core/workspace/workspace_project.dart';
 import 'package:bci_engine/core/workspace/workspace_repository.dart';
 import 'package:bci_engine/core/workspace/workspace_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  if (!Platform.isLinux) {
+    test(
+      'Linux ELF module integration (requires Linux host)',
+      () {},
+      skip: true,
+    );
+    return;
+  }
   late Directory temporary;
   late LocalModuleStore store;
   late List<int> package;
+  late List<int> pythonPackage;
   setUpAll(() async {
-    temporary = await Directory('/tmp/opencode').createTemp('qualia-sdk-test-');
+    final base = Directory('/tmp/opencode');
+    await base.create(recursive: true);
+    temporary = await base.createTemp('qualia-sdk-test-');
     store = LocalModuleStore(root: Directory('${temporary.path}/installed'));
     final result = await Process.run('python3', [
       'assets/module_sdk/qmod.py',
@@ -31,6 +43,20 @@ void main() {
     expect(build.exitCode, 0, reason: '${build.stderr}');
     package = await File('${temporary.path}/project/dist/local-gain-0.1.0.qmod')
         .readAsBytes();
+    final prepare = await Process.run('python3', [
+      '../modules/examples/python/prepare_demo.py',
+      '${temporary.path}/python',
+    ]);
+    expect(prepare.exitCode, 0, reason: '${prepare.stderr}');
+    final pack = await Process.run('python3', [
+      'assets/module_sdk/qmod.py',
+      'pack',
+      '${temporary.path}/python',
+    ]);
+    expect(pack.exitCode, 0, reason: '${pack.stderr}');
+    pythonPackage = await File(
+      '${temporary.path}/python/dist/python-gain-0.1.0.qmod',
+    ).readAsBytes();
   });
   tearDownAll(() => temporary.delete(recursive: true));
 
@@ -265,4 +291,150 @@ void main() {
       throwsA(isA<FileSystemException>()),
     );
   });
+
+  test('bundled Python routes through IF into C++ with no system Python/PATH or host settings', () async {
+    final python = await store.install(pythonPackage);
+    final cpp = await store.install(package);
+    final command = await store.command(python);
+    expect(command.arguments, contains('src/main.py'));
+    final processes = <Process>[];
+    final statuses = <String, String>{};
+    final values = <String, Map<String, dynamic>>{};
+    final runtime = ModuleRuntime(
+      store: store,
+      launchPackaged: (command) async {
+        final process = await Process.start(
+          command.executable,
+          command.arguments,
+          workingDirectory: command.directory,
+          includeParentEnvironment: false,
+          environment: {
+            'PATH': '/nonexistent',
+            'PYTHONHOME': '/nonexistent',
+            'PYTHONPATH': '/nonexistent',
+          },
+        );
+        processes.add(process);
+        return process;
+      },
+      onUpdate: (id, status, update) {
+        statuses[id] = status;
+        values[id] = {...?values[id], ...update};
+      },
+    );
+    addTearDown(runtime.dispose);
+    final logic = WorkspaceNode(
+      id: 'if',
+      module: LogicBlocks.module(LogicBlockType.condition),
+      kind: WorkspaceNodeKind.logic,
+      logicType: LogicBlockType.condition,
+      inputs: ['input'],
+      outputs: ['true', 'false'],
+      settings: {'expression': 'value >= 6'},
+    );
+    final first = WorkspaceNode(
+      id: 'python',
+      module: python,
+      settings: {
+        'gain': 2,
+        'sample': 3,
+        'enabled': true,
+        'label': 'Host label',
+        'secret': 'not forwarded',
+      },
+    );
+    final second = WorkspaceNode(id: 'cpp', module: cpp, settings: {'gain': 4});
+    final links = [
+      const WorkspaceLink(
+        source: 'python',
+        output: 'output',
+        target: 'if',
+        input: 'input',
+      ),
+      const WorkspaceLink(
+        source: 'if',
+        output: 'true',
+        target: 'cpp',
+        input: 'input',
+      ),
+    ];
+    runtime.sync('mixed', [first, logic, second], links, [python, cpp]);
+    Future<void> wait(bool Function() ready) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 8));
+      while (!ready()) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('Timeout: $statuses $values');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    await wait(
+      () =>
+          statuses['python'] == 'running' &&
+          statuses['cpp'] == 'running' &&
+          values['python']?['parameterKeys'] != null,
+    );
+    expect(values['python']?['parameterKeys'], ['gain', 'sample']);
+    runtime.event('python', 'run', true);
+    await wait(() => values['cpp']?['result'] == 24);
+    expect(values['if']?['lastOutput'], 6);
+    expect(processes.length, 2); // Built-in logic never spawns an interpreter.
+    first.settings['sample'] = 2;
+    runtime.sync('mixed', [first, logic, second], links, [python, cpp]);
+    runtime.event('python', 'run', true);
+    await wait(() => values['if']?['lastOutput'] == 4);
+    expect(values['cpp']?['result'], 24); // False branch is not connected.
+    runtime.sync('other', [], [], [python, cpp]);
+    await Future.wait(processes.map((p) => p.exitCode))
+        .timeout(const Duration(seconds: 3));
+  });
+
+  test('process manifest ignores new language metadata and rejects external executable paths', () async {
+    final manifest = jsonDecode(
+      await File('${temporary.path}/python/manifest.json').readAsString(),
+    ) as Map<String, dynamic>;
+    manifest['languages'] = ['Python', 'AnUnknownFutureLanguage'];
+    expect(
+      LocalModuleStore.validateManifest(manifest)['languages'],
+      hasLength(2),
+    );
+    for (final executable in [
+      '/usr/bin/python3',
+      '../python',
+      'runtime/../python',
+      'runtime\\python',
+      'runtime/py\u0000thon',
+    ]) {
+      manifest['launch'] = {'executable': executable, 'arguments': []};
+      expect(
+        () => LocalModuleStore.validateManifest(manifest),
+        throwsFormatException,
+      );
+    }
+    manifest['launch'] = {
+      'executable': 'runtime/python3',
+      'arguments': ['bad\u0000argument'],
+    };
+    expect(
+      () => LocalModuleStore.validateManifest(manifest),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'installed script integrity is checked, not only ELF launcher',
+    () async {
+      final isolated = LocalModuleStore(
+        root: Directory('${temporary.path}/script-integrity'),
+      );
+      final module = await isolated.install(pythonPackage);
+      final command = await isolated.command(module);
+      await File('${command.directory}/src/main.py').writeAsString('tampered');
+      await expectLater(
+        isolated.command(module),
+        throwsA(isA<FileSystemException>()),
+      );
+    },
+  );
 }

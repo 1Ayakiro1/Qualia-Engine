@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../modules/module_registry.dart';
+import '../logic/logic_blocks.dart';
+
+enum WorkspaceNodeKind { module, logic }
 
 /// Stable host-owned color groups; never stored in author parameters.
 enum WorkspaceNodeColor {
@@ -36,6 +39,8 @@ class WorkspaceNode {
   WorkspaceNode({
     required this.id,
     required this.module,
+    this.kind = WorkspaceNodeKind.module,
+    this.logicType = LogicBlockType.condition,
     this.position = const Offset(80, 80),
     double width = defaultWidth,
     double? height,
@@ -63,6 +68,9 @@ class WorkspaceNode {
            ? height.clamp(0, maxSize)
            : 0;
   final String id;
+  final WorkspaceNodeKind kind;
+  final LogicBlockType logicType;
+  bool get isLogic => kind == WorkspaceNodeKind.logic;
   SystemModule module;
   Offset position;
   WorkspaceNodeColor headerColor;
@@ -118,6 +126,8 @@ class WorkspaceNode {
       );
   Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'id': id,
+    'kind': kind.name,
+    if (isLogic) 'logicType': logicType.name,
     'module': module.toWorkspaceJson(),
     'x': position.dx,
     'y': position.dy,
@@ -140,19 +150,35 @@ class WorkspaceNode {
     'outputTypes': outputTypes.map((port, type) => MapEntry(port, type.name)),
   };
   factory WorkspaceNode.fromJson(Map<String, dynamic> json) {
+    if (json['kind'] != null && !['module', 'logic'].contains(json['kind'])) {
+      throw const FormatException('Unknown workspace node kind.');
+    }
+    final isLogic = json['kind'] == 'logic';
+    final logicType = LogicBlockType.values
+        .where((t) => t.name == json['logicType'])
+        .firstOrNull;
+    if (isLogic && logicType == null) {
+      throw const FormatException('Unknown logic block.');
+    }
     final node = WorkspaceNode(
       id: json['id'] as String,
-      module: SystemModule.fromJson(
-        Map<String, dynamic>.from(json['module'] as Map),
-      ),
+      kind: isLogic ? WorkspaceNodeKind.logic : WorkspaceNodeKind.module,
+      logicType: logicType ?? LogicBlockType.condition,
+      module: isLogic
+          ? LogicBlocks.module(logicType!)
+          : SystemModule.fromJson(
+              Map<String, dynamic>.from(json['module'] as Map),
+            ),
       position: Offset(
         (json['x'] as num).toDouble(),
         (json['y'] as num).toDouble(),
       ),
       width: (json['width'] as num?)?.toDouble() ?? defaultWidth,
       height: (json['height'] as num?)?.toDouble(),
-      inputs: List<String>.from(json['inputs'] as List),
-      outputs: List<String>.from(json['outputs'] as List),
+      inputs: isLogic ? ['input'] : List<String>.from(json['inputs'] as List),
+      outputs: isLogic
+          ? LogicBlocks.outputs(logicType!)
+          : List<String>.from(json['outputs'] as List),
       settings: Map<String, dynamic>.from(json['settings'] as Map? ?? {}),
       headerColor: WorkspaceNodeColor.fromJson(json['headerColor']),
       inputColors: _portColorsFromJson(json['inputColors']),

@@ -94,8 +94,9 @@ Future<List<SystemModule>> resolveWorkspaceModules(
 }) async {
   final required = {
     for (final node in project.nodes)
-      '${node.module.id}@${node.module.version}:${node.module.releaseId ?? ''}':
-          node.module,
+      if (!node.isLogic)
+        '${node.module.id}@${node.module.version}:${node.module.releaseId ?? ''}':
+            node.module,
   }.values.toList();
   final available = [...previewModules, ...previewExtensions, ...library];
   final unresolved = required

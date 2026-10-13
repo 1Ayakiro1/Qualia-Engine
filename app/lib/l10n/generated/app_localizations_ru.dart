@@ -10,6 +10,46 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get logicBlocks => 'Логические блоки';
+
+  @override
+  String get logicAdd => 'Добавить логический блок';
+
+  @override
+  String get logicFilter => 'Фильтр';
+
+  @override
+  String get logicSelectFields => 'Выбор полей';
+
+  @override
+  String get logicValidate => 'Проверка входа / выхода';
+
+  @override
+  String get logicScript => 'Скрипт';
+
+  @override
+  String get logicScriptHelp =>
+      'Без файлов, сети и циклов. Доступны value.field, has(value, \"field\"), сравнения, and / or / not. Скрипты поддерживают вложенные IF / ELSE и emit. select(value, \"field\") оставляет только выбранные поля. Схема: type, properties, required, additionalProperties.';
+
+  @override
+  String get logicTestInput => 'Тестовый вход (JSON)';
+
+  @override
+  String get logicTest => 'Проверить без отправки в граф';
+
+  @override
+  String get logicShow => 'Показать логические блоки';
+
+  @override
+  String get logicHide => 'Скрыть логические блоки';
+
+  @override
+  String get moduleBlocksShow => 'Показать блоки модулей';
+
+  @override
+  String get moduleBlocksHide => 'Скрыть блоки модулей';
+
+  @override
   String get moduleDelete => 'Удалить модуль';
 
   @override

@@ -3,6 +3,14 @@ import 'package:flutter/material.dart';
 import 'generated/app_localizations.dart';
 
 extension AppStrings on BuildContext {
+  String logicBlockLabel(String type) => switch (type) {
+    'condition' => 'IF',
+    'filter' => l10n.logicFilter,
+    'select' => l10n.logicSelectFields,
+    'validate' => l10n.logicValidate,
+    'script' => l10n.logicScript,
+    _ => l10n.logicBlocks,
+  };
   AppLocalizations get l10n =>
       Localizations.of<AppLocalizations>(this, AppLocalizations) ??
       lookupAppLocalizations(const Locale('en'));

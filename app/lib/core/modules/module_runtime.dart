@@ -5,6 +5,8 @@ import 'dart:io';
 import '../workspace/workspace_model.dart';
 import 'local_module_store.dart';
 import 'module_registry.dart';
+import 'port_schema.dart';
+import '../logic/logic_blocks.dart';
 
 typedef RuntimeUpdate = void Function(
   String node,
@@ -12,13 +14,14 @@ typedef RuntimeUpdate = void Function(
   Map<String, dynamic> values,
 );
 
-/// One supervised native process per node, not a shared-library plugin in the
+/// One supervised language-neutral process per module node, not a plugin in the
 /// engine. Windows are views only; this host owns execution and port routing.
 class ModuleRuntime {
   ModuleRuntime({
     required this.onUpdate,
     LocalModuleStore? store,
     Future<Process> Function(String, String)? launch,
+    this.launchPackaged,
   }) : store = store ?? LocalModuleStore(),
        launch =
            launch ??
@@ -27,6 +30,7 @@ class ModuleRuntime {
   final RuntimeUpdate onUpdate;
   final LocalModuleStore store;
   final Future<Process> Function(String, String) launch;
+  final Future<Process> Function(ModuleLaunchCommand)? launchPackaged;
   final Map<String, _Instance> _instances = {};
   List<WorkspaceNode> _nodes = [];
   List<WorkspaceLink> _links = [];
@@ -51,7 +55,7 @@ class ModuleRuntime {
     _links = links;
     final desired = <String, SystemModule>{};
     for (final node in nodes.where(
-      (n) => n.module.isLocal && n.settings['enabled'] != false,
+      (n) => !n.isLogic && n.module.isLocal && n.settings['enabled'] != false,
     )) {
       // Only host library installations authorize execution. An imported
       // workspace containing a package hash or entrypoint grants no trust.
@@ -85,7 +89,11 @@ class ModuleRuntime {
               f['type'] != 'label' &&
               f.containsKey('default'))
             f['id'] as String: f['default'],
-        ...node.settings,
+        for (final f in _parameterFields(installed).whereType<Map>())
+          if (f['type'] != 'button' &&
+              f['type'] != 'label' &&
+              node.settings.containsKey(f['id']))
+            f['id'] as String: node.settings[f['id']],
       };
       final encoded = jsonEncode(parameters);
       if (instance.parameters != encoded) {
@@ -113,12 +121,17 @@ class ModuleRuntime {
   Future<void> _start(String id, _Instance instance) async {
     _update(id, instance, 'starting');
     try {
-      final executable = await store.executable(instance.module);
+      final command = await store.command(instance.module);
       if (!_current(id, instance)) return;
-      final process = await launch(
-        executable,
-        File(executable).parent.parent.path,
-      );
+      final process = launchPackaged != null
+          ? await launchPackaged!(command)
+          : command.arguments.isEmpty
+          ? await launch(command.executable, command.directory)
+          : await Process.start(
+              command.executable,
+              command.arguments,
+              workingDirectory: command.directory,
+            );
       instance.process = process;
       if (!_current(id, instance) || instance.stopped) {
         process.kill(ProcessSignal.sigkill);
@@ -185,11 +198,21 @@ class ModuleRuntime {
       if (instance.ready || data['protocol'] != 1) {
         throw const FormatException('Invalid handshake');
       }
+      final required = data['requires'] ?? const [];
+      if (required is! List ||
+          required.length > 32 ||
+          required.any(
+            (item) =>
+                !const ['port-schemas-v1', 'host-logic-v1'].contains(item),
+          )) {
+        throw const FormatException('Unsupported required capability');
+      }
       instance.timeout?.cancel();
       instance.ready = true;
       instance.send({
         'type': 'init',
         'protocol': 1,
+        'capabilities': ['port-schemas-v1', 'host-logic-v1'],
         'instanceId': id,
         'parameters': jsonDecode(instance.parameters),
       });
@@ -218,38 +241,112 @@ class ModuleRuntime {
               .contains(port)) {
         return;
       }
-      for (final link in _links.where(
-        (l) => l.source == id && l.output == port,
+      if (!PortSchema.accepts(
+        PortSchema.forPort(instance.module.manifest, port as String, true),
+        data['value'],
       )) {
-        final target = _instances[link.target];
-        if (target == null || !target.ready || target.stopped) continue;
-        final targetNode = _nodes.where((n) => n.id == link.target).firstOrNull;
-        if (targetNode == null ||
-            !targetNode.inputs.contains(link.input) ||
-            !((target.module.manifest['ports'] as Map)['inputs'] as List)
-                .contains(link.input)) {
+        _update(id, instance, 'output rejected: schema');
+        return;
+      }
+      routeOutput(id, port, data['value'], hops);
+    }
+  }
+
+  /// A bounded, iterative graph dispatcher shared by processes and logic nodes.
+  /// Hops are decremented at every edge; fan-out also has an event budget.
+  void routeOutput(String id, String port, dynamic value, int hops) {
+    if (_disposed || hops <= 0 || hops > 32) return;
+    final queue = <(String, String, dynamic, int)>[(id, port, value, hops)];
+    var cursor = 0;
+    var deliveries = 0;
+    while (cursor < queue.length && cursor < 512) {
+      final (source, output, payload, remaining) = queue[cursor++];
+      if (remaining <= 0) continue;
+      final sourceNode = _nodes.where((node) => node.id == source).firstOrNull;
+      if (sourceNode == null ||
+          !sourceNode.outputs.contains(output) ||
+          !_acceptsType(sourceNode.portType(output, true), payload)) {
+        continue;
+      }
+      for (final link in _links.where(
+        (l) => l.source == source && l.output == output,
+      )) {
+        if (++deliveries > 512) return;
+        final node = _nodes.where((n) => n.id == link.target).firstOrNull;
+        if (node == null ||
+            node.settings['enabled'] == false ||
+            !node.inputs.contains(link.input)) {
           continue;
         }
-        final value = data['value'];
-        final valid = switch (targetNode.portType(link.input, false)) {
-          WorkspacePortType.any => true,
-          WorkspacePortType.number => value is num,
-          WorkspacePortType.string => value is String,
-          WorkspacePortType.boolean => value is bool,
-          WorkspacePortType.list => value is List,
-          WorkspacePortType.object => value is Map,
-        };
-        if (valid) {
+        final validType = _acceptsType(
+          node.portType(link.input, false),
+          payload,
+        );
+        if (!validType ||
+            !PortSchema.accepts(
+              PortSchema.forPort(
+                _instances[node.id]?.module.manifest ?? node.module.manifest,
+                link.input,
+                false,
+              ),
+              payload,
+            )) {
+          onUpdate(node.id, 'input rejected: schema/type', {});
+          continue;
+        }
+        if (node.isLogic) {
+          try {
+            final emitted = LogicBlocks.run(
+              node.logicType,
+              node.settings,
+              payload,
+            );
+            onUpdate(node.id, 'running', {
+              'lastInput': payload,
+              'lastOutput': emitted.isEmpty ? null : emitted.last.value,
+            });
+            for (final emission in emitted) {
+              if (node.outputs.contains(emission.port) && queue.length < 512) {
+                queue.add((
+                  node.id,
+                  emission.port,
+                  emission.value,
+                  remaining - 1,
+                ));
+              }
+            }
+          } catch (error) {
+            onUpdate(node.id, 'logic error: $error', {});
+          }
+        } else {
+          final target = _instances[node.id];
+          if (target == null ||
+              !target.ready ||
+              target.stopped ||
+              !((target.module.manifest['ports'] as Map)['inputs'] as List)
+                  .contains(link.input)) {
+            continue;
+          }
           target.send({
             'type': 'input',
             'port': link.input,
-            'value': value,
-            'hops': hops - 1,
+            'value': payload,
+            'hops': remaining - 1,
           });
         }
       }
     }
   }
+
+  static bool _acceptsType(WorkspacePortType type, dynamic value) =>
+      switch (type) {
+        WorkspacePortType.any => true,
+        WorkspacePortType.number => value is num && value.isFinite,
+        WorkspacePortType.string => value is String,
+        WorkspacePortType.boolean => value is bool,
+        WorkspacePortType.list => value is List,
+        WorkspacePortType.object => value is Map,
+      };
 
   static List<dynamic> _parameterFields(SystemModule module) =>
       module.manifest['parameters'] is List

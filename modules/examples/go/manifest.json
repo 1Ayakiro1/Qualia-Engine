@@ -1,0 +1,10 @@
+{
+  "format": "qualia-module", "schemaVersion": 1,
+  "id": "go-gain", "name": "Go Gain", "version": "0.1.0",
+  "runtime": "process-v1", "platform": "linux-x64", "languages": ["Go"],
+  "launch": {"executable": "bin/module", "arguments": []},
+  "ports": {"inputs": ["input"], "outputs": ["output"]},
+  "portSchemas": {"inputs": {"input": {"type": "number"}}, "outputs": {"output": {"type": "number"}}},
+  "ui": [{"id": "gain", "type": "number", "label": "Gain", "default": 2},
+    {"id": "result", "type": "label", "label": "Result"}]
+}

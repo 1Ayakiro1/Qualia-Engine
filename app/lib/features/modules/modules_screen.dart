@@ -24,6 +24,8 @@ import '../common/desktop_focus.dart';
 import '../../core/modules/module_window_session.dart';
 import '../common/navigation_bindings.dart';
 import 'workspace_manager.dart';
+import '../../core/logic/logic_blocks.dart';
+import 'logic_block_editor.dart';
 
 class ModulesScreen extends ConsumerStatefulWidget {
   const ModulesScreen({
@@ -293,6 +295,11 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   List<WorkspaceNode> get _visibleNodes => ref
       .read(workspaceProvider)
       .nodes
+      .where(
+        (node) => node.isLogic
+            ? ref.read(workspaceProvider).showLogicBlocks
+            : ref.read(workspaceProvider).showModuleBlocks,
+      )
       .where((node) => _colorFilter == null || node.headerColor == _colorFilter)
       .toList();
 
@@ -481,6 +488,18 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
             : null,
         entries: [
           if (node == null)
+            DesktopMenuEntry(
+              value: 'logic',
+              label: context.l10n.logicAdd,
+              submenu: [
+                for (final type in LogicBlockType.values)
+                  DesktopMenuEntry(
+                    value: 'logic:${type.name}',
+                    label: context.logicBlockLabel(type.name),
+                  ),
+              ],
+            ),
+          if (node == null)
             DesktopMenuEntry(value: 'add', label: context.l10n.textAdd294)
           else ...[
             DesktopMenuEntry(value: 'open', label: context.l10n.textOpen309),
@@ -495,6 +514,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
             DesktopMenuEntry(
               value: 'replace',
               label: context.l10n.textReplaceModule295,
+              enabled: !node.isLogic,
             ),
             DesktopMenuEntry(
               value: 'color',
@@ -527,6 +547,17 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         ],
       );
       if (!mounted) return;
+      if (action != null && action.startsWith('logic:')) {
+        _select(
+          _controller.addLogicBlock(
+            LogicBlockType.values.firstWhere(
+              (t) => t.name == action.substring(6),
+            ),
+            scene,
+          ),
+        );
+        return;
+      }
       if (node != null && action != null && action.startsWith('move:')) {
         await moveWorkspaceNodes(
           context,
@@ -773,6 +804,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     final graph = ref.watch(workspaceProvider);
     final visibleNodes = graph.nodes
         .where(
+          (node) =>
+              node.isLogic ? graph.showLogicBlocks : graph.showModuleBlocks,
+        )
+        .where(
           (node) => _colorFilter == null || node.headerColor == _colorFilter,
         )
         .toList();
@@ -926,6 +961,20 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                         context.l10n.textAddModuleToCanvas299,
                                     entries: [
                                       DesktopMenuEntry(
+                                        value: 'logic',
+                                        label: context.l10n.logicAdd,
+                                        submenu: [
+                                          for (final type
+                                              in LogicBlockType.values)
+                                            DesktopMenuEntry(
+                                              value: 'logic:${type.name}',
+                                              label: context.logicBlockLabel(
+                                                type.name,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      DesktopMenuEntry(
                                         value: 'module',
                                         label: context.l10n.textAddModule158,
                                       ),
@@ -936,6 +985,18 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                       ),
                                     ],
                                     onSelected: (action) {
+                                      if (action.startsWith('logic:')) {
+                                        _select(
+                                          _controller.addLogicBlock(
+                                            LogicBlockType.values.firstWhere(
+                                              (t) =>
+                                                  t.name == action.substring(6),
+                                            ),
+                                            _center - const Offset(120, 80),
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       if (action == 'module') {
                                         _pick();
                                       } else {
@@ -1038,6 +1099,18 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                     tooltip: context.l10n.textView62,
                                     entries: [
                                       DesktopMenuEntry(
+                                        value: 'showLogic',
+                                        label: graph.showLogicBlocks
+                                            ? context.l10n.logicHide
+                                            : context.l10n.logicShow,
+                                      ),
+                                      DesktopMenuEntry(
+                                        value: 'showModules',
+                                        label: graph.showModuleBlocks
+                                            ? context.l10n.moduleBlocksHide
+                                            : context.l10n.moduleBlocksShow,
+                                      ),
+                                      DesktopMenuEntry(
                                         value: 'in',
                                         label: context.l10n.workspaceZoomIn,
                                         shortcut: 'Ctrl+Plus',
@@ -1091,6 +1164,19 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                       ),
                                     ],
                                     onSelected: (action) {
+                                      if (action == 'showLogic' ||
+                                          action == 'showModules') {
+                                        _controller.setBlockVisibility(
+                                          logic: action == 'showLogic'
+                                              ? !graph.showLogicBlocks
+                                              : null,
+                                          modules: action == 'showModules'
+                                              ? !graph.showModuleBlocks
+                                              : null,
+                                        );
+                                        _clearSelection();
+                                        return;
+                                      }
                                       if (action == 'filterAll') {
                                         _filterColor(null);
                                       } else if (action.startsWith(
@@ -1133,11 +1219,20 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                       child: ClipRect(
                         child: ColoredBox(
                           color: context.palette.background,
-                          child: DragTarget<SystemModule>(
+                          child: DragTarget<Object>(
                             key: const ValueKey('workspace canvas drop target'),
-                            onAcceptWithDetails: (details) => _select(
-                              _addAt(details.data, _sceneAt(details.offset)),
-                            ),
+                            onWillAcceptWithDetails: (details) =>
+                                details.data is SystemModule ||
+                                details.data is LogicBlockType,
+                            onAcceptWithDetails: (details) {
+                              final position = _sceneAt(details.offset);
+                              final data = details.data;
+                              _select(
+                                data is LogicBlockType
+                                    ? _controller.addLogicBlock(data, position)
+                                    : _addAt(data as SystemModule, position),
+                              );
+                            },
                             builder: (context, candidates, rejected) => Listener(
                               onPointerSignal: _pointerSignal,
                               onPointerPanZoomStart: _trackpadStart,
@@ -1940,14 +2035,22 @@ class _WorkspaceNodeView extends StatelessWidget {
                                   child: Row(
                                     children: [
                                       Icon(
-                                        Icons.extension_outlined,
+                                        node.isLogic
+                                            ? Icons.account_tree_outlined
+                                            : Icons.extension_outlined,
                                         size: 18,
                                         color: context.palette.text,
                                       ),
                                       const SizedBox(width: 9),
                                       Expanded(
                                         child: Text(
-                                          node.module.displayName(context),
+                                          node.isLogic
+                                              ? context.logicBlockLabel(
+                                                  node.logicType.name,
+                                                )
+                                              : node.module.displayName(
+                                                  context,
+                                                ),
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontSize: 14,
@@ -2051,7 +2154,9 @@ class _WorkspaceNodeView extends StatelessWidget {
                               child: Row(
                                 children: [
                                   TextButton(
-                                    onPressed: () => onAddPort(false),
+                                    onPressed: node.isLogic
+                                        ? null
+                                        : () => onAddPort(false),
                                     style: TextButton.styleFrom(
                                       minimumSize: const Size(72, 28),
                                       backgroundColor: context.palette.hover,
@@ -2070,7 +2175,9 @@ class _WorkspaceNodeView extends StatelessWidget {
                                   ),
                                   const Spacer(),
                                   TextButton(
-                                    onPressed: () => onAddPort(true),
+                                    onPressed: node.isLogic
+                                        ? null
+                                        : () => onAddPort(true),
                                     style: TextButton.styleFrom(
                                       minimumSize: const Size(72, 28),
                                       backgroundColor: context.palette.hover,
@@ -2672,7 +2779,13 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
                     ),
                   ]),
                   _section('parameters', context.l10n.workspaceParameters, [
-                    if (node!.module.manifest['parameters'] is List ||
+                    if (node!.isLogic)
+                      LogicBlockEditor(
+                        key: ValueKey(node!.id),
+                        node: node!,
+                        onChanged: onChanged!,
+                      )
+                    else if (node!.module.manifest['parameters'] is List ||
                         (node!.module.isLocal &&
                             node!.module.manifest['ui'] is List))
                       ModuleControls(

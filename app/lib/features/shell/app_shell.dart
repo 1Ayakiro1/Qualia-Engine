@@ -42,6 +42,7 @@ import '../common/widgets.dart';
 import '../extensions/extensions_screen.dart';
 import '../models/models_screen.dart';
 import '../modules/modules_screen.dart';
+import '../modules/logic_block_explorer.dart';
 import '../modules/workspace_presets.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../marketplace/catalog_cover.dart';
@@ -3344,6 +3345,7 @@ class _ExplorerState extends State<_Explorer> {
                                   ],
                                 ),
                           ),
+                          const LogicBlockExplorer(),
                         ] else if (widget.showEntityActions) ...[
                           ExplorerSectionHeader(
                             title: context.l10n.textINSTALLEDENTITIES174,
