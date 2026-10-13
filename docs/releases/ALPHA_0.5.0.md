@@ -26,6 +26,10 @@ Library integration fixtures are in `modules/examples/library-suite`:
 5. Deliberate crash isolates the failing node; disable/enable creates fresh state.
 6. Missing shared library is rejected by integrity validation before launch.
 7. Installed payload relocated from build directory, no system interpreter/PATH.
+8. Identical six-target Go archive installed on every desktop build host, with
+   ABI selection, two independent instances and exact SHA-256 output checks.
+9. C++/C shared-library fixture built per OS using .so/.dll/.dylib and tested
+   through the engine without changing the language-neutral process protocol.
 
 Prepare and run locally (Linux x64, build tools + NumPy wheel required only on
 the build machine):

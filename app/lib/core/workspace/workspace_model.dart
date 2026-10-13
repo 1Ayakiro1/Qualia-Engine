@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../modules/module_registry.dart';
 import '../logic/logic_blocks.dart';
+import 'workspace_id.dart';
 
 enum WorkspaceNodeKind { module, logic }
 
@@ -297,9 +298,7 @@ class WorkspacePreset {
       throw const FormatException('A preset supports up to 500 modules.');
     }
     return WorkspacePreset(
-      id:
-          (json['id'] as String?) ??
-          'preset-${DateTime.now().microsecondsSinceEpoch}',
+      id: (json['id'] as String?) ?? WorkspaceId.create('preset'),
       name: name,
       moduleIds: ids,
     );

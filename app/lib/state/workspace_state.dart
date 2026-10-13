@@ -9,6 +9,7 @@ import '../core/modules/module_registry.dart';
 import '../core/modules/module_runtime.dart';
 import '../core/workspace/workspace_model.dart';
 import '../core/workspace/workspace_project.dart';
+import '../core/workspace/workspace_id.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/log_entry.dart';
 import '../core/logic/logic_blocks.dart';
@@ -260,7 +261,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         node.runtimeValues.clear();
         node.runtimeHistory.clear();
       } else if (node.isLogic) {
-        if (node.runtimeStatus == null || node.runtimeStatus == 'stopped' || node.runtimeStatus == 'not installed') {
+        if (node.runtimeStatus == null ||
+            node.runtimeStatus == 'stopped' ||
+            node.runtimeStatus == 'not installed') {
           node.runtimeStatus = 'idle';
         }
       } else if (!state.library.any(
@@ -319,7 +322,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       throw const FormatException('Invalid workspace name.');
     }
     final project = WorkspaceProject(
-      id: 'workspace-${DateTime.now().microsecondsSinceEpoch}',
+      id: WorkspaceId.create('workspace'),
       name: cleaned,
       description: description.trim(),
     );
@@ -363,7 +366,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (remaining.isEmpty) {
       remaining.add(
         WorkspaceProject(
-          id: 'workspace-${DateTime.now().microsecondsSinceEpoch}',
+          id: WorkspaceId.create('workspace'),
           name: 'Workspace',
         ),
       );
@@ -383,7 +386,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   String importProject(WorkspaceProject source, List<SystemModule> resolved) {
-    final id = 'workspace-${DateTime.now().microsecondsSinceEpoch}';
+    final id = WorkspaceId.create('workspace');
     final ids = {
       for (var index = 0; index < source.nodes.length; index++)
         source.nodes[index].id: '$id-node-$index',
@@ -441,7 +444,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         ? module.manifest['ports'] as Map
         : const {};
     final node = WorkspaceNode(
-      id: 'node-${DateTime.now().microsecondsSinceEpoch}',
+      id: WorkspaceId.create('node'),
       module: module,
       position: position,
       inputs: ports['inputs'] is List
@@ -468,7 +471,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
 
   WorkspaceNode addLogicBlock(LogicBlockType type, Offset position) {
     final node = WorkspaceNode(
-      id: 'logic-${DateTime.now().microsecondsSinceEpoch}',
+      id: WorkspaceId.create('logic'),
       module: LogicBlocks.module(type),
       kind: WorkspaceNodeKind.logic,
       logicType: type,

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/modules/module_registry.dart';
 import '../../core/workspace/workspace_model.dart';
+import '../../core/workspace/workspace_id.dart';
 
 Future<WorkspacePreset?> showWorkspacePresetEditor(
   BuildContext context,
@@ -131,7 +132,7 @@ class _PresetEditorState extends State<_PresetEditor> {
             : () => Navigator.pop(
                 context,
                 WorkspacePreset(
-                  id: 'preset-${DateTime.now().microsecondsSinceEpoch}',
+                  id: WorkspaceId.create('preset'),
                   name: _name.text.trim(),
                   moduleIds: {
                     ..._selected,

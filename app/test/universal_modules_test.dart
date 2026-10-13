@@ -7,10 +7,19 @@ import 'package:bci_engine/core/modules/module_platform.dart';
 import 'package:bci_engine/core/modules/module_runtime.dart';
 import 'package:bci_engine/core/logic/logic_blocks.dart';
 import 'package:bci_engine/core/workspace/workspace_model.dart';
+import 'package:bci_engine/core/workspace/workspace_id.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('rapid workspace identities never depend on wall-clock resolution', () {
+    final ids = List.generate(10000, (_) => WorkspaceId.create('node'));
+    expect(ids.toSet(), hasLength(ids.length));
+    expect(
+      ids.every((id) => RegExp(r'^node-[a-f0-9]{32}$').hasMatch(id)),
+      isTrue,
+    );
+  });
   test('target selection is deterministic, explicit and legacy compatible', () {
     final m = {
       'runtime': 'process-v1',
@@ -110,6 +119,47 @@ void main() {
     final command = await store.command(module);
     expect(command.executable, contains(ModulePlatform.current));
     expect(ModulePlatform.launches(module.manifest), hasLength(6));
+    Archive replaceManifest(Map<String, dynamic> manifest, {String? corrupt}) {
+      final original = LocalModuleStore.validateArchive(bytes);
+      final archive = Archive();
+      for (final file in original.files) {
+        final content = file.name == 'manifest.json'
+            ? utf8.encode(jsonEncode(manifest))
+            : file.name == corrupt
+            ? <int>[0, 1, 2]
+            : file.content as List<int>;
+        archive.addFile(ArchiveFile(file.name, content.length, content));
+      }
+      return archive;
+    }
+
+    final foreign = ModulePlatform.launches(module.manifest).entries
+        .firstWhere((e) => e.key != ModulePlatform.current);
+    final incompatible = {
+      ...module.manifest,
+      'targets': {foreign.key: foreign.value},
+    };
+    await expectLater(
+      store.install(
+        ZipEncoder().encode(replaceManifest(incompatible), level: 0)!,
+      ),
+      throwsFormatException,
+    );
+    final badForeignBinary = replaceManifest(
+      module.manifest,
+      corrupt: foreign.value['executable'] as String,
+    );
+    await expectLater(
+      store.install(ZipEncoder().encode(badForeignBinary, level: 0)!),
+      throwsFormatException,
+    );
+    expect(
+      () => LocalModuleStore.validateManifest({
+        ...module.manifest,
+        'platform': 'linux-x64',
+      }),
+      throwsFormatException,
+    );
     final statuses = <String, String>{};
     final values = <String, Map<String, dynamic>>{};
     final children = <Process>[];
@@ -180,7 +230,7 @@ void main() {
             input: 'input',
           ),
       ],
-      [module, if (native != null) native],
+      [module, ?native],
     );
     await wait(() => statuses['a'] == 'running' && statuses['b'] == 'running');
     expect(
