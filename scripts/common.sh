@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${ROOT_DIR}/VERSION")"
-APP_NAME="Ayakiro_BCI_Engine"
+APP_NAME="Qualia-Engine"
 DIST_OUT="${DIST_OUT:-${ROOT_DIR}/builds}"
 
 log() { printf '\033[1;34m[bci]\033[0m %s\n' "$*"; }

@@ -47,7 +47,7 @@ Linux AppImage/tarball и Windows/macOS ZIP собираются матрице�
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Ayakiro_BCI_Engine-0.5.0-x86_64.AppImage
+./builds/Qualia-Engine-0.5.0-x86_64.AppImage
 ```
 
 ### Отдельный debug terminal

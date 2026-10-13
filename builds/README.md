@@ -19,16 +19,17 @@
 Готовый пример для установки через «Добавить локально»:
 `../modules/local-gain-0.1.0.qmod` (каталог `modules/` в корне репозитория).
 
-Основной файл запуска на Linux: **`Ayakiro_BCI_Engine-0.4.6-x86_64.AppImage`**.
+В опубликованном релизе 0.5.0 основной файл запуска на Linux: **`Qualia-Engine-0.5.0-x86_64.AppImage`**.
 Он содержит интерфейс и ядро; дополнительные папки для его запуска не нужны.
 
 ```bash
-./builds/Ayakiro_BCI_Engine-0.4.6-x86_64.AppImage
+./builds/Qualia-Engine-0.5.0-x86_64.AppImage
 ```
 
-Также доступны portable-архив `Ayakiro_BCI_Engine-0.4.6-linux-x64.tar.gz`
-и готовый распакованный bundle `binary/`. В каталоге оставлена только свежая
-сборка; старые версии и резервные копии удалены.
+Также доступны portable-архив `Qualia-Engine-0.5.0-linux-x64.tar.gz`
+и готовый распакованный bundle `binary/`. Release-пакеты доступны в
+[GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases/tag/v0.5.0-alpha).
+Старые локальные сборки и резервные копии не удаляются автоматически.
 
 Обновлённый Workspace: компактные Add / Select / View,
 кнопка правой панели, выделение рамкой и панорамирование через Space / Alt + ЛКМ

@@ -36,8 +36,8 @@ Native vsync и диагностика частоты описаны в `docs/PE
 
 Артефакты складываются в `builds/` (папка в корне репозитория):
 
-- `Ayakiro_BCI_Engine-<v>-x86_64.AppImage`
-- `Ayakiro_BCI_Engine-<v>-linux-x64.tar.gz`
+- `Qualia-Engine-<v>-x86_64.AppImage`
+- `Qualia-Engine-<v>-linux-x64.tar.gz`
 - бинарник: `builds/binary/bci_engine` (готовый бандл, запускается напрямую)
 
 Старые версии артефактов сохраняются. Предыдущий raw bundle при упаковке

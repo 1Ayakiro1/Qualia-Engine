@@ -19,6 +19,6 @@ if (-not (Test-Path "$Bundle\bci_engine_core.dll")) {
 
 $Dist = if ($env:DIST_OUT) { $env:DIST_OUT } else { "$Root\builds" }
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
-$Zip = "$Dist\Ayakiro_BCI_Engine-$Version-windows-x64.zip"
+$Zip = "$Dist\Qualia-Engine-$Version-windows-x64.zip"
 Compress-Archive -Path "$Bundle\*" -DestinationPath $Zip -Force
 Write-Host "[bci] Windows zip: $Zip"
