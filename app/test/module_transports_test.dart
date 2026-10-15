@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:bci_engine/core/logic/logic_blocks.dart';
@@ -65,7 +66,13 @@ void main() {
           ..compress = false,
       );
     }
-    return ZipEncoder().encode(archive, level: 0)!;
+    return ZipEncoder().encode(
+      archive,
+      level: 0,
+      // DOS time's low byte is 250. A search for a payload value must not
+      // accidentally select this metadata byte (as the old CRC test did).
+      modified: DateTime(2026, 10, 15, 12, 7, 52),
+    )!;
   }
 
   Future<void> wait(bool Function() done, Map<String, String> statuses) async {
@@ -187,9 +194,15 @@ void main() {
   test(
     'file-backed install preserves payload chunks and rejects corrupt CRC',
     () async {
-      final bytes = package(
-        manifest,
-        asset: List.generate(160000, (i) => i % 251),
+      final asset = List.generate(160000, (i) => i % 251);
+      final bytes = Uint8List.fromList(
+        package(
+          manifest,
+          // Place the asset's local header after byte 1000 to exercise the
+          // timestamp/payload ambiguity in the old indexOf(250, 1000) mutation.
+          source: '${'# padding\n' * 150}$script',
+          asset: asset,
+        ),
       );
       final file = File('${temporary.path}/test.qmod');
       await file.writeAsBytes(bytes);
@@ -197,18 +210,56 @@ void main() {
       final command = await store.command(installed);
       expect(
         await File('${command.directory}/assets/data.bin').readAsBytes(),
-        List.generate(160000, (i) => i % 251),
+        asset,
       );
-      final corrupt = List<int>.from(bytes);
-      // Corrupt an asset data byte without modifying either ZIP CRC field.
-      final data = ZipDecoder()
-          .decodeBytes(corrupt)
-          .findFile('assets/data.bin')!;
-      expect(data.size, 160000);
-      final index = corrupt.indexOf(250, 1000);
-      corrupt[index] ^= 1;
-      await file.writeAsBytes(corrupt);
-      await expectLater(store.installFile(file), throwsFormatException);
+      final directory = ZipDirectory.read(InputStream(bytes));
+      final header = directory.fileHeaders.singleWhere(
+        (entry) => entry.filename == 'assets/data.bin',
+      );
+      final local = header.localHeaderOffset!;
+      final view = ByteData.sublistView(bytes);
+      expect(view.getUint32(local, Endian.little), 0x04034b50);
+      final dataStart =
+          local +
+          30 +
+          view.getUint16(local + 26, Endian.little) +
+          view.getUint16(local + 28, Endian.little);
+      expect(header.compressionMethod, 0);
+      expect(header.uncompressedSize, asset.length);
+      expect(bytes.sublist(dataStart, dataStart + asset.length), asset);
+      // The previous mutation could hit the timestamp, not the payload. Such a
+      // change must be accepted: CRC covers entry content, not ZIP metadata.
+      final oldIndex = bytes.indexOf(250, 1000);
+      expect(oldIndex, inInclusiveRange(local, dataStart - 1));
+      final metadataOnly = Uint8List.fromList(bytes)..[oldIndex] ^= 1;
+      expect(
+        ZipDecoder()
+            .decodeBytes(metadataOnly)
+            .findFile('assets/data.bin')!
+            .content,
+        asset,
+      );
+      await file.writeAsBytes(metadataOnly);
+      await store.installFile(file);
+
+      // Exercise both sides of the installer's 64 KiB read boundaries and the
+      // tail. Corrupt a known payload offset, preserving both ZIP CRC fields.
+      for (final offset in [0, 65535, 65536, asset.length - 1]) {
+        final corrupt = Uint8List.fromList(bytes);
+        corrupt[dataStart + offset] ^= 1;
+        final corrupted = ZipDecoder()
+            .decodeBytes(corrupt)
+            .findFile('assets/data.bin')!;
+        expect(corrupted.crc32, header.crc32);
+        expect(getCrc32(corrupted.content as List<int>), isNot(header.crc32));
+        expect(corrupt.sublist(0, dataStart), bytes.sublist(0, dataStart));
+        expect(
+          corrupt.sublist(dataStart + asset.length),
+          bytes.sublist(dataStart + asset.length),
+        );
+        await file.writeAsBytes(corrupt);
+        await expectLater(store.installFile(file), throwsFormatException);
+      }
       expect(
         await (await store.directory)
             .list()
