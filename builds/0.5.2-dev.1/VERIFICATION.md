@@ -3,7 +3,8 @@
 **Not a release. The seven-subsystem 0.5.2 acceptance gate is not met.**
 
 - Branch: `feat/ml-runtime-v2`
-- Source commit: `a67cc1beaeb0d683497fbe22545de1911f6f1928`.
+- `SOURCE_COMMIT` inside each source archive is authoritative; verification
+  metadata describes the source snapshot recorded when that archive was made.
 - Linux binaries: production code from `25e628d5dcae7ab484636a6d3f9c010ab1ad55a3`.
   Subsequent development commits change tests, CI and verification metadata,
   not production code.
@@ -38,9 +39,10 @@ ML UI and signed remote installation/enforced capabilities. See the complete
 - AppImage launches and remains running for 10 seconds until explicit timeout.
   GTK emitted ATK/cursor-theme warnings; no fatal startup error observed.
 - AppImage/tarball native core is byte-identical to the tested Flutter bundle.
-- Source ZIP/tar.gz: 274 files byte-identical to source commit, with SOURCE_COMMIT.
-  Clean extracted sources pass native build/CTest, analyzer, 145 Flutter tests
-  (with native FFI execution required) and 6 Python codec tests.
+- Source ZIP/tar.gz snapshot (`c1901b4`): 275 files byte-identical to source
+  commit, with SOURCE_COMMIT. Clean extracted sources passed native build/CTest,
+  analyzer, 145 Flutter tests (with native FFI execution required, 3 opt-in tests
+  skipped) and 6 Python codec tests.
 
 Local ASan/UBSan is **not verified**: environment lacks libasan, so compiler
 link check fails before project build. Separate sanitizer jobs are configured in
@@ -62,6 +64,13 @@ https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38757524471
 The overall CI run above **failed**. A new run is required for the corrected
 test; the repository Actions page is authoritative for its result. These checks
 do not establish enforcement of resource limits or capabilities on any OS.
+
+Corrected test commit `c1901b4`, CI (consult for current status):
+https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38759541709
+
+The local full Flutter suite for that commit passed: 145 tests, 3 opt-in fixture
+tests skipped, native FFI execution required. Analyzer, version consistency,
+native CTest and the 6 Python codec tests also passed.
 
 ## Files
 
