@@ -1,15 +1,28 @@
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:bci_engine/core/native/engine_bindings.dart';
 import 'package:bci_engine/core/constants/app_info.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+CoreBindings? loadCore() {
+  final bindings = CoreBindings.tryLoad();
+  if (Platform.environment['QUALIA_REQUIRE_NATIVE_TESTS'] == '1') {
+    expect(
+      bindings,
+      isNotNull,
+      reason: 'CI must execute the native Dart FFI tests',
+    );
+  }
+  return bindings;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('engine library loads or degrades gracefully', () {
-    final CoreBindings? bindings = CoreBindings.tryLoad();
+    final CoreBindings? bindings = loadCore();
     if (bindings == null) {
       // Native core not built in this environment (e.g. plain `flutter test`
       // on the host without the .so). The app must still work offline.
@@ -23,7 +36,7 @@ void main() {
   });
 
   test('engine start/stop round-trip when the core is available', () {
-    final CoreBindings? bindings = CoreBindings.tryLoad();
+    final CoreBindings? bindings = loadCore();
     if (bindings == null) {
       return;
     }
@@ -38,7 +51,7 @@ void main() {
   });
 
   test('native block FFI transfers ownership and preserves metadata', () async {
-    final bindings = CoreBindings.tryLoad();
+    final bindings = loadCore();
     if (bindings == null) return;
     expect(bindings.abiVersion, greaterThanOrEqualTo(3));
     expect(sizeOf<CoreBlockInfo>(), 48);

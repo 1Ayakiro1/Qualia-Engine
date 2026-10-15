@@ -120,6 +120,14 @@ jobs:
         run: cmake --build ci-core --config Release --parallel 2
       - name: Core tests (must exist)
         run: ctest --test-dir ci-core -C Release --output-on-failure --no-tests=error
+      - name: Expose tested native core to Dart FFI tests
+        run: |
+          echo 'QUALIA_REQUIRE_NATIVE_TESTS=1' >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/ci-core" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$GITHUB_WORKSPACE/ci-core" >> "$GITHUB_ENV" ;;
+            Windows) echo "$GITHUB_WORKSPACE/ci-core/Release" >> "$GITHUB_PATH" ;;
+          esac
       - name: Build self-contained library fixtures (Linux)
         if: runner.os == 'Linux'
         run: |
