@@ -5,7 +5,8 @@
 - Branch: `feat/ml-runtime-v2`
 - Source commit: `a67cc1beaeb0d683497fbe22545de1911f6f1928`.
 - Linux binaries: production code from `25e628d5dcae7ab484636a6d3f9c010ab1ad55a3`.
-  The subsequent source commit changes only CI and the native test loader.
+  Subsequent development commits change tests, CI and verification metadata,
+  not production code.
 - No release tag or GitHub Release created. Published 0.5.1 unchanged.
 
 ## Implemented at this checkpoint
@@ -46,13 +47,21 @@ link check fails before project build. Separate sanitizer jobs are configured in
 CI. Windows/macOS execution and artifacts require their CI jobs; do not interpret
 the Linux results as proof of cross-platform behavior or isolation.
 
-CI for the source commit:
-https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38755451654
+Completed CI for equivalent production code:
+https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38757524471
 
-That run was cancelled by a newer push after its sanitizer jobs and all three
-desktop test suites had completed successfully; the current commit has a new
-run linked from the repository Actions page. This file is **not a claim that
-the current cross-platform CI run succeeded**.
+- AddressSanitizer and ThreadSanitizer: passed.
+- Windows x64 and macOS desktop tests, bundles and bundled-core smoke: passed.
+- Linux Flutter tests: failed in the crash-isolation test. The test incorrectly
+  assumed asynchronous launch order matched node order and waited a fixed 50 ms
+  for the exit status. No production runtime regression was established.
+- The test now establishes process identity before launching the sibling and
+  awaits the exit notification with a deadline. Local Linux module integration
+  suite and 10 consecutive crash-isolation runs pass after the change.
+
+The overall CI run above **failed**. A new run is required for the corrected
+test; the repository Actions page is authoritative for its result. These checks
+do not establish enforcement of resource limits or capabilities on any OS.
 
 ## Files
 
