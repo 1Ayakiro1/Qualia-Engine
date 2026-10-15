@@ -10,6 +10,13 @@ workflow и таблицу установленных модулей.
 Миграции находятся в `supabase/migrations/` и применяются в том же порядке.
 Production следует обновлять только после проверки RLS и Edge Functions.
 
+Миграция `20261015090000_module_limits_and_transport.sql` задаёт приватному bucket
+`module-packages` лимит файла 2 GiB. Её наличие в репозитории **не означает**, что
+удалённый проект уже обновлён. Помимо bucket limit нужен глобальный Storage limit
+≥2 GiB и подходящий тариф Supabase (bucket не может обойти глобальный лимит).
+Для больших загрузок следует использовать resumable/TUS или S3 multipart на
+серверной стороне, а не загружать весь файл в память desktop-клиента.
+
 ## Auth providers
 
 В Supabase Dashboard → Authentication → Providers включить:

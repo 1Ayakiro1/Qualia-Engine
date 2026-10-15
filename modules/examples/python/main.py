@@ -10,7 +10,7 @@ def send(message):
 send({"type": "ready", "protocol": 1, "requires": ["port-schemas-v1"]})
 parameters = {}
 for line in sys.stdin:
-    if len(line.encode("utf-8")) > 65537:
+    if len(line.encode("utf-8")) > 1024 * 1024 + 1:
         break
     message = json.loads(line)
     kind = message.get("type")

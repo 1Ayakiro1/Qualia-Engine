@@ -6,6 +6,7 @@ import '../workspace/workspace_model.dart';
 import 'local_module_store.dart';
 import 'module_registry.dart';
 import 'port_schema.dart';
+import 'module_protocol.dart';
 import '../logic/logic_blocks.dart';
 
 typedef RuntimeUpdate = void Function(
@@ -80,6 +81,7 @@ class ModuleRuntime {
       if (installed == null) continue;
       final instance = _instances.putIfAbsent(node.id, () {
         final instance = _Instance(installed);
+        instance.onFailure = (reason) => _fail(node.id, instance, reason);
         unawaited(_start(node.id, instance));
         return instance;
       });
@@ -121,16 +123,19 @@ class ModuleRuntime {
   Future<void> _start(String id, _Instance instance) async {
     _update(id, instance, 'starting');
     try {
-      final command = await store.command(instance.module);
+      final command = await _prepareCommand(
+        await store.command(instance.module),
+      );
       if (!_current(id, instance)) return;
       final process = launchPackaged != null
           ? await launchPackaged!(command)
-          : command.arguments.isEmpty
+          : command.arguments.isEmpty && command.environment.isEmpty
           ? await launch(command.executable, command.directory)
           : await Process.start(
               command.executable,
               command.arguments,
               workingDirectory: command.directory,
+              environment: command.environment,
             );
       instance.process = process;
       if (!_current(id, instance) || instance.stopped) {
@@ -142,17 +147,113 @@ class ModuleRuntime {
         const Duration(seconds: 5),
         () => _fail(id, instance, 'handshake timeout'),
       );
-      var bytes = <int>[];
-      var frames = 0;
-      var window = DateTime.now();
-      instance.stdout = process.stdout.listen((chunk) {
+      // Always drain diagnostics, also while a TCP listener is starting.
+      instance.stderr = process.stderr.listen((_) {});
+      unawaited(
+        process.exitCode.then((code) {
+          if (!instance.stopped) {
+            instance.stop();
+            _update(id, instance, 'exited ($code)');
+          }
+        }),
+      );
+      if (command.transport case TcpModuleTransport(:final host, :final port)) {
+        instance.diagnostics = process.stdout.listen((_) {});
+        final socket = await _connectTcp(id, instance, host, port);
+        if (!_current(id, instance) || instance.stopped) {
+          await socket.close();
+          return;
+        }
+        instance.socket = socket;
+        instance.output = socket;
+        instance.input = _listen(id, instance, socket);
+      } else {
+        instance.output = process.stdin;
+        instance.input = _listen(id, instance, process.stdout);
+      }
+    } catch (e) {
+      if (!instance.stopped) _fail(id, instance, '$e');
+    }
+  }
+
+  Future<ModuleLaunchCommand> _prepareCommand(
+    ModuleLaunchCommand command,
+  ) async {
+    if (command.transport case TcpModuleTransport(:final host, :final port)) {
+      var resolvedPort = port;
+      if (resolvedPort == 0) {
+        // Reserve a free loopback port per process. Close before spawning so
+        // the module can bind it; a bind failure follows normal supervision.
+        final reservation = await ServerSocket.bind(InternetAddress(host), 0);
+        resolvedPort = reservation.port;
+        await reservation.close();
+      }
+      return ModuleLaunchCommand(
+        command.executable,
+        command.arguments
+            .map(
+              (arg) => switch (arg) {
+                '{host}' => host,
+                '{port}' => '$resolvedPort',
+                _ => arg,
+              },
+            )
+            .toList(),
+        command.directory,
+        transport: ModuleTransport.tcp(host, resolvedPort),
+        environment: {
+          ...command.environment,
+          'QUALIA_MODULE_HOST': host,
+          'QUALIA_MODULE_PORT': '$resolvedPort',
+        },
+      );
+    }
+    return command;
+  }
+
+  Future<Socket> _connectTcp(
+    String id,
+    _Instance instance,
+    String host,
+    int port,
+  ) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    Object? lastError;
+    while (_current(id, instance) &&
+        !instance.stopped &&
+        DateTime.now().isBefore(deadline)) {
+      try {
+        return await Socket.connect(
+          host,
+          port,
+          timeout: const Duration(milliseconds: 250),
+        );
+      } catch (error) {
+        lastError = error;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    throw StateError('Could not connect to TCP module $host:$port: $lastError');
+  }
+
+  StreamSubscription<List<int>> _listen(
+    String id,
+    _Instance instance,
+    Stream<List<int>> stream,
+  ) {
+    var bytes = <int>[];
+    var frames = 0;
+    var window = DateTime.now();
+    return stream.listen(
+      (chunk) {
         for (final byte in chunk) {
+          if (instance.stopped) return;
           if (byte == 10) {
             if (DateTime.now().difference(window).inSeconds >= 1) {
               frames = 0;
               window = DateTime.now();
             }
-            if (++frames > 1000) {
+            if (++frames > ModuleProtocol.maxFramesPerSecond) {
               _fail(id, instance, 'output rate exceeded');
               return;
             }
@@ -165,29 +266,24 @@ class ModuleRuntime {
             bytes = [];
           } else {
             bytes.add(byte);
-            if (bytes.length > 65536) {
+            if (bytes.length > ModuleProtocol.maxFrameBytes) {
               _fail(id, instance, 'frame too large');
               return;
             }
           }
         }
-      }, onError: (Object _) => _fail(id, instance, 'stdout error'));
-      // Drain stderr without accumulating unbounded logs in the host.
-      instance.stderr = process.stderr.listen((_) {});
-      unawaited(
-        process.exitCode.then((code) {
-          if (!instance.stopped) {
-            instance.stop();
-            _update(id, instance, 'exited ($code)');
-          }
-        }),
-      );
-    } catch (e) {
-      _fail(id, instance, '$e');
-    }
+      },
+      onError: (Object _) => _fail(id, instance, 'transport error'),
+      onDone: () {
+        if (!instance.stopped && instance.socket != null) {
+          _fail(id, instance, 'TCP connection closed');
+        }
+      },
+    );
   }
 
   void _fail(String id, _Instance instance, String reason) {
+    if (instance.stopped) return;
     instance.stop();
     _update(id, instance, 'error: $reason');
   }
@@ -393,7 +489,10 @@ class _Instance {
   final SystemModule module;
   Process? process;
   Timer? timeout;
-  StreamSubscription<List<int>>? stdout, stderr;
+  StreamSubscription<List<int>>? input, stderr, diagnostics;
+  Socket? socket;
+  IOSink? output;
+  late final void Function(String) onFailure;
   String parameters = '{}';
   bool ready = false, stopped = false;
   int pending = 0;
@@ -401,18 +500,24 @@ class _Instance {
   void send(Map<String, dynamic> message) {
     if (stopped || process == null) return;
     final frame = '${jsonEncode(message)}\n';
-    if (utf8.encode(frame).length > 65537 || ++pending > 128) {
-      stop();
+    if (utf8.encode(frame).length > ModuleProtocol.maxFrameBytes + 1) {
+      onFailure('outgoing frame too large');
       return;
     }
+    if (pending >= ModuleProtocol.maxQueuedFrames) {
+      onFailure('write queue exceeded');
+      return;
+    }
+    pending++;
     writes = writes.then((_) async {
       try {
         if (!stopped) {
-          process!.stdin.write(frame);
-          await process!.stdin.flush();
+          output ??= process!.stdin;
+          output!.write(frame);
+          await output!.flush();
         }
       } catch (_) {
-        stop();
+        onFailure('transport write failed');
       } finally {
         pending--;
       }
@@ -423,8 +528,10 @@ class _Instance {
     if (stopped) return;
     stopped = true;
     timeout?.cancel();
-    unawaited(stdout?.cancel() ?? Future<void>.value());
+    unawaited(input?.cancel() ?? Future<void>.value());
     unawaited(stderr?.cancel() ?? Future<void>.value());
+    unawaited(diagnostics?.cancel() ?? Future<void>.value());
+    socket?.destroy();
     process?.kill(ProcessSignal.sigkill);
   }
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1] — Alpha: portable modules and TCP
+
+- UTF-8 NDJSON frames and manifests up to 1 MiB, with byte-accurate boundary checks.
+- `.qmod` archives up to 2 GiB including ZIP headers; chunked file-backed installation,
+  CRC/file-integrity checks and header-only native ABI inspection.
+- Optional TCP module transport with fixed IP/DNS ports or per-instance loopback
+  ports, preserving the existing ready/init/routing protocol and process supervision.
+- Single-payload `platform: portable` packages with explicit external runtime launchers,
+  per-ABI command names and `{entrypoint}` argument positioning. Native targets remain supported.
+- Portable Python stdio/TCP example and regression tests for transport isolation,
+  message boundaries, corrupt packages and installation near the 2 GiB limit.
+- Expanded AI module-authoring guide, source archives and desktop release packages.
+- Prepared private Supabase bucket limit migration; deployment/global Storage limits
+  remain separate. Docker and cross-version artifact deduplication are not implemented.
+
 ## [0.5.0] — Alpha: logic and universal modules
 
 - Host-owned IF/filter/select/validate/script nodes and schema-checked routing.

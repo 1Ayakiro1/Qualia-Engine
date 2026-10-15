@@ -3,9 +3,11 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <cstddef>
 
 namespace qualia {
 using Json = nlohmann::json;
+inline constexpr std::size_t kMaxFrameBytes = 1024 * 1024;
 // stdout is protocol-only. Diagnostics belong on stderr.
 class Module {
  public:
@@ -48,14 +50,14 @@ class Module {
     char ch;
     while (std::cin.get(ch)) {
       if (ch == '\n') return true;
-      if (line.size() >= 65536) throw std::runtime_error("IPC frame too large");
+      if (line.size() >= kMaxFrameBytes) throw std::runtime_error("IPC frame too large");
       line += ch;
     }
     return false;
   }
   static void send(const Json& message) {
     const auto frame = message.dump();
-    if (frame.size() > 65536) throw std::runtime_error("IPC frame too large");
+    if (frame.size() > kMaxFrameBytes) throw std::runtime_error("IPC frame too large");
     std::cout << frame << '\n' << std::flush;
   }
 };

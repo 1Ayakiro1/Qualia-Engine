@@ -1,8 +1,19 @@
 # Универсальные .qmod
 
-`.qmod` — общий ZIP-контейнер, а не Linux-формат. В `process-v1` теперь можно
-поставлять **один пакет с несколькими исполняемыми вариантами**. Движок выбирает
-вариант по ABI своего процесса и запускает его без shell и без установки зависимостей.
+`.qmod` — общий ZIP-контейнер, а не Linux-формат. В `process-v1` есть два способа
+доставки кода:
+
+1. `platform: "portable"` — один payload без копий под ОС. Это подходит для
+   исходников/байткода, запускаемых установленным runtime (Python, Java, .NET,
+   WASM и т. п.). `launcher` может быть строкой или картой команд по ABI.
+2. `targets` — один архив с ABI-вариантами для нативного C/C++/Rust и библиотек.
+   В этом случае разные бинарники действительно нужны, но они остаются внутри
+   одной версии и одного Storage-объекта, а не отдельными release-пакетами.
+
+Движок выбирает нужный вариант по ABI процесса. Универсальный пакет не обещает,
+что runtime уже установлен: ОС проверяет его доступность при запуске. Процесс
+запускается без shell; аргументы передаются отдельным списком. Это не sandbox:
+как и нативный модуль, portable-код запускается только после доверия пользователя.
 
 ## Manifest
 
@@ -14,15 +25,9 @@
   "id": "portable-example",
   "name": "Portable example",
   "version": "0.1.0",
-  "languages": ["Go"],
-  "targets": {
-    "linux-x64": {"executable": "targets/linux-x64/module", "arguments": []},
-    "linux-arm64": {"executable": "targets/linux-arm64/module", "arguments": []},
-    "windows-x64": {"executable": "targets/windows-x64/module.exe", "arguments": []},
-    "windows-arm64": {"executable": "targets/windows-arm64/module.exe", "arguments": []},
-    "macos-x64": {"executable": "targets/macos-x64/module", "arguments": []},
-    "macos-arm64": {"executable": "targets/macos-arm64/module", "arguments": []}
-  },
+  "languages": ["Python"],
+  "platform": "portable",
+  "launch": {"executable": "main.py", "launcher": "python3", "arguments": []},
   "ports": {"inputs": ["input"], "outputs": ["output"]}
 }
 ```
@@ -33,22 +38,86 @@
   `process-v1` с `platform`/`launch` также поддерживает все шесть target IDs.
 - Схемы портов, параметры и UI общие для всех вариантов: перенос одного workspace
   не должен менять контракт модуля. Hash одного универсального архива одинаков на ОС.
-- При отсутствии нужного варианта установка завершается понятной ошибкой со списком
+- При отсутствии нужного нативного варианта установка завершается ошибкой со списком
   доступных платформ. Нет fallback на другой ABI, автоматического скачивания,
-  Wine/Rosetta запуска, shell или системного интерпретатора.
-- Проверяются **все** declared executables: Linux ELF64, Windows PE32+, macOS
+  Wine/Rosetta запуска или shell. Только `portable` явно использует внешний runtime.
+- В `targets` проверяются **все** declared executables: Linux ELF64, Windows PE32+, macOS
   Mach-O64 или universal Mach-O с нужным slice. Неверные архитектуры отклоняются.
   Это проверка формата/архитектуры, не доказательство отсутствия вредоносного кода.
 - Rosetta x64-приложение выбирает `macos-x64`; native arm64 — `macos-arm64`.
 - cwd — корень пакета. Общие ресурсы можно хранить отдельно; зависимости разных
   платформ — в `targets/<target>/`. Windows DLL рядом с exe; macOS dylib связывать
   через `@loader_path`/`@rpath`; Linux `.so` — `$ORIGIN`. Host не подменяет loader paths.
-- Bundled Python/Java/.NET/WASM runtime тоже возможен: launch указывает на его
-  платформенный executable, arguments — на скрипт/assembly/wasm внутри пакета.
-  Язык не ограничен списком `languages`, но runtime и зависимости нужны для каждой ОС.
+- Для bundled Python/Java/.NET/WASM runtime используйте нативный `targets`:
+  `executable` указывает на packaged runtime, `arguments` — на скрипт/байткод.
+  Скрипты и ресурсы в архиве общие, а runtime-бинарники платформенные.
 - Пути case-insensitive unique, без Windows device names, двоеточий, trailing dot/
-  space, traversal и symlinks. Лимиты пока общие: 256 MiB и 4096 файлов на весь архив.
+  space, traversal и symlinks. Лимиты: 2 GiB и 4096 файлов на весь архив;
+  manifest и один JSON/NDJSON frame — до 1 MiB.
   Большие runtimes можно поставлять отдельными одноцелевыми пакетами того же формата.
+
+## Сетевой транспорт
+
+По умолчанию модуль обменивается с host через UTF-8 NDJSON по stdin/stdout.
+Для процесса, который поднимает TCP listener, manifest может объявить:
+
+```json
+"transport": {"type": "tcp", "host": "127.0.0.1", "port": 43125}
+```
+
+Host подключается к указанному TCP endpoint и использует тот же JSON-протокол и
+те же лимиты кадров. Порт может быть любым из диапазона 1–65535 (для привилегированных
+портов нужны права ОС). `host` может быть IP или DNS-именем. Host всё равно запускает
+и контролирует процесс модуля; это не отдельный режим запуска удалённого сервиса.
+
+Для нескольких экземпляров рекомендуется `host: "127.0.0.1", port: 0`: host
+выбирает свободный loopback-порт для каждого процесса и передаёт его через
+`QUALIA_MODULE_HOST`/`QUALIA_MODULE_PORT`. Целые аргументы `{host}`/`{port}` также
+заменяются фактическими значениями. Между выбором порта и bind процесса остаётся
+обычное для такого запуска окно гонки; ошибка bind/handshake не скрывается.
+Listener и правила firewall остаются частью программы модуля.
+
+Это обычный TCP, **без TLS и сетевой аутентификации**. По умолчанию используйте
+loopback; не отправляйте конфиденциальные данные на недоверенные endpoints.
+Права модуля на собственные TCP/UDP/HTTP соединения не ограничиваются — это
+пользовательский процесс. Связи workspace маршрутизируются host независимо от
+выбранного транспорта; прямой сетевой протокол между программами реализуют авторы.
+
+## Portable launcher и общий runtime
+
+`launcher: "python3"` ищется в PATH. Для Windows можно задать карту по ABI:
+`{"linux-x64":"python3","windows-x64":"python","macos-arm64":"python3"}`.
+Вариант должен присутствовать для текущего ABI. Этот выбор меняет только команду,
+не дублирует payload. Отсутствующий runtime даёт ошибку запуска, а не скачивается.
+
+По умолчанию путь `executable` вставляется первым аргументом. Для Java используйте
+`"launcher":"java", "executable":"module.jar", "arguments":["-jar","{entrypoint}"]`.
+Целый аргумент `{entrypoint}` заменяется абсолютным путём внутри установки.
+Переносимость исходников/байткода не означает переносимость нативных Python wheels,
+JNI, P/Invoke, драйверов или OS-specific API — для них всё ещё нужны ABI-варианты.
+
+Пример без включённого Python runtime: `modules/examples/portable/`. Упаковка:
+
+```bash
+python3 app/assets/module_sdk/qmod.py pack modules/examples/portable
+```
+
+Для TCP этого примера добавьте `transport` с loopback `port: 0` и
+`launch.arguments: ["--tcp", "{host}", "{port}"]`. Нативный C++ SDK по-прежнему
+предоставляет готовый stdio-runner; TCP listener можно реализовать на любом стеке,
+сохранив NDJSON handshake/сообщения.
+
+## Хранение и версии
+
+В каталоге уже есть уникальность `(module_id, version)` и один `package_path`
+на release. Для portable-публикации загружайте один `.qmod` и одну release-запись,
+а не копии для каждой ОС. Существующие release-объекты автоматически не удаляются
+и не объединяются. Клиент сейчас не содержит полноценного uploader артефактов.
+
+Сборка общего архива **не сжимает разные нативные бинарники**: она лишь устраняет
+дублирование manifest, скриптов и общих ресурсов. Дедупликация общих runtimes или
+бинарников между *разными версиями* требует отдельного content-addressed хранилища
+артефактов/зависимостей и правил сборки мусора; в этой итерации его нет.
 
 ## Проверка
 

@@ -21,6 +21,18 @@
 ./scripts/build_all.sh       # всё сразу
 ```
 
+Проверки portable/TCP-модулей и больших пакетов (из `app/`):
+
+```bash
+flutter test test/module_transports_test.dart
+# Отдельный тяжёлый тест: пакет почти 2 GiB, установка порциями и отказ >2 GiB.
+QUALIA_LARGE_MODULE_TEST=full flutter test test/module_transports_test.dart \
+  --plain-name 'large file-backed SDK package and oversized archive rejection'
+```
+
+Без этой переменной тяжёлый тест пропускается. Для варианта 257 MiB укажите
+`QUALIA_LARGE_MODULE_TEST=1`. Нужны Python 3 и место под payload, архив и установку.
+
 > `flutter analyze` в этом репозитории запрещён: падает на путях с
 > кириллицей/пробелами (баг LSP-фрейминга анализ-сервера). Используйте
 > `./scripts/analyze.sh`.

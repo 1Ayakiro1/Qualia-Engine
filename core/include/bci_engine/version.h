@@ -5,8 +5,8 @@
 
 #define BCI_CORE_VERSION_MAJOR 0
 #define BCI_CORE_VERSION_MINOR 5
-#define BCI_CORE_VERSION_PATCH 0
-#define BCI_CORE_VERSION "0.5.0"
+#define BCI_CORE_VERSION_PATCH 1
+#define BCI_CORE_VERSION "0.5.1"
 
 // Bumped whenever the C ABI of the core changes.
 // v2: added bci_engine_set_log_callback.

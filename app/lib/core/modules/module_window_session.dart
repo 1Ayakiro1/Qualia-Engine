@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../workspace/workspace_model.dart';
 import '../logic/logic_blocks.dart';
 import '../../state/workspace_state.dart';
+import 'module_protocol.dart';
 
 typedef ModuleProcessLauncher = Future<Process> Function(List<String> args);
 
@@ -98,7 +99,10 @@ class ModuleWindowSessions {
       _sendNode(node.id, session);
       socket.listen(
         (message) {
-          if (message is! String || message.length > 65536) return;
+          if (message is! String ||
+              utf8.encode(message).length > ModuleProtocol.maxFrameBytes) {
+            return;
+          }
           try {
             final data = jsonDecode(message);
             final current = nodeById(node.id);

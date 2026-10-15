@@ -662,9 +662,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
             ),
           );
           if (trusted != true) return;
-          final module = await LocalModuleStore().install(
-            await file.readAsBytes(),
-          );
+          final module = await LocalModuleStore().installFile(File(file.path));
           if (!mounted) return;
           ref.read(workspaceProvider.notifier).addToLibrary(module);
           setState(() => _selectedModule = module);

@@ -4,8 +4,8 @@ class AppInfo {
 
   static const String appName = 'Ayakiro BCI Engine';
   static const String appId = 'com.ayakiro.bci_engine';
-  static const String version = '0.4.6';
-  static const String stage = 'skeleton + log-console';
+  static const String version = '0.5.1';
+  static const String stage = 'alpha';
   static const String organization = 'Ayakiro';
 
   /// Expected ABI of libbci_engine_core (must match BCI_CORE_ABI_VERSION).

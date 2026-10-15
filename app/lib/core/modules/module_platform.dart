@@ -1,8 +1,10 @@
 import 'dart:ffi';
+import 'dart:io';
 
 /// Package target IDs describe the running process ABI, not the device label.
 /// An x64 app under Rosetta selects x64 payloads even on an ARM Mac.
 class ModulePlatform {
+  static const portable = 'portable';
   static const supported = {
     'linux-x64',
     'linux-arm64',
@@ -39,9 +41,11 @@ class ModulePlatform {
   }
 
   static Map<String, dynamic> select(Map<String, dynamic> m, {String? target}) {
-    final platform = target ?? current;
     final variants = launches(m);
-    final launch = variants[platform];
+    final platform = target ?? current;
+    final launch =
+        variants[platform] ??
+        (supported.contains(platform) ? variants[portable] : null);
     if (launch == null) {
       throw FormatException(
         'This package has no $platform payload. Available: ${variants.keys.join(', ')}.',
@@ -58,7 +62,34 @@ class ModulePlatform {
   /// Validate format/architecture before spawning. This is NOT a security scan
   /// or an ABI/dependency check; the OS loader still validates the full binary.
   static bool matches(List<int> b, String target) {
+    return _matches(
+      b.length,
+      (offset, size) => b.sublist(offset, offset + size),
+      target,
+    );
+  }
+
+  /// Inspect only executable headers, including PE/Mach-O slice offsets. Large
+  /// native payloads must not be loaded into memory just to check their ABI.
+  static Future<bool> matchesFile(File file, String target) async {
+    final handle = await file.open();
+    try {
+      return _matches(await handle.length(), (offset, size) {
+        handle.setPositionSync(offset);
+        return handle.readSync(size);
+      }, target);
+    } finally {
+      await handle.close();
+    }
+  }
+
+  static bool _matches(
+    int length,
+    List<int> Function(int, int) read,
+    String target,
+  ) {
     if (!supported.contains(target)) return false;
+    final b = read(0, length < 64 ? length : 64);
     final arm = target.endsWith('arm64');
     if (target.startsWith('linux-')) {
       return b.length >= 20 &&
@@ -74,10 +105,13 @@ class ModulePlatform {
     if (target.startsWith('windows-')) {
       if (b.length < 64 || b[0] != 77 || b[1] != 90) return false;
       final pe = _u32(b, 60);
-      if (pe < 64 || pe + 26 > b.length || _u32(b, pe) != 0x4550) return false;
-      return _u16(b, pe + 4) == (arm ? 0xaa64 : 0x8664) &&
-          (_u16(b, pe + 22) & 0x2000) == 0 && // Not a DLL.
-          _u16(b, pe + 24) == 0x20b; // PE32+.
+      if (pe < 64 || pe + 26 > length) return false;
+      final header = read(pe, 26);
+      return header.length == 26 &&
+          _u32(header, 0) == 0x4550 &&
+          _u16(header, 4) == (arm ? 0xaa64 : 0x8664) &&
+          (_u16(header, 22) & 0x2000) == 0 && // Not a DLL.
+          _u16(header, 24) == 0x20b; // PE32+.
     }
     final cpu = arm ? 0x0100000c : 0x01000007;
     if (b.length < 32) return false;
@@ -90,25 +124,27 @@ class ModulePlatform {
     if (fat != 0xcafebabe && fat != 0xcafebabf) return false;
     final count = _u32(b, 4, big: true);
     final stride = fat == 0xcafebabf ? 32 : 20;
-    if (count < 1 || count > 16 || 8 + count * stride > b.length) return false;
+    if (count < 1 || count > 16 || 8 + count * stride > length) return false;
+    final table = read(0, 8 + count * stride);
     for (var i = 0; i < count; i++) {
       final o = 8 + i * stride;
-      if (_u32(b, o, big: true) != cpu) continue;
-      // Current package size is <=256 MiB; high 32 bits must be zero.
+      if (_u32(table, o, big: true) != cpu) continue;
+      // Current package size is <=2 GiB; high 32 bits must be zero.
       if (stride == 32 &&
-          (_u32(b, o + 8, big: true) != 0 || _u32(b, o + 16, big: true) != 0)) {
+          (_u32(table, o + 8, big: true) != 0 ||
+              _u32(table, o + 16, big: true) != 0)) {
         return false;
       }
-      final offset = _u32(b, o + (stride == 32 ? 12 : 8), big: true);
-      final size = _u32(b, o + (stride == 32 ? 20 : 12), big: true);
-      if (size < 32 ||
-          offset < 8 + count * stride ||
-          offset + size > b.length) {
+      final offset = _u32(table, o + (stride == 32 ? 12 : 8), big: true);
+      final size = _u32(table, o + (stride == 32 ? 20 : 12), big: true);
+      if (size < 32 || offset < 8 + count * stride || offset + size > length) {
         return false;
       }
-      return _u32(b, offset) == 0xfeedfacf &&
-          _u32(b, offset + 4) == cpu &&
-          _u32(b, offset + 12) == 2;
+      final slice = read(offset, 32);
+      return slice.length == 32 &&
+          _u32(slice, 0) == 0xfeedfacf &&
+          _u32(slice, 4) == cpu &&
+          _u32(slice, 12) == 2;
     }
     return false;
   }

@@ -5,7 +5,17 @@
 каждом `./scripts/build_all.sh`; именно этот каталог используется для
 публикации бинарников и релизных артефактов.
 
-## Актуальная версия: 0.4.6
+## Актуальная сборка: 0.5.1
+
+Обновление 15.10.2026: JSON/NDJSON до 1 MiB, `.qmod` до 2 GiB,
+file-backed установка больших пакетов, TCP transport с фиксированным либо
+автоматическим loopback-портом, portable payload с внешним Python/Java/runtime.
+Docker не добавлен. Подробности: `docs/UNIVERSAL_MODULES.md`.
+Portable-пример: `modules/examples/portable/dist/portable-echo-0.1.0.qmod`
+(требует установленный Python 3). Исходники и ограничения релиза:
+`docs/releases/ALPHA_0.5.1.md`.
+
+### Ранее добавленные возможности
 
 Добавлены оффлайн C++-модули `.qmod`: четыре действия в Explorer, локальный SDK
 с примером и отдельный процесс на каждый узел. Параметры, события кнопок,
@@ -19,16 +29,16 @@
 Готовый пример для установки через «Добавить локально»:
 `../modules/local-gain-0.1.0.qmod` (каталог `modules/` в корне репозитория).
 
-В опубликованном релизе 0.5.0 основной файл запуска на Linux: **`Qualia-Engine-0.5.0-x86_64.AppImage`**.
+Основной файл запуска 0.5.1 на Linux: **`Qualia-Engine-0.5.1-x86_64.AppImage`**.
 Он содержит интерфейс и ядро; дополнительные папки для его запуска не нужны.
 
 ```bash
-./builds/Qualia-Engine-0.5.0-x86_64.AppImage
+./builds/Qualia-Engine-0.5.1-x86_64.AppImage
 ```
 
-Также доступны portable-архив `Qualia-Engine-0.5.0-linux-x64.tar.gz`
+Также доступны portable-архив `Qualia-Engine-0.5.1-linux-x64.tar.gz`
 и готовый распакованный bundle `binary/`. Release-пакеты доступны в
-[GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases/tag/v0.5.0-alpha).
+[GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases/tag/v0.5.1-alpha).
 Старые локальные сборки и резервные копии не удаляются автоматически.
 
 Обновлённый Workspace: компактные Add / Select / View,

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart' show InputFileStream;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -10,19 +11,45 @@ import 'package:path_provider/path_provider.dart';
 import 'module_registry.dart';
 import 'port_schema.dart';
 import 'module_platform.dart';
+import 'module_protocol.dart';
 
 class ModuleLaunchCommand {
-  const ModuleLaunchCommand(this.executable, this.arguments, this.directory);
+  const ModuleLaunchCommand(
+    this.executable,
+    this.arguments,
+    this.directory, {
+    this.transport = const ModuleTransport.stdio(),
+    this.environment = const {},
+  });
   final String executable, directory;
   final List<String> arguments;
+  final ModuleTransport transport;
+  final Map<String, String> environment;
 }
 
-/// Immutable content-addressed installations; executable paths never come from
-/// workspace documents or catalog manifests.
+sealed class ModuleTransport {
+  const ModuleTransport();
+  const factory ModuleTransport.stdio() = StdioModuleTransport;
+  const factory ModuleTransport.tcp(String host, int port) = TcpModuleTransport;
+}
+
+class StdioModuleTransport extends ModuleTransport {
+  const StdioModuleTransport();
+}
+
+class TcpModuleTransport extends ModuleTransport {
+  const TcpModuleTransport(this.host, this.port);
+  final String host;
+  final int port;
+}
+
+/// Immutable content-addressed installations. Only host-approved local packages
+/// authorize execution, never imported workspace/catalog metadata. Native
+/// executables and portable entrypoints remain relative to the package root.
 class LocalModuleStore {
   LocalModuleStore({this.root});
   final Directory? root;
-  static const maxBytes = 256 * 1024 * 1024;
+  static const maxBytes = 2 * 1024 * 1024 * 1024;
 
   static bool safePath(dynamic path) =>
       path is String &&
@@ -87,7 +114,8 @@ class LocalModuleStore {
             )) {
           throw const FormatException('Invalid or ambiguous platform targets.');
         }
-      } else if (!ModulePlatform.supported.contains(m['platform'])) {
+      } else if (!ModulePlatform.supported.contains(m['platform']) &&
+          m['platform'] != ModulePlatform.portable) {
         throw const FormatException('Unsupported module platform.');
       }
       final launches = m['targets'] is Map
@@ -96,9 +124,12 @@ class LocalModuleStore {
       for (final launch in launches) {
         if (launch is! Map ||
             launch.keys.any(
-              (key) => !['executable', 'arguments'].contains(key),
+              (key) => !['executable', 'arguments', 'launcher'].contains(key),
             ) ||
-            !safePath(launch['executable']) ||
+            (m['platform'] == ModulePlatform.portable
+                ? !_validPortableLauncher(launch['launcher']) ||
+                      !safePath(launch['executable'])
+                : !safePath(launch['executable'])) ||
             launch['arguments'] is! List ||
             (launch['arguments'] as List).length > 32 ||
             (launch['arguments'] as List).any(
@@ -108,6 +139,7 @@ class LocalModuleStore {
         }
       }
     }
+    _validateTransport(m);
     if (m.containsKey('ui') && m['ui'] is! List) {
       throw const FormatException('Invalid UI.');
     }
@@ -179,6 +211,39 @@ class LocalModuleStore {
     }
     PortSchema.validateManifest(m);
     return m;
+  }
+
+  static void _validateTransport(Map<String, dynamic> manifest) {
+    final transport = manifest['transport'];
+    if (transport == null) return;
+    if (transport is! Map ||
+        transport['type'] != 'tcp' ||
+        transport.keys.any((key) => !['type', 'host', 'port'].contains(key)) ||
+        transport['host'] is! String ||
+        (transport['host'] as String).trim().isEmpty ||
+        (transport['host'] as String).length > 253 ||
+        transport['port'] is! int ||
+        (transport['port'] as int) < 0 ||
+        (transport['port'] as int) > 65535 ||
+        (transport['port'] == 0 &&
+            !['127.0.0.1', '::1'].contains(transport['host']))) {
+      throw const FormatException('Invalid TCP module transport.');
+    }
+  }
+
+  static bool _validPortableLauncher(dynamic launcher) {
+    bool valid(dynamic value) =>
+        value is String &&
+        value.trim().isNotEmpty &&
+        value.length <= 240 &&
+        !value.contains('\u0000');
+    if (valid(launcher)) return true;
+    return launcher is Map &&
+        launcher.isNotEmpty &&
+        launcher.keys.every(
+          (key) =>
+              ModulePlatform.supported.contains(key) && valid(launcher[key]),
+        );
   }
 
   static void _validateCustomLayout(
@@ -277,10 +342,14 @@ class LocalModuleStore {
   /// v1 deliberately accepts ZIP STORE only: no unbounded decompression, links,
   /// encryption, traversal or archive-provided executable permissions.
   static Archive validateArchive(List<int> bytes) {
-    if (bytes.length > maxBytes) {
+    return _validateArchiveStream(InputStream(bytes));
+  }
+
+  static Archive _validateArchiveStream(InputStreamBase input) {
+    if (input.length > maxBytes) {
       throw const FormatException('Package is too large.');
     }
-    final dir = ZipDirectory.read(InputStream(bytes));
+    final dir = ZipDirectory.read(input);
     if (dir.fileHeaders.length > 4096) {
       throw const FormatException('Too many files.');
     }
@@ -309,7 +378,8 @@ class LocalModuleStore {
         throw const FormatException('Unsafe or unsupported package entry.');
       }
     }
-    final archive = ZipDecoder().decodeBytes(bytes, verify: true);
+    input.reset();
+    final archive = ZipDecoder().decodeBuffer(input);
     if (archive.findFile('manifest.json') == null) {
       throw const FormatException('Package needs manifest.json.');
     }
@@ -329,47 +399,94 @@ class LocalModuleStore {
 
   Future<SystemModule> install(List<int> bytes) async {
     final archive = validateArchive(bytes);
+    return _installArchive(archive, sha256.convert(bytes).toString());
+  }
+
+  /// File-backed decoding avoids loading a 2 GiB package and all its payloads
+  /// into the UI process at once. Every entry is copied/CRC-checked in chunks.
+  Future<SystemModule> installFile(File file) async {
+    if (await file.length() > maxBytes) {
+      throw const FormatException('Package is too large.');
+    }
+    final input = InputFileStream(file.path);
+    try {
+      final archive = _validateArchiveStream(input);
+      final hash = (await sha256.bind(file.openRead()).first).toString();
+      return await _installArchive(archive, hash);
+    } finally {
+      await input.close();
+    }
+  }
+
+  Future<SystemModule> _installArchive(Archive archive, String hash) async {
     final manifestFile = archive.findFile('manifest.json')!;
-    if (manifestFile.size > 65536) {
+    if (manifestFile.size > ModuleProtocol.maxFrameBytes) {
       throw const FormatException('Manifest is too large.');
     }
     final m = validateManifest(
       jsonDecode(utf8.decode(manifestFile.content as List<int>)),
     );
     final selected = ModulePlatform.select(m);
-    for (final variant in ModulePlatform.launches(m).entries) {
-      final entry = archive.findFile(variant.value['executable'] as String);
-      if (entry == null ||
-          !ModulePlatform.matches(entry.content as List<int>, variant.key)) {
-        throw FormatException(
-          'Missing or wrong executable for ${variant.key}.',
-        );
-      }
-    }
     final executableEntry = archive.findFile(selected['executable'] as String);
     if (executableEntry == null) {
       throw const FormatException('Packaged executable is missing.');
     }
-    final binary = executableEntry.content as List<int>;
-    final hash = sha256.convert(bytes).toString();
     final base = await directory;
     await base.create(recursive: true);
     final target = Directory(p.join(base.path, hash));
     if (!await target.exists()) {
       final staging = await base.createTemp('.install-');
       try {
+        final hashes = <String, String>{};
+        final executables = <String>[];
         for (final entry in archive) {
           final file = File(p.join(staging.path, entry.name));
           await file.parent.create(recursive: true);
-          await file.writeAsBytes(entry.content as List<int>, flush: true);
+          final source = entry.rawContent!.subset();
+          final output = file.openWrite();
+          var crc = 0;
+          var written = 0;
+          try {
+            while (!source.isEOS) {
+              final chunk = source
+                  .readBytes(source.length > 65536 ? 65536 : source.length)
+                  .toUint8List();
+              written += chunk.length;
+              crc = getCrc32(chunk, crc);
+              output.add(chunk);
+              await output.flush();
+            }
+          } finally {
+            await output.close();
+          }
+          if (written != entry.size || crc != entry.crc32) {
+            throw const FormatException(
+              'Package entry checksum/size mismatch.',
+            );
+          }
+          hashes[entry.name] = (await sha256.bind(file.openRead()).first)
+              .toString();
+          final handle = await file.open();
+          try {
+            if (ModulePlatform.needsExecutePermission(await handle.read(4))) {
+              executables.add(file.path);
+            }
+          } finally {
+            await handle.close();
+          }
         }
-        final executables = archive.files
-            .where((entry) {
-              final bytes = entry.content as List<int>;
-              return ModulePlatform.needsExecutePermission(bytes);
-            })
-            .map((entry) => p.join(staging.path, entry.name))
-            .toList();
+        for (final variant in ModulePlatform.launches(m).entries) {
+          final file = File(
+            p.join(staging.path, variant.value['executable'] as String),
+          );
+          if (!await file.exists() ||
+              (variant.key != ModulePlatform.portable &&
+                  !await ModulePlatform.matchesFile(file, variant.key))) {
+            throw FormatException(
+              'Missing or wrong executable for ${variant.key}.',
+            );
+          }
+        }
         if (!Platform.isWindows) {
           for (var i = 0; i < executables.length; i += 64) {
             final chmod = await Process.run('/bin/chmod', [
@@ -385,13 +502,9 @@ class LocalModuleStore {
         }
         await File(p.join(staging.path, '.package.sha256')).writeAsString(hash);
         await File(p.join(staging.path, '.executable.sha256'))
-            .writeAsString(sha256.convert(binary).toString());
-        await File(p.join(staging.path, '.files.sha256')).writeAsString(
-          jsonEncode({
-            for (final entry in archive.files)
-              entry.name: sha256.convert(entry.content as List<int>).toString(),
-          }),
-        );
+            .writeAsString(hashes[selected['executable']]!);
+        await File(p.join(staging.path, '.files.sha256'))
+            .writeAsString(jsonEncode(hashes));
         await staging.rename(target.path);
       } finally {
         if (await staging.exists()) await staging.delete(recursive: true);
@@ -467,18 +580,49 @@ class LocalModuleStore {
         'Packaged runtime integrity index is missing.',
       );
     }
-    if (!ModulePlatform.matches(
-      await File(path).readAsBytes(),
-      ModulePlatform.current,
-    )) {
+    final isPortable = ModulePlatform.launches(manifest)
+        .containsKey(ModulePlatform.portable);
+    if (!isPortable &&
+        !await ModulePlatform.matchesFile(File(path), ModulePlatform.current)) {
       throw const FormatException(
         'Installed executable does not match the host ABI.',
       );
     }
+    final portable = isPortable;
+    final args = List<String>.from(selected['arguments'] as List);
+    final launcher = selected['launcher'];
+    if (portable &&
+        launcher is Map &&
+        launcher[ModulePlatform.current] == null) {
+      throw FormatException(
+        'Portable launcher is not configured for ${ModulePlatform.current}.',
+      );
+    }
+    final executable = portable
+        ? launcher is String
+              ? launcher
+              : (launcher as Map)[ModulePlatform.current] as String
+        : path;
+    if (portable) {
+      if (args.contains('{entrypoint}')) {
+        for (var i = 0; i < args.length; i++) {
+          if (args[i] == '{entrypoint}') args[i] = path;
+        }
+      } else {
+        args.insert(0, path);
+      }
+    }
+    final transport = manifest['transport'] as Map?;
     return ModuleLaunchCommand(
-      path,
-      List<String>.from(selected['arguments'] as List),
+      executable,
+      args,
       base,
+      transport: transport == null
+          ? const ModuleTransport.stdio()
+          : ModuleTransport.tcp(
+              transport['host'] as String,
+              transport['port'] as int,
+            ),
     );
   }
 

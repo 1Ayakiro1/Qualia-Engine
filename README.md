@@ -2,7 +2,7 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: Alpha 0.5.0 — logic blocks and universal module packages.**
+**Статус: Alpha 0.5.1 — portable modules, TCP transport and larger packages.**
 Готовые release-пакеты и исходники — в [GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases).
 Linux AppImage/tarball и Windows/macOS ZIP собираются матрицей GitHub Actions.
 
@@ -16,8 +16,9 @@ Linux AppImage/tarball и Windows/macOS ZIP собираются матрице�
 
 ## Что уже работает
 
-- **Универсальные `.qmod`**: один архив с executable/runtime вариантами для
-  Linux/Windows/macOS x64/arm64; общий языконезависимый stdin/stdout протокол.
+- **Универсальные `.qmod`**: один portable payload с внешним runtime либо архив
+  с нативными вариантами Linux/Windows/macOS x64/arm64. NDJSON через stdio/TCP,
+  кадр до 1 MiB, пакет до 2 GiB; установка больших пакетов с диска порциями.
   [Контракт и ограничения](docs/UNIVERSAL_MODULES.md).
 - **Логические блоки**: IF, фильтр, выбор полей, проверка схемы и ограниченный
   script с редактором/dry-run, отдельным Explorer и фильтрами отображения.
@@ -47,7 +48,7 @@ Linux AppImage/tarball и Windows/macOS ZIP собираются матрице�
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Qualia-Engine-0.5.0-x86_64.AppImage
+./builds/Qualia-Engine-0.5.1-x86_64.AppImage
 ```
 
 ### Отдельный debug terminal
@@ -86,3 +87,7 @@ docs/        Архитектура, модули, сборка, роадмап
 Документация: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [docs/MODULES.md](docs/MODULES.md) · [docs/BUILD.md](docs/BUILD.md) ·
 [docs/ROADMAP.md](docs/ROADMAP.md)
+
+Для нейросетей и авторов модулей: [MODULE_AUTHORING_AI.md](docs/MODULE_AUTHORING_AI.md).
+Релиз: [Alpha 0.5.1](docs/releases/ALPHA_0.5.1.md). Полные исходники доступны в
+теге `v0.5.1-alpha` и в отдельных source-архивах релиза.

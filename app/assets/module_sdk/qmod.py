@@ -2,6 +2,7 @@
 """Offline Qualia process SDK. Language-neutral pack/check plus C++ build helper."""
 import argparse
 import json
+import mmap
 import pathlib
 import re
 import shutil
@@ -10,13 +11,16 @@ import tempfile
 import zipfile
 
 TARGETS = {f"{os}-{arch}" for os in ("linux", "windows", "macos") for arch in ("x64", "arm64")}
+PORTABLE = "portable"
+MAX_FRAME_BYTES = 1024 * 1024
+MAX_PACKAGE_BYTES = 2 * 1024 * 1024 * 1024
 
 def launches(m):
     if "targets" in m:
         assert m["runtime"] == "process-v1" and not any(k in m for k in ("platform", "launch", "entrypoint")), "Ambiguous targets"
         assert isinstance(m["targets"], dict) and m["targets"] and set(m["targets"]) <= TARGETS, "Invalid targets"
         return m["targets"]
-    assert m["platform"] in TARGETS, "Unsupported platform"
+    assert m["platform"] in TARGETS | {PORTABLE}, "Unsupported platform"
     return {m["platform"]: m["launch"] if m["runtime"] == "process-v1" else {"executable":"bin/module", "arguments":[]}}
 
 def matches(binary, target):
@@ -50,15 +54,39 @@ def matches(binary, target):
 def check(project):
     m = json.loads((project / "manifest.json").read_text())
     assert m.get("format") == "qualia-module" and m.get("schemaVersion") == 1, "Invalid format"
+    assert (project / "manifest.json").stat().st_size <= MAX_FRAME_BYTES, "Manifest too large"
     assert re.fullmatch(r"[a-z][a-z0-9-]{1,63}", m["id"]), "Invalid ID"
     assert re.fullmatch(r"\d+\.\d+\.\d+", m["version"]), "Invalid version"
     assert isinstance(m["name"], str) and 0 < len(m["name"].strip()) <= 80, "Invalid name"
     assert m["runtime"] in ["native-process-v1", "process-v1"], "Unsupported process"
+    if "transport" in m:
+        transport = m["transport"]
+        assert (isinstance(transport, dict) and
+                set(transport) == {"type", "host", "port"} and
+                transport["type"] == "tcp" and
+                isinstance(transport["host"], str) and
+                0 < len(transport["host"].strip()) <= 253 and
+                type(transport["port"]) is int and
+                0 <= transport["port"] <= 65535 and
+                (transport["port"] != 0 or transport["host"] in ("127.0.0.1", "::1"))), "Invalid TCP transport"
     if m["runtime"] == "native-process-v1":
         assert m["entrypoint"] == "bin/module" and m["platform"] == "linux-x64" and "targets" not in m, "Invalid legacy entrypoint/platform"
     for launch in launches(m).values():
-        assert isinstance(launch, dict) and set(launch) == {"executable", "arguments"}, "Invalid launch"
-        assert safe_path(launch["executable"]), "Executable must be package-relative"
+        assert isinstance(launch, dict) and set(launch) <= {"executable", "arguments", "launcher"}, "Invalid launch"
+        assert "executable" in launch and "arguments" in launch, "Invalid launch"
+        if m.get("platform") == PORTABLE:
+            launcher = launch.get("launcher")
+            valid_launcher = (
+                isinstance(launcher, str) and launcher.strip() and len(launcher) <= 240 and "\0" not in launcher
+            ) or (
+                isinstance(launcher, dict) and launcher and set(launcher) <= TARGETS and
+                all(isinstance(value, str) and value.strip() and len(value) <= 240 and "\0" not in value
+                    for value in launcher.values())
+            )
+            assert valid_launcher, "Portable launch needs a launcher"
+            assert safe_path(launch["executable"]), "Portable entrypoint must be package-relative"
+        else:
+            assert safe_path(launch["executable"]), "Executable must be package-relative"
         assert isinstance(launch["arguments"], list) and len(launch["arguments"]) <= 32
         assert all(isinstance(a, str) and len(a) <= 4096 and "\0" not in a for a in launch["arguments"])
     assert "ui" not in m or isinstance(m["ui"], list), "Invalid UI fields"
@@ -127,9 +155,12 @@ def pack(project, manifest, payload):
     for target, launch in launches(manifest).items():
         binary = payload / launch["executable"]
         assert binary.is_file(), f"Missing executable for {target}"
-        assert matches(binary.read_bytes(), target), f"Wrong executable format/architecture for {target}"
-    assert len(entries) <= 4096 and sum(f.stat().st_size for f, _ in entries) <= 256 * 1024 * 1024, "Package too large"
-    assert (project / "manifest.json").stat().st_size <= 65536, "Manifest too large"
+        if target != PORTABLE:
+            assert binary.stat().st_size > 0, f"Empty executable for {target}"
+            with binary.open("rb") as source, mmap.mmap(source.fileno(), 0, access=mmap.ACCESS_READ) as view:
+                assert matches(view, target), f"Wrong executable format/architecture for {target}"
+    assert len(entries) <= 4096 and sum(f.stat().st_size for f, _ in entries) <= MAX_PACKAGE_BYTES, "Package too large"
+    assert (project / "manifest.json").stat().st_size <= MAX_FRAME_BYTES, "Manifest too large"
     out = project / "dist"
     out.mkdir(exist_ok=True)
     package = out / f'{manifest["id"]}-{manifest["version"]}.qmod'
@@ -138,7 +169,7 @@ def pack(project, manifest, payload):
         with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as archive:
             for file, name in entries:
                 archive.write(file, name)
-        assert temporary.stat().st_size <= 256 * 1024 * 1024, "ZIP including headers exceeds package limit"
+        assert temporary.stat().st_size <= MAX_PACKAGE_BYTES, "ZIP including headers exceeds package limit"
         shutil.move(temporary, package)
     print(package)
 
@@ -221,10 +252,14 @@ def main():
             assert not file.is_symlink(), "Asset symlinks are not allowed"
             if file.is_file():
                 entries.append((file, file.relative_to(project).as_posix()))
-    assert len(entries) <= 256 and sum(f.stat().st_size for f, _ in entries) <= 64 * 1024 * 1024
-    with zipfile.ZipFile(package, "w", compression=zipfile.ZIP_STORED) as archive:
-        for file, name in entries:
-            archive.write(file, name)
+    assert len(entries) <= 4096 and sum(f.stat().st_size for f, _ in entries) <= MAX_PACKAGE_BYTES
+    with tempfile.TemporaryDirectory(dir=out) as staging:
+        temporary = pathlib.Path(staging) / "package.qmod"
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as archive:
+            for file, name in entries:
+                archive.write(file, name)
+        assert temporary.stat().st_size <= MAX_PACKAGE_BYTES, "ZIP including headers exceeds package limit"
+        shutil.move(temporary, package)
     print(package)
 
 
