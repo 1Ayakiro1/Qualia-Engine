@@ -2,7 +2,7 @@ name: Desktop builds
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/ml-runtime-v2']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -21,6 +21,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  native-sanitizers:
+    name: Native block ownership sanitizers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, thread]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure instrumented core and tests
+        run: >-
+          cmake -S core -B ci-sanitizers -DBCI_BUILD_TESTS=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          "-DCMAKE_CXX_FLAGS=-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer"
+          "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=${{ matrix.sanitizer }}"
+          "-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=${{ matrix.sanitizer }}"
+      - name: Build
+        run: cmake --build ci-sanitizers --parallel 2
+      - name: Check ownership and concurrency
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          TSAN_OPTIONS: halt_on_error=1
+        run: ctest --test-dir ci-sanitizers --output-on-failure --no-tests=error
   universal:
     name: Universal module fixture
     runs-on: ubuntu-24.04
@@ -91,11 +115,19 @@ jobs:
         working-directory: app
         run: dart analyze
       - name: Core configure
-        run: cmake -S core -B ci-core -DBCI_BUILD_TESTS=ON -DBCI_FETCH_DEPS=OFF -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S core -B ci-core -DBCI_BUILD_TESTS=ON -DBCI_FETCH_DEPS=ON -DCMAKE_BUILD_TYPE=Release
       - name: Core build
         run: cmake --build ci-core --config Release --parallel 2
       - name: Core tests (must exist)
         run: ctest --test-dir ci-core -C Release --output-on-failure --no-tests=error
+      - name: Expose tested native core to Dart FFI tests
+        run: |
+          echo 'QUALIA_REQUIRE_NATIVE_TESTS=1' >> "$GITHUB_ENV"
+          case "$RUNNER_OS" in
+            Linux) echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/ci-core" >> "$GITHUB_ENV" ;;
+            macOS) echo "DYLD_LIBRARY_PATH=$GITHUB_WORKSPACE/ci-core" >> "$GITHUB_ENV" ;;
+            Windows) echo "$GITHUB_WORKSPACE/ci-core/Release" >> "$GITHUB_PATH" ;;
+          esac
       - name: Build self-contained library fixtures (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -115,6 +147,8 @@ jobs:
           QUALIA_NATIVE_LIBRARY_QMOD: ${{ github.workspace }}/ci-native-library/dist/native-library-0.1.0.qmod
         working-directory: app
         run: flutter test --reporter expanded
+      - name: Signal data-plane codec conformance
+        run: python -m unittest discover -s modules/tests -p 'test_signal_v2.py' -v
       - name: SDK Go example (offline, static Linux x64 module)
         run: |
           mkdir -p ci-go/payload/bin

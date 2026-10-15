@@ -601,7 +601,13 @@ class _PreferenceRow extends StatelessWidget {
                 children: [
                   Expanded(child: details),
                   const SizedBox(width: 16),
-                  control,
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      widthFactor: 1,
+                      child: control,
+                    ),
+                  ),
                 ],
               ),
       );

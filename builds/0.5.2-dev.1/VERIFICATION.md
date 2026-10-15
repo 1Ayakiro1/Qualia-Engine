@@ -1,0 +1,90 @@
+# Qualia Engine 0.5.2-dev.1 — development checkpoint
+
+**Not a release. The seven-subsystem 0.5.2 acceptance gate is not met.**
+
+- Branch: `feat/ml-runtime-v2`
+- `SOURCE_COMMIT` inside each source archive is authoritative; verification
+  metadata describes the source snapshot recorded when that archive was made.
+- Linux binaries: production code from `25e628d5dcae7ab484636a6d3f9c010ab1ad55a3`.
+  Subsequent development commits change tests, CI and verification metadata,
+  not production code.
+- No release tag or GitHub Release created. Published 0.5.1 unchanged.
+
+## Implemented at this checkpoint
+
+Native ABI 3 owned/wrapped timestamped float32 blocks, channel-major/interleaved
+layouts, move-only native push/process/pop, bounded block/byte queues with
+every/drop-oldest/latest-only policies. Legacy samples API preserved, including
+correct FIFO partial reads. C++/Python draft QSB2 chunk codecs agree on wire header.
+
+**Not implemented:** host protocol/schema v2, module binary/SHM routes, HAL,
+runtime CAS, lifecycle services/jobs/resources, persistent datasets/Model Registry,
+ML UI and signed remote installation/enforced capabilities. See the complete
+`docs/ML_RUNTIME_V2.md` inside the source archive. The codec is not a transport.
+
+## Local Linux validation
+
+- Native CTest: 19 cases, 336 assertions pass; backpressure suite repeated 100 times.
+- Flutter: 145 pass, 3 opt-in fixture tests skipped. Native library actually loaded;
+  ABI ownership, pointer identity, metadata and layout checked from Dart FFI.
+- Python wire codec: 6 tests pass (fragmented input, >1 MiB tensor, CRC/truncation,
+  changed metadata, malformed headers, socket blocks).
+- Analyzer and version consistency pass.
+- Public C header compiles as C11; metadata struct is 48 bytes.
+- Malformed-stream smoke: 10,000 deterministic mutations with 1024-byte budget;
+  8,994 rejected, 1,006 structurally valid metadata mutations accepted.
+- Native-vsync timing/bridge tests pass.
+- Packaged core smoke: create/start/owned-block push/pop/release/stop/destroy passes;
+  verifies exact handle and payload pointer identity through the native pipeline.
+- AppImage launches and remains running for 10 seconds until explicit timeout.
+  GTK emitted ATK/cursor-theme warnings; no fatal startup error observed.
+- AppImage/tarball native core is byte-identical to the tested Flutter bundle.
+- Source ZIP/tar.gz snapshot (`c1901b4`): 275 files byte-identical to source
+  commit, with SOURCE_COMMIT. Clean extracted sources passed native build/CTest,
+  analyzer, 145 Flutter tests (with native FFI execution required, 3 opt-in tests
+  skipped) and 6 Python codec tests.
+
+Local ASan/UBSan is **not verified**: environment lacks libasan, so compiler
+link check fails before project build. Separate sanitizer jobs are configured in
+CI. Windows/macOS execution and artifacts require their CI jobs; do not interpret
+the Linux results as proof of cross-platform behavior or isolation.
+
+Completed CI for equivalent production code:
+https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38757524471
+
+- AddressSanitizer and ThreadSanitizer: passed.
+- Windows x64 and macOS desktop tests, bundles and bundled-core smoke: passed.
+- Linux Flutter tests: failed in the crash-isolation test. The test incorrectly
+  assumed asynchronous launch order matched node order and waited a fixed 50 ms
+  for the exit status. No production runtime regression was established.
+- The test now establishes process identity before launching the sibling and
+  awaits the exit notification with a deadline. Local Linux module integration
+  suite and 10 consecutive crash-isolation runs pass after the change.
+
+The overall CI run above **failed**. A new run is required for the corrected
+test; the repository Actions page is authoritative for its result. These checks
+do not establish enforcement of resource limits or capabilities on any OS.
+
+Corrected test commit `c1901b4`, CI (consult for current status):
+https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38759541709
+
+Final result: **failure overall**. Linux x64, Windows x64, both sanitizer jobs
+and the universal fixture passed. Linux ran 149 Flutter tests (1 skipped), built
+AppImage/tar.gz, passed bundled-core smoke and the 15-second AppImage launch test.
+macOS failed the file-backed CRC corruption test; its package build was skipped.
+See `docs/ML_RUNTIME_V2_CI_RESULTS.md` for evidence, downloadable CI artifacts,
+their SHA256 values and the unresolved macOS error. These CI stock-embedder
+packages differ from the local native-vsync packages listed below.
+
+The local full Flutter suite for that commit passed: 145 tests, 3 opt-in fixture
+tests skipped, native FFI execution required. Analyzer, version consistency,
+native CTest and the 6 Python codec tests also passed.
+
+## Files
+
+- `Qualia-Engine-0.5.2-dev.1-x86_64.AppImage`
+- `Qualia-Engine-0.5.2-dev.1-linux-x64.tar.gz`
+- `binary/bci_engine` (run alongside the complete binary directory)
+- `Qualia-Engine-0.5.2-dev.1-source.zip`
+- `Qualia-Engine-0.5.2-dev.1-source.tar.gz`
+- `SHA256SUMS`

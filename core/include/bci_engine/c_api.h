@@ -26,6 +26,7 @@ extern "C" {
 #define BCI_INVALID_ARGUMENT (-4)
 #define BCI_QUEUE_OVERFLOW (-5)
 #define BCI_INTERNAL_ERROR (-6)
+#define BCI_QUEUE_EMPTY (-7)
 
 // Returns BCI_CORE_ABI_VERSION.
 BCI_API int bci_engine_abi_version(void);
@@ -49,11 +50,73 @@ BCI_API int bci_engine_stop(void* engine);
 // Returns 1 when the worker is running, 0 otherwise, negative on error.
 BCI_API int bci_engine_is_running(void* engine);
 
-// Pushes an interleaved block of samples into the engine (non-blocking).
+// Copies an interleaved block of samples into the engine (does not wait for
+// capacity; uses a short admission mutex, not a hard-real-time guarantee).
 // Returns BCI_OK or a negative error code. Overfull queue drops the oldest
-// data to keep latency bounded (see bci_engine_get_metrics).
+// data by default; configure_queues can explicitly select another policy.
 BCI_API int bci_engine_push_samples(void* engine, const float* interleaved,
                                     int frames, int channels);
+
+// ABI v3 additive API. These functions do not change the legacy samples ABI.
+// Float32 samples, uniform spacing within each block; timestamp_ns = frame 0.
+#define BCI_LAYOUT_INTERLEAVED 0u
+#define BCI_LAYOUT_CHANNEL_MAJOR 1u
+#define BCI_CLOCK_UNKNOWN 0u
+#define BCI_CLOCK_MONOTONIC 1u
+#define BCI_CLOCK_UNIX 2u
+#define BCI_QUEUE_EVERY 0u
+#define BCI_QUEUE_DROP_OLDEST 1u
+#define BCI_QUEUE_LATEST_ONLY 2u
+
+typedef struct bci_block_info {
+  uint32_t struct_size;  // MUST equal sizeof(bci_block_info); reserved = 0.
+  uint32_t layout;
+  int32_t frames;
+  int32_t channels;
+  double sample_rate;
+  uint64_t first_sample;
+  int64_t timestamp_ns;
+  uint32_t clock;
+  uint32_t reserved;
+} bci_block_info;
+
+typedef struct bci_block bci_block;
+typedef void (*bci_block_release_callback)(float* samples, void* context);
+
+// Allocate a block, or adopt an EXCLUSIVE mutable external lease without copy.
+// Dimensions are bounded to 256 MiB/block; invalid metadata returns NULL.
+// wrap requires exactly frames*channels float32 values at samples. On failure
+// ownership stays with caller and release is NOT invoked. The caller must not
+// access a successfully wrapped allocation until its release callback fires.
+// Callback fires once on discard/release/destruction, possibly on the worker;
+// it must not throw, block, or call back into this engine.
+BCI_API bci_block* bci_block_create(const bci_block_info* info);
+BCI_API bci_block* bci_block_wrap(const bci_block_info* info, float* samples,
+                                 bci_block_release_callback release, void* context);
+BCI_API float* bci_block_data(bci_block* block);
+BCI_API int bci_block_get_info(const bci_block* block, bci_block_info* info);
+BCI_API void bci_block_release(bci_block* block);
+
+// Configure input/output queues while stopped (also discards stale output).
+// capacity 1..4096; each queue has a max_bytes budget 1..2 GiB.
+// every: push returns OVERFLOW, ownership retained, caller retries; worker waits
+// for output credits. drop-oldest: discard oldest queued blocks to admit newest.
+// latest-only: keep only newest QUEUED block; a block in flight is not canceled.
+// No policy silently converts every to a lossy mode. stop wakes blocked worker.
+// Queue admission uses a short mutex; not a hard-real-time/lock-free guarantee.
+BCI_API int bci_engine_configure_queues(void* engine, uint32_t capacity,
+                                       uint64_t max_bytes,
+                                       uint32_t input_policy, uint32_t output_policy);
+
+// Push moves ownership and sets *block=NULL only on OK; on refusal unchanged.
+// Engine rate/channels must match. Blocks move through the in-place native
+// pipeline without copying; this does NOT claim cross-process SHM transport.
+BCI_API int bci_engine_push_block(void* engine, bci_block** block);
+
+// Pop moves an entire processed block out of the engine. *block must be NULL.
+// Returns QUEUE_EMPTY if none available. Do not mix with a partially drained
+// legacy pop_samples block (INVALID_ARGUMENT). Caller eventually releases it.
+BCI_API int bci_engine_pop_block(void* engine, bci_block** block);
 
 // Pops processed samples into out_interleaved. Returns the number of frames
 // actually popped (>= 0) or a negative error code.

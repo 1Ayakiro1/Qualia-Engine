@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased — 0.5.2 development]
+
+- Additive native C ABI 3: exclusive owned/wrapped timestamped float32 blocks,
+  interleaved/channel-major layout, zero-copy ownership push/process/pop.
+- Bounded native queues with independent input/output backpressure policies and
+  byte budgets. Remove unsafe producer dequeue from an SPSC queue. Preserve FIFO
+  across partial legacy reads; stop wakes a blocked lossless output worker.
+- Draft C++/Python QSB2 chunk codecs with shared conformance header, CRC and bounded
+  assembly. Not yet host protocol-v2, TCP session negotiation or shared memory.
+- Full ML/HAL/runtime/Storage/Registry/job/UI/trust release gates tracked in
+  `docs/ML_RUNTIME_V2.md`; 0.5.2 is NOT published or complete.
+
 ## [0.5.1] — Alpha: portable modules and TCP
 
 - UTF-8 NDJSON frames and manifests up to 1 MiB, with byte-accurate boundary checks.

@@ -7,6 +7,11 @@
 - Windows: Visual Studio Build Tools + Windows desktop toolchain
 - macOS: Xcode (command line tools), CMake (`brew install cmake`)
 
+Текущий рабочий код — `0.5.2-dev.1`, не готовый ML runtime/release 0.5.2.
+Для dev-проверок без замены опубликованных файлов:
+`DIST_OUT="$PWD/builds/0.5.2-dev.1" ./scripts/build_all.sh`.
+Ограничения и критерий публикации: `docs/ML_RUNTIME_V2.md`.
+
 ## Команды
 
 ```bash
@@ -32,6 +37,13 @@ QUALIA_LARGE_MODULE_TEST=full flutter test test/module_transports_test.dart \
 
 Без этой переменной тяжёлый тест пропускается. Для варианта 257 MiB укажите
 `QUALIA_LARGE_MODULE_TEST=1`. Нужны Python 3 и место под payload, архив и установку.
+
+Новые native block/queue/QSB2 проверки запускаются через `./scripts/build_core.sh`.
+Python wire conformance: `python3 -m unittest discover -s modules/tests -p 'test_signal_v2.py' -v`.
+Native tests обязательны, а не молча пропускаются при сбое загрузки Catch2.
+Для offline CMake tests передайте `-DBCI_FETCH_DEPS=OFF`
+и `-DBCI_CATCH2_HEADER=/path/to/catch.hpp` (Catch2 2.13.10, pinned SHA256).
+Это файл зависимости build toolchain, не часть runtime модулей.
 
 > `flutter analyze` в этом репозитории запрещён: падает на путях с
 > кириллицей/пробелами (баг LSP-фрейминга анализ-сервера). Используйте
