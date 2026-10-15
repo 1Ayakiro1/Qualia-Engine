@@ -255,6 +255,11 @@ python3 app/assets/module_sdk/qmod.py pack modules/examples/portable
 Проверь поиск stdlib/native libs, отключи пользовательский site/environment
 там, где это поддерживает runtime. Никаких pip/npm при запуске.
 
+На Windows не используй locale-dependent `sys.stdin` для UTF-8 IPC. Читай
+`sys.stdin.buffer`, передавай bytes в `json.loads`, пиши UTF-8 bytes через
+`sys.stdout.buffer` с flush, как в portable runner. То же относится к socket
+streams. Не рассчитывай на `PYTHONUTF8` или кодировку терминала пользователя.
+
 JSON-only Python demo можно собрать офлайн из установленного на **build-машине**
 CPython; helper копирует interpreter, loader, libc/libpython и Python stdlib:
 

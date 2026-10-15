@@ -16,9 +16,11 @@ void main() {
   late LocalModuleStore store;
   late Map<String, dynamic> manifest;
   late String script;
+  late List<Process> processes;
   final python = Platform.isWindows ? 'python' : 'python3';
 
   setUp(() async {
+    processes = [];
     temporary = await Directory.systemTemp.createTemp('qualia-transports-');
     store = LocalModuleStore(root: Directory('${temporary.path}/installed'));
     manifest = jsonDecode(
@@ -27,7 +29,25 @@ void main() {
     script = await File('../modules/examples/portable/payload/main.py')
         .readAsString();
   });
-  tearDown(() async => temporary.delete(recursive: true));
+  tearDown(() async {
+    for (final process in processes) {
+      process.kill(ProcessSignal.sigkill);
+    }
+    await Future.wait(processes.map((process) => process.exitCode))
+        .timeout(const Duration(seconds: 5));
+    await temporary.delete(recursive: true);
+  });
+
+  Future<Process> launchTracked(ModuleLaunchCommand command) async {
+    final process = await Process.start(
+      command.executable,
+      command.arguments,
+      workingDirectory: command.directory,
+      environment: command.environment,
+    );
+    processes.add(process);
+    return process;
+  }
 
   List<int> package(
     Map<String, dynamic> m, {
@@ -250,12 +270,7 @@ void main() {
           if (state.containsKey('result')) values[id] = state['result'];
         },
         launchPackaged: (command) async {
-          final child = await Process.start(
-            command.executable,
-            command.arguments,
-            workingDirectory: command.directory,
-            environment: command.environment,
-          );
+          final child = await launchTracked(command);
           children.add(child);
           return child;
         },
@@ -335,12 +350,7 @@ void main() {
         launchPackaged: (command) async {
           ports.add((command.transport as TcpModuleTransport).port);
           expect(command.environment['QUALIA_MODULE_PORT'], '${ports.last}');
-          final process = await Process.start(
-            command.executable,
-            command.arguments,
-            workingDirectory: command.directory,
-            environment: command.environment,
-          );
+          final process = await launchTracked(command);
           children.add(process);
           return process;
         },
@@ -404,6 +414,7 @@ with socket.create_server((os.environ['QUALIA_MODULE_HOST'], int(os.environ['QUA
     final statuses = <String, String>{};
     final runtime = ModuleRuntime(
       store: store,
+      launchPackaged: launchTracked,
       onUpdate: (id, status, _) => statuses[id] = status,
     );
     addTearDown(runtime.dispose);
@@ -473,7 +484,7 @@ with socket.create_server((os.environ['QUALIA_MODULE_HOST'], int(os.environ['QUA
           manifest,
           source: '''import sys, json
 print('{"type":"ready","protocol":1}', flush=True)
-for line in sys.stdin:
+for line in sys.stdin.buffer:
     message = json.loads(line)
     if message['type'] == 'input':
         print(json.dumps({'type':'state', 'values':{'result': len(message['value'].encode('utf-8'))}}), flush=True)
@@ -484,6 +495,7 @@ for line in sys.stdin:
       dynamic result;
       final runtime = ModuleRuntime(
         store: store,
+        launchPackaged: launchTracked,
         onUpdate: (id, status, values) {
           statuses[id] = status;
           result = values['result'] ?? result;
@@ -544,16 +556,17 @@ for line in sys.stdin:
       final source =
           '''import sys, json
 print('{"type":"ready","protocol":1}', flush=True)
-sys.stdin.readline()
+sys.stdin.buffer.readline()
 sys.stdout.buffer.write(b'$prefix' + b'x' * $padding + b'$suffix\\n')
 sys.stdout.buffer.flush()
-sys.stdin.read()
+sys.stdin.buffer.read()
 ''';
       final installed = await store.install(package(manifest, source: source));
       final statuses = <String, String>{};
       dynamic result;
       final runtime = ModuleRuntime(
         store: store,
+        launchPackaged: launchTracked,
         onUpdate: (id, status, state) {
           statuses[id] = status;
           result = state['result'] ?? result;
