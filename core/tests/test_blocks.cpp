@@ -249,6 +249,49 @@ TEST_CASE("stop wakes worker blocked by every output policy", "[backpressure]") 
   REQUIRE(bci_engine_pop_block(engine.value, &output.value) == BCI_QUEUE_EMPTY);
 }
 
+TEST_CASE("every propagates a stalled consumer without losing accepted blocks", "[backpressure]") {
+  EngineGuard engine;
+  REQUIRE(bci_engine_configure_queues(engine.value, 1, 1024,
+                                    BCI_QUEUE_EVERY, BCI_QUEUE_EVERY) == BCI_OK);
+  REQUIRE(bci_engine_start(engine.value, 250, 2) == BCI_OK);
+  auto info = metadata();
+  for (uint64_t sequence = 1; sequence <= 3; ++sequence) {
+    info.first_sample = sequence;
+    BlockGuard input{bci_block_create(&info)};
+    REQUIRE(input.value != nullptr);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    int status;
+    do {
+      status = bci_engine_push_block(engine.value, &input.value);
+      if (status == BCI_QUEUE_OVERFLOW) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    } while (status == BCI_QUEUE_OVERFLOW && std::chrono::steady_clock::now() < deadline);
+    REQUIRE(status == BCI_OK);
+  }
+  // First occupies output, second waits on output credits, third fills input.
+  BlockGuard fourth{bci_block_create(&info)};
+  const auto* refused = fourth.value;
+  REQUIRE(bci_engine_push_block(engine.value, &fourth.value) == BCI_QUEUE_OVERFLOW);
+  REQUIRE(fourth.value == refused);
+  for (uint64_t sequence = 1; sequence <= 3; ++sequence) {
+    BlockGuard output;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    int status;
+    do {
+      status = bci_engine_pop_block(engine.value, &output.value);
+      if (status == BCI_QUEUE_EMPTY) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    } while (status == BCI_QUEUE_EMPTY &&
+             std::chrono::steady_clock::now() < deadline);
+    REQUIRE(status == BCI_OK);
+    REQUIRE(bci_block_get_info(output.value, &info) == BCI_OK);
+    REQUIRE(info.first_sample == sequence);
+  }
+  REQUIRE(bci_engine_stop(engine.value) == BCI_OK);
+}
+
 TEST_CASE("legacy partial reads preserve FIFO and channel order", "[blocks]") {
   EngineGuard engine;
   REQUIRE(bci_engine_start(engine.value, 250, 2) == BCI_OK);
