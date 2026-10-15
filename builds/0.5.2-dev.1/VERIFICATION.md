@@ -68,6 +68,14 @@ do not establish enforcement of resource limits or capabilities on any OS.
 Corrected test commit `c1901b4`, CI (consult for current status):
 https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38759541709
 
+Final result: **failure overall**. Linux x64, Windows x64, both sanitizer jobs
+and the universal fixture passed. Linux ran 149 Flutter tests (1 skipped), built
+AppImage/tar.gz, passed bundled-core smoke and the 15-second AppImage launch test.
+macOS failed the file-backed CRC corruption test; its package build was skipped.
+See `docs/ML_RUNTIME_V2_CI_RESULTS.md` for evidence, downloadable CI artifacts,
+their SHA256 values and the unresolved macOS error. These CI stock-embedder
+packages differ from the local native-vsync packages listed below.
+
 The local full Flutter suite for that commit passed: 145 tests, 3 opt-in fixture
 tests skipped, native FFI execution required. Analyzer, version consistency,
 native CTest and the 6 Python codec tests also passed.
