@@ -3,7 +3,7 @@
 **Not a release. The seven-subsystem 0.5.2 acceptance gate is not met.**
 
 - Branch: `feat/ml-runtime-v2`
-- Source commit: `d474a93626510c973ce439d1487e1ce48ff30dac`
+- Source commit: `a67cc1beaeb0d683497fbe22545de1911f6f1928`.
 - Linux binaries: production code from `25e628d5dcae7ab484636a6d3f9c010ab1ad55a3`.
   The subsequent source commit changes only CI and the native test loader.
 - No release tag or GitHub Release created. Published 0.5.1 unchanged.
@@ -22,7 +22,7 @@ ML UI and signed remote installation/enforced capabilities. See the complete
 
 ## Local Linux validation
 
-- Native CTest: 18 cases, 316 assertions pass; backpressure suite repeated 50 times.
+- Native CTest: 19 cases, 336 assertions pass; backpressure suite repeated 100 times.
 - Flutter: 145 pass, 3 opt-in fixture tests skipped. Native library actually loaded;
   ABI ownership, pointer identity, metadata and layout checked from Dart FFI.
 - Python wire codec: 6 tests pass (fragmented input, >1 MiB tensor, CRC/truncation,
@@ -49,7 +49,10 @@ the Linux results as proof of cross-platform behavior or isolation.
 CI for the source commit:
 https://github.com/1Ayakiro1/Qualia-Engine/actions/runs/38755451654
 
-The CI URL is a check to consult, **not a claim that the run succeeded**.
+That run was cancelled by a newer push after its sanitizer jobs and all three
+desktop test suites had completed successfully; the current commit has a new
+run linked from the repository Actions page. This file is **not a claim that
+the current cross-platform CI run succeeded**.
 
 ## Files
 

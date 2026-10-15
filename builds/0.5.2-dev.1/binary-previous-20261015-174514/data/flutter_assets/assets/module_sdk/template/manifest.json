@@ -1,0 +1,31 @@
+{
+  "format": "qualia-module",
+  "schemaVersion": 1,
+  "id": "local-gain",
+  "name": "Local Gain",
+  "version": "0.1.0",
+  "description": "Independent C++ gain processor. Run emits a sample; input processes connected data.",
+  "runtime": "native-process-v1",
+  "platform": "linux-x64",
+  "entrypoint": "bin/module",
+  "ports": {"inputs": ["input"], "outputs": ["output"]},
+  "ui": [
+    {"id": "gain", "type": "slider", "label": "Gain", "min": 0, "max": 10, "default": 1},
+    {"id": "sample", "type": "number", "label": "Sample", "default": 1},
+    {"id": "run", "type": "button", "label": "Run"},
+    {"id": "result", "type": "label", "label": "Result", "default": "—"}
+  ],
+  "uiLayout": {
+    "type": "column",
+    "gap": 14,
+    "children": [
+      {"type": "card", "gap": 12, "children": [
+        {"type": "text", "text": "Signal gain", "size": 20, "weight": "bold"},
+        {"type": "input", "id": "sample", "inputType": "number", "label": "Sample"},
+        {"type": "button", "id": "run", "label": "Run", "icon": "play"}
+      ]},
+      {"type": "chart", "id": "result", "title": "Output history", "tone": "accent"},
+      {"type": "value", "id": "result", "label": "Current result"}
+    ]
+  }
+}
