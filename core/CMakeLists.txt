@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(bci_engine_core VERSION 0.1.0 LANGUAGES CXX)
+project(bci_engine_core VERSION 0.5.2 LANGUAGES CXX)
 
 # Tests are built explicitly by scripts/build_core.sh (standalone builds);
 # as a Flutter subproject the default stays OFF to keep app builds lean.
@@ -43,7 +43,8 @@ endif()
 set_target_properties(bci_engine_core PROPERTIES
   OUTPUT_NAME bci_engine_core
   VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR}
+  # The shared-library ABI has its own lifecycle; product major is still 0.x.
+  SOVERSION 3
   WINDOWS_EXPORT_ALL_SYMBOLS ON
   C_VISIBILITY_PRESET hidden
   CXX_VISIBILITY_PRESET hidden

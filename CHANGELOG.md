@@ -2,6 +2,12 @@
 
 ## [Unreleased — 0.5.2 development]
 
+- Add local JSON-RPC 2.0 `qualia-ai` API for manifest/workspace validation,
+  safe fork lineage, SemVer comparison and reviewed engine change plans.
+- Add `qualia.lock.json` plus dependency/plugin/native/toolchain snapshot and
+  version consistency checks for AI and CI consumers.
+- Add immutable workspace `revision` metadata with parent digest/revision for
+  reproducible forks; legacy workspace packages remain readable.
 - Additive native C ABI 3: exclusive owned/wrapped timestamped float32 blocks,
   interleaved/channel-major layout, zero-copy ownership push/process/pop.
 - Bounded native queues with independent input/output backpressure policies and

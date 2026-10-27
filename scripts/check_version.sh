@@ -21,3 +21,4 @@ if [ "${FILE_VERSION%%-*}" != "${MAJOR}.${MINOR}.${PATCH}" ]; then
 fi
 
 log "версии согласованы: ${FILE_VERSION}"
+python3 "${ROOT_DIR}/scripts/check_versions.py"

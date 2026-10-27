@@ -5,3 +5,5 @@
 /builds/0.5.2-dev.1/*.zip
 /builds/0.5.2-dev.1/binary/
 /builds/0.5.2-dev.1/binary-previous-*/
+/tools/__pycache__/
+/scripts/__pycache__/

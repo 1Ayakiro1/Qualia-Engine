@@ -1,5 +1,54 @@
 import 'workspace_model.dart';
 
+/// Immutable lineage metadata for a workspace package.
+///
+/// It is intentionally separate from the graph itself: a fork changes the
+/// project id/name but keeps an auditable link to the exact parent package.
+class WorkspaceRevision {
+  const WorkspaceRevision({
+    required this.revision,
+    this.parentRevision,
+    this.parentDigest,
+    this.kind = 'snapshot',
+    this.createdAt,
+    this.packageDigest,
+  });
+
+  final String revision;
+  final String? parentRevision;
+  final String? parentDigest;
+  final String kind;
+  final String? createdAt;
+  final String? packageDigest;
+
+  Map<String, dynamic> toJson() => {
+    'revision': revision,
+    if (parentRevision != null) 'parentRevision': parentRevision,
+    if (parentDigest != null) 'parentDigest': parentDigest,
+    'kind': kind,
+    if (createdAt != null) 'createdAt': createdAt,
+    if (packageDigest != null) 'packageDigest': packageDigest,
+  };
+
+  factory WorkspaceRevision.fromJson(dynamic value) {
+    if (value is! Map || value['revision'] is! String) {
+      throw const FormatException('Invalid workspace revision.');
+    }
+    final revision = value['revision'] as String;
+    if (revision.isEmpty || revision.length > 256) {
+      throw const FormatException('Invalid workspace revision.');
+    }
+    return WorkspaceRevision(
+      revision: revision,
+      parentRevision: value['parentRevision'] as String?,
+      parentDigest: value['parentDigest'] as String?,
+      kind: value['kind'] as String? ?? 'snapshot',
+      createdAt: value['createdAt'] as String?,
+      packageDigest: value['packageDigest'] as String?,
+    );
+  }
+}
+
 /// Independent graph document. Catalog/library preferences remain host-global.
 class WorkspaceProject {
   const WorkspaceProject({
@@ -9,11 +58,13 @@ class WorkspaceProject {
     this.nodes = const [],
     this.links = const [],
     this.presetModuleIds,
+    this.revision,
   });
   final String id, name, description;
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
   final List<String>? presetModuleIds;
+  final WorkspaceRevision? revision;
   WorkspaceProject copyWith({
     String? name,
     String? description,
@@ -21,6 +72,8 @@ class WorkspaceProject {
     List<WorkspaceLink>? links,
     List<String>? presetModuleIds,
     bool clearPreset = false,
+    WorkspaceRevision? revision,
+    bool clearRevision = false,
   }) => WorkspaceProject(
     id: id,
     name: name ?? this.name,
@@ -30,6 +83,7 @@ class WorkspaceProject {
     presetModuleIds: clearPreset
         ? null
         : presetModuleIds ?? this.presetModuleIds,
+    revision: clearRevision ? null : revision ?? this.revision,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -38,6 +92,7 @@ class WorkspaceProject {
     'nodes': nodes.map((n) => n.toJson()).toList(),
     'links': links.map((l) => l.toJson()).toList(),
     'presetModuleIds': presetModuleIds,
+    if (revision != null) 'revision': revision!.toJson(),
   };
   factory WorkspaceProject.fromJson(Map<String, dynamic> json) {
     final rawNodes = json['nodes'] as List? ?? [];
@@ -85,37 +140,51 @@ class WorkspaceProject {
       nodes: nodes,
       links: links,
       presetModuleIds: (json['presetModuleIds'] as List?)?.cast<String>(),
+      revision: json.containsKey('revision')
+          ? WorkspaceRevision.fromJson(json['revision'])
+          : null,
     );
   }
 
   /// Values are declarative only. Installing executable packages is a separate
   /// trusted installation operation; module references are resolved by the host.
-  Map<String, dynamic> toPackage() => {
-    'format': 'qualia-workspace',
-    'version': 1,
-    'project': toJson(),
-    'dependencies': [
-      for (final module in {
-        for (final n in nodes)
-          if (!n.isLogic)
-            '${n.module.id}@${n.module.version}:${n.module.releaseId ?? ''}':
-                n.module,
-      }.values)
-        {
-          'slug': module.id,
-          'version': module.version,
-          'releaseId': module.releaseId,
-        },
-    ],
-  };
+  Map<String, dynamic> toPackage() {
+    final project = toJson()..remove('revision');
+    return {
+      'format': 'qualia-workspace',
+      'version': 1,
+      'project': project,
+      if (revision != null) 'revision': revision!.toJson(),
+      'dependencies': [
+        for (final module in {
+          for (final n in nodes)
+            if (!n.isLogic)
+              '${n.module.id}@${n.module.version}:${n.module.releaseId ?? ''}':
+                  n.module,
+        }.values)
+          {
+            'slug': module.id,
+            'version': module.version,
+            'releaseId': module.releaseId,
+          },
+      ],
+    };
+  }
+
   static WorkspaceProject fromPackage(Map<String, dynamic> json) {
     if (json['format'] != 'qualia-workspace' ||
         json['version'] != 1 ||
         json['project'] is! Map) {
       throw const FormatException('Unsupported workspace package.');
     }
-    return WorkspaceProject.fromJson(
+    final project = WorkspaceProject.fromJson(
       Map<String, dynamic>.from(json['project'] as Map),
     );
+    if (json['revision'] is Map) {
+      return project.copyWith(
+        revision: WorkspaceRevision.fromJson(json['revision']),
+      );
+    }
+    return project;
   }
 }

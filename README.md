@@ -95,5 +95,7 @@ docs/        Архитектура, модули, сборка, роадмап
 [docs/ROADMAP.md](docs/ROADMAP.md)
 
 Для нейросетей и авторов модулей: [MODULE_AUTHORING_AI.md](docs/MODULE_AUTHORING_AI.md).
+API для ИИ-моделей: [AI_API.md](docs/AI_API.md). Политика версий и форков:
+[VERSIONING.md](docs/VERSIONING.md). Машиночитаемый snapshot: [qualia.lock.json](qualia.lock.json).
 Релиз: [Alpha 0.5.1](docs/releases/ALPHA_0.5.1.md). Полные исходники доступны в
 теге `v0.5.1-alpha` и в отдельных source-архивах релиза.
