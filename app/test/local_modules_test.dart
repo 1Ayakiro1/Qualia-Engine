@@ -63,6 +63,10 @@ void main() {
   test(
     'offline SDK creates a real executable and immutable installation',
     () async {
+      expect(
+        await File('${temporary.path}/project/api_layers.json').readAsString(),
+        await File('assets/module_sdk/api_layers.json').readAsString(),
+      );
       final module = await store.install(package);
       final again = await store.install(package);
       expect(module.localPackage, again.localPackage);

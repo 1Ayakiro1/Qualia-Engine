@@ -16,11 +16,20 @@ tar -C "${STAGING_ROOT}" -czf \
   "${DIST_OUT}/${APP_NAME}-${VERSION}-linux-x64.tar.gz" \
   "$(basename "${STAGE}")"
 
-# Also keep a ready-to-run raw binary bundle right in builds/binary/
+# Also keep a ready-to-run raw binary bundle beside the packages.
 # (bci_engine + lib/ + data/ — no unpacking needed for the user).
 BIN_DIR="${DIST_OUT}/binary"
 if [ -e "${BIN_DIR}" ]; then
-  mv "${BIN_DIR}" "${DIST_OUT}/binary-previous-$(date +%Y%m%d-%H%M%S)"
+  # Re-running a standalone packaging step must not accumulate backup bundles.
+  python3 - "${BIN_DIR}" <<'PY'
+import pathlib
+import shutil
+import sys
+path = pathlib.Path(sys.argv[1])
+if path.is_symlink() or not (path / 'bci_engine').is_file():
+    raise SystemExit(f'Refusing to replace an unrecognized bundle: {path}')
+shutil.rmtree(path)
+PY
 fi
 mkdir -p "${BIN_DIR}"
 cp -a "${BUNDLE}/." "${BIN_DIR}/"

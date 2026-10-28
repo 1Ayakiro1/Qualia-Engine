@@ -16,6 +16,11 @@ Future<void> testExecutable(Future<void> Function() testMain) async {
       'FlutterTest',
       'Ahem',
       'Roboto',
+      'Roboto_medium',
+      'Roboto_regular',
+      'RobotoMono',
+      'sans-serif',
+      'Segoe UI',
       'Ubuntu',
       'monospace',
     ]) {

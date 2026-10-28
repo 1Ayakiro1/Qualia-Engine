@@ -8,6 +8,7 @@
 | Native core | та же версия + `BCI_CORE_ABI_VERSION` | `core/include/bci_engine/version.h` |
 | Flutter application | `version: <engine>+build` | `app/pubspec.yaml` |
 | Engine/API/contracts/dependencies | JSON lock | `qualia.lock.json` |
+| Internal/middle/external contracts | отдельные SemVer + binding versions | `app/assets/module_sdk/api_layers.json` |
 | Module release | `MAJOR.MINOR.PATCH[-prerelease]` | `manifest.json` + `module_releases` |
 | Workspace graph | package format version 1 | `qualia-workspace` package |
 | Workspace lineage | immutable revision block | `project.revision` / package `revision` |
@@ -35,6 +36,13 @@ contract numbers и шесть поддерживаемых desktop targets. `qu
 
 ## Правила SemVer
 
+Версионируй уровни независимо от транспорта и engine release: [API_LAYERS.md](API_LAYERS.md).
+SDK descriptor — источник истины карты уровней; lock содержит генерируемую копию.
+`engine.apiVersion` — версия **внешнего AI development binding**, не всех интеграций.
+`api.describe` и metadata 1.1.0 добавлены совместимо; module protocol остаётся `1`.
+Встроенный AI API не предоставляет live module RPC. Обновление provider-specific
+Supabase API отслеживается migrations/dependencies, а не числом AI API.
+
 - patch: исправление без изменения public module/API contract;
 - minor: backward-compatible capability, новый module/plugin или dependency;
 - major: несовместимый API, manifest/protocol/workspace format или core ABI.
@@ -42,6 +50,13 @@ contract numbers и шесть поддерживаемых desktop targets. `qu
 Engine prerelease (`0.5.2-dev.1`) не является опубликованным `0.5.2`. Нельзя
 называть dev artifact release и нельзя молча откатывать новый manifest/protocol
 к старому. Host должен отклонять неизвестный contract до запуска.
+
+Следующий фиксируемый dev-снимок той же незавершённой версии повышает номер
+prerelease: `0.5.2-dev.1` → `0.5.2-dev.2`. Синхронизируйте `VERSION`,
+`BCI_CORE_VERSION`, `app/pubspec.yaml`, `AppInfo.version`, changelog и генерируемый
+lock; Flutter build number также повышается (`+1` → `+2`). Независимые номера
+API/protocol/schema/ABI не меняются без изменения соответствующего контракта.
+Новый dev-снимок не требует релизного тега или публикации GitHub Release.
 
 `BCI_CORE_ABI_VERSION` увеличивается только при breaking C ABI. Additive C ABI
 изменения документируются в `version.h` и сохраняют старые символы. Изменение

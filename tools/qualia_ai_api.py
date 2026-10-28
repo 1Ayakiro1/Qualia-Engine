@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-API_VERSION = "1.0.0"
+API_VERSION = "1.1.0"
 JSONRPC = "2.0"
 LOCK_FORMAT = "qualia-lock"
 LOCK_VERSION = 1
@@ -48,6 +48,13 @@ def load_lock(root: Path) -> dict[str, Any]:
         raise ApiError(-32001, "Version lock is unavailable", str(exc)) from exc
     if lock.get("format") != LOCK_FORMAT or lock.get("lockVersion") != LOCK_VERSION:
         raise ApiError(-32001, "Unsupported version lock format")
+    description = lock.get("apiLayers")
+    if (not isinstance(description, dict)
+            or description.get("format") != "qualia-api-layers"
+            or description.get("schemaVersion") != 1
+            or not isinstance(description.get("layers"), dict)
+            or set(description["layers"]) != {"internal", "middle", "external"}):
+        raise ApiError(-32001, "Version lock needs a supported API layer descriptor; regenerate qualia.lock.json")
     return lock
 
 
@@ -144,9 +151,10 @@ def validate_workspace(package: Any) -> dict[str, Any]:
 def engine_context(root: Path) -> dict[str, Any]:
     lock = load_lock(root)
     return {
-        "api": {"name": "qualia-ai", "version": API_VERSION, "jsonrpc": JSONRPC},
+        "api": {"name": "qualia-ai", "version": API_VERSION, "jsonrpc": JSONRPC, "layer": "external"},
         "engine": lock["engine"], "contracts": lock["contracts"], "dependencies": lock["dependencies"],
-        "capabilities": ["engine.context", "engine.plan_change", "module.validate", "workspace.validate", "workspace.fork", "version.compare"],
+        "apiLayers": lock["apiLayers"],
+        "capabilities": ["engine.context", "api.describe", "engine.plan_change", "module.validate", "workspace.validate", "workspace.fork", "version.compare"],
         "safety": {"executesModelCode": False, "writesRepository": False, "installsDependencies": False, "networkAccess": False},
     }
 
@@ -155,6 +163,13 @@ def plan_change(params: dict[str, Any]) -> dict[str, Any]:
     kind, summary, files = params.get("kind"), params.get("summary"), params.get("files", [])
     allowed = {"module", "ui", "core", "dependency", "plugin", "documentation"}
     items: list[dict[str, Any]] = []
+    layers = params.get("apiLayers", [])
+    if not isinstance(layers, list) or any(
+        not isinstance(layer, str) or layer not in {"internal", "middle", "external"}
+        for layer in layers
+    ):
+        items.append(diagnostic("apiLayers must be an array of internal, middle or external.", "apiLayers"))
+        layers = []
     if kind not in allowed: items.append(diagnostic(f"kind must be one of: {', '.join(sorted(allowed))}.", "kind"))
     if not isinstance(summary, str) or not summary.strip(): items.append(diagnostic("summary is required.", "summary"))
     if not isinstance(files, list) or len(files) > 128 or any(not isinstance(f, str) for f in files):
@@ -164,7 +179,7 @@ def plan_change(params: dict[str, Any]) -> dict[str, Any]:
         if normalized.startswith("/") or ".." in normalized.split("/") or any(normalized == p or normalized.startswith(p) for p in PROTECTED):
             items.append(diagnostic("Path is outside the supported source surface.", f"files[{index}]", "protected_path"))
     bump = {"module": "patch", "ui": "patch", "documentation": "patch", "dependency": "minor", "plugin": "minor", "core": "minor"}.get(kind, "patch")
-    return result(items, plan={"kind": kind, "summary": summary, "files": files, "versionBump": bump, "requiresReview": kind in {"core", "dependency", "plugin"}, "requiredChecks": ["scripts/check_version.sh", "scripts/check_versions.py", "scripts/analyze.sh"]})
+    return result(items, plan={"kind": kind, "summary": summary, "files": files, "apiLayers": sorted(set(layers)), "versionBump": bump, "requiresReview": bool(layers) or kind in {"core", "dependency", "plugin"}, "requiredChecks": ["scripts/check_version.sh", "scripts/check_versions.py", "scripts/analyze.sh"]})
 
 
 def fork_workspace(params: dict[str, Any]) -> dict[str, Any]:
@@ -194,8 +209,18 @@ def semver_key(value: str) -> tuple[Any, ...]:
 
 
 def dispatch(method: str, params: Any, root: Path) -> Any:
+    if method == "api.describe" and params is not None and not isinstance(params, dict):
+        raise ApiError(-32602, "api.describe params must be an object")
     params = params if isinstance(params, dict) else {}
     if method in {"initialize", "engine.context"}: return engine_context(root)
+    if method == "api.describe":
+        description = load_lock(root)["apiLayers"]
+        layer = params.get("layer")
+        if "layer" not in params:
+            return description
+        if not isinstance(layer, str) or layer not in description["layers"]:
+            raise ApiError(-32602, "layer must be internal, middle or external")
+        return {"layer": layer, **description["layers"][layer]}
     if method == "module.validate": return validate_manifest(params.get("manifest"))
     if method == "workspace.validate": return validate_workspace(params.get("package"))
     if method == "workspace.fork": return fork_workspace(params)

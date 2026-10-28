@@ -1,9 +1,11 @@
-# Generated local ML-runtime development bundles. Keep verification metadata,
-# not executable copies and packaging backups, in source control.
-/builds/0.5.2-dev.1/*.AppImage
-/builds/0.5.2-dev.1/*.tar.gz
-/builds/0.5.2-dev.1/*.zip
-/builds/0.5.2-dev.1/binary/
-/builds/0.5.2-dev.1/binary-previous-*/
+# Generated artifacts for the sole current build; metadata may stay tracked.
+/builds/**/*.AppImage
+/builds/**/*.tar.gz
+/builds/**/*.zip
+/builds/**/binary/
+/builds/**/binary-previous-*/
+/builds/**/SHA256SUMS
+/.build-staging-*/
+/.build-publish-*/
 /tools/__pycache__/
 /scripts/__pycache__/

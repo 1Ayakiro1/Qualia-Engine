@@ -8,6 +8,67 @@ import 'desktop_focus.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
 
+/// Compact monochrome pill, shared by settings, devices and module controls.
+class DesktopToggle extends StatelessWidget {
+  const DesktopToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    toggled: value,
+    enabled: onChanged != null,
+    child: DesktopFocusableAction(
+      onActivate: onChanged == null ? null : () => onChanged!(!value),
+      child: GestureDetector(
+        onTap: onChanged == null ? null : () => onChanged!(!value),
+        behavior: HitTestBehavior.opaque,
+        child: MouseRegion(
+          cursor: onChanged == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+            child: Opacity(
+              opacity: onChanged == null ? .4 : 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                width: 40,
+                height: 22,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: value ? Colors.white : const Color(0xFF454545),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: value
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value ? Colors.black : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// Tooltip used by desktop controls throughout the shell.
 ///
 /// Flutter's default tooltip surface follows the platform theme and can turn
@@ -427,8 +488,15 @@ class ExplorerDisclosureSection extends StatelessWidget {
         expanded: expanded,
         onToggle: onToggle,
       ),
-      if (expanded) ...children,
-      if (showDivider) const Divider(height: 1),
+      if (expanded)
+        Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      if (showDivider) const Divider(height: 9),
     ],
   );
 }

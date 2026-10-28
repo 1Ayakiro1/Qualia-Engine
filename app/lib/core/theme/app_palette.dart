@@ -50,6 +50,12 @@ class AppPalette {
   /// Base canvas behind every pane (window background, tab strips).
   final Color background;
 
+  /// Recessed search surface, slightly darker than the surrounding chrome.
+  Color get searchField => Color.alphaBlend(
+    Colors.black.withValues(alpha: isDark ? .18 : .04),
+    background,
+  );
+
   /// Raised surface: cards, menus, tooltips, inspectors.
   final Color panel;
 

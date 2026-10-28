@@ -1,7 +1,7 @@
 # Инструкция для нейросети: создание модулей Qualia Engine
 
 Контракт **Alpha 0.5.1**, `schemaVersion: 1`, `process-v1`, IPC `protocol: 1`.
-Ветка разработки 0.5.2-dev.1 пока не разрешает v2 manifests/handshake.
+Ветка разработки 0.5.2-dev.2 пока не разрешает v2 manifests/handshake.
 Нативный ABI 3 и `signal_v2.py` — фундамент разработки, не доступный контракт
 внешнего ML-пакета. Полный статус: [ML_RUNTIME_V2.md](ML_RUNTIME_V2.md).
 Если работаешь с более старым движком, не считай portable/TCP и новые лимиты
@@ -11,6 +11,19 @@
 как описание будущих WASM, Marketplace или высокочастотных API.
 
 ## 0. Выбор режима до написания кода
+
+### Сначала выбери уровень API
+
+Обязательная архитектурная карта: [API_LAYERS.md](API_LAYERS.md),
+машиночитаемый `app/assets/module_sdk/api_layers.json` и внешний `api.describe`.
+**Внутренний (`internal`)** — данные между конкретными экземплярами через
+host-owned links; **средний (`middle`)** — handshake/параметры/state и перенос
+input/output между модулем и движком; **внешний (`external`)** — adapters движка
+для сторонних сервисов/AI clients. Это не три транспорта и не права доступа.
+Адрес — `(workspaceId, instanceId, portId)`, не `module.id` и не имя UI.
+Модуль публикует на свой output; только host выбирает конкретных получателей.
+Не изобретай `target`/peer RPC или engine service commands в process-v1 stream.
+Внешний AI API валидирует документы, но не вызывает живой module instance.
 
 | Задача | Поставка | Требования на машине пользователя |
 |---|---|---|
@@ -123,6 +136,10 @@ payload/licenses/...
 SHA-256 проверяет пакет и установленные файлы перед запуском; это не подпись.
 
 ## 3. Протокол (одинаков для всех языков)
+
+Это **средний** process-v1 binding. `input/output` переносят **внутренний**
+портовый контракт: source identity определяется host, target — workspace links.
+TCP вместо stdio не превращает его во внешний service API.
 
 Строго UTF-8 NDJSON через stdin/stdout либо TCP transport из manifest: один JSON
 object на строку, всегда flush. stdout **только протокол**, логи — stderr.

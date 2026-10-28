@@ -99,7 +99,7 @@ void main() {
       expect(container.read(localeProvider), const Locale('ru'));
       await tester.tap(find.text('Назад в приложение'));
       await tester.pumpAndSettle();
-      expect(find.text('Обзор'), findsWidgets);
+      expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
       expect(find.text('Файл'), findsOneWidget);
       expect(find.byTooltip('Маркетплейс'), findsOneWidget);
       await tester.tap(find.text('Файл'));
@@ -112,7 +112,7 @@ void main() {
       await tester.pumpAndSettle();
       await container.read(localeProvider.notifier).select('en');
       await tester.pumpAndSettle();
-      expect(find.text('Dashboard'), findsWidgets);
+      expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
       expect(find.text('File'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

@@ -156,7 +156,7 @@ enum SectionId {
 
 class NavSectionController extends Notifier<SectionId> {
   @override
-  SectionId build() => SectionId.dashboard;
+  SectionId build() => SectionId.modules;
 
   void select(SectionId section) {
     if (state == section) {

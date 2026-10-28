@@ -98,6 +98,90 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @workspaceSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save workspace'**
+  String get workspaceSave;
+
+  /// No description provided for @workspaceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace saved'**
+  String get workspaceSaved;
+
+  /// No description provided for @workspaceSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the workspace. Your draft is still available.'**
+  String get workspaceSaveFailed;
+
+  /// No description provided for @workspaceUnsavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save workspace changes?'**
+  String get workspaceUnsavedTitle;
+
+  /// No description provided for @workspaceUnsavedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your workspace has unsaved changes. Save them before closing, or discard changes since the last save.'**
+  String get workspaceUnsavedMessage;
+
+  /// No description provided for @workspaceDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t save'**
+  String get workspaceDiscard;
+
+  /// No description provided for @workspaceUndoNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Action undone'**
+  String get workspaceUndoNotice;
+
+  /// No description provided for @workspaceRedoNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Action redone'**
+  String get workspaceRedoNotice;
+
+  /// No description provided for @railBottomZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom of rail'**
+  String get railBottomZone;
+
+  /// No description provided for @railUnusedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Unused items'**
+  String get railUnusedItems;
+
+  /// No description provided for @railUsedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'On the rail'**
+  String get railUsedItems;
+
+  /// No description provided for @railPinBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to bottom'**
+  String get railPinBottom;
+
+  /// No description provided for @railPinTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to top'**
+  String get railPinTop;
+
+  /// No description provided for @railDragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag buttons into the rail to add or reorder them. Drag back here to remove. Click to toggle; Alt + ↑ / ↓ moves a focused button.'**
+  String get railDragHint;
+
   /// No description provided for @logicBlocks.
   ///
   /// In en, this message translates to:

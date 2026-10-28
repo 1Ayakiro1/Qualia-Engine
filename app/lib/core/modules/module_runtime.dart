@@ -291,24 +291,21 @@ class ModuleRuntime {
   void _message(String id, _Instance instance, dynamic data) {
     if (!_current(id, instance) || instance.stopped || data is! Map) return;
     if (data['type'] == 'ready') {
-      if (instance.ready || data['protocol'] != 1) {
+      if (instance.ready || data['protocol'] != ModuleProtocol.version) {
         throw const FormatException('Invalid handshake');
       }
       final required = data['requires'] ?? const [];
       if (required is! List ||
           required.length > 32 ||
-          required.any(
-            (item) =>
-                !const ['port-schemas-v1', 'host-logic-v1'].contains(item),
-          )) {
+          required.any((item) => !ModuleProtocol.capabilities.contains(item))) {
         throw const FormatException('Unsupported required capability');
       }
       instance.timeout?.cancel();
       instance.ready = true;
       instance.send({
         'type': 'init',
-        'protocol': 1,
-        'capabilities': ['port-schemas-v1', 'host-logic-v1'],
+        'protocol': ModuleProtocol.version,
+        'capabilities': ModuleProtocol.capabilities,
         'instanceId': id,
         'parameters': jsonDecode(instance.parameters),
       });
@@ -349,6 +346,9 @@ class ModuleRuntime {
   }
 
   /// A bounded, iterative graph dispatcher shared by processes and logic nodes.
+  /// Internal API: [id] is host-bound instance identity, never a module-supplied
+  /// destination. Recipients are selected exclusively from this workspace's
+  /// links; payload fields cannot authorize cross-instance/service access.
   /// Hops are decremented at every edge; fan-out also has an event budget.
   void routeOutput(String id, String port, dynamic value, int hops) {
     if (_disposed || hops <= 0 || hops > 32) return;

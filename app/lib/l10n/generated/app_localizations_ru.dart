@@ -10,6 +10,51 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get workspaceSave => 'Сохранить воркспейс';
+
+  @override
+  String get workspaceSaved => 'Воркспейс сохранён';
+
+  @override
+  String get workspaceSaveFailed =>
+      'Не удалось сохранить воркспейс. Черновик по-прежнему доступен.';
+
+  @override
+  String get workspaceUnsavedTitle => 'Сохранить изменения воркспейса?';
+
+  @override
+  String get workspaceUnsavedMessage =>
+      'В воркспейсе есть несохранённые изменения. Сохраните их перед закрытием или отмените изменения после последнего сохранения.';
+
+  @override
+  String get workspaceDiscard => 'Не сохранять';
+
+  @override
+  String get workspaceUndoNotice => 'Действие отменено';
+
+  @override
+  String get workspaceRedoNotice => 'Действие возвращено';
+
+  @override
+  String get railBottomZone => 'Нижняя часть рейла';
+
+  @override
+  String get railUnusedItems => 'Неиспользуемые элементы';
+
+  @override
+  String get railUsedItems => 'На рейле';
+
+  @override
+  String get railPinBottom => 'Переместить вниз';
+
+  @override
+  String get railPinTop => 'Переместить наверх';
+
+  @override
+  String get railDragHint =>
+      'Перетаскивайте кнопки в рейл, чтобы добавить их или изменить порядок. Верните сюда, чтобы убрать. Нажатие переключает видимость; Alt + ↑ / ↓ перемещает кнопку в фокусе.';
+
+  @override
   String get logicBlocks => 'Логические блоки';
 
   @override

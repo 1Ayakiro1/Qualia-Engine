@@ -10,6 +10,51 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get workspaceSave => 'Save workspace';
+
+  @override
+  String get workspaceSaved => 'Workspace saved';
+
+  @override
+  String get workspaceSaveFailed =>
+      'Could not save the workspace. Your draft is still available.';
+
+  @override
+  String get workspaceUnsavedTitle => 'Save workspace changes?';
+
+  @override
+  String get workspaceUnsavedMessage =>
+      'Your workspace has unsaved changes. Save them before closing, or discard changes since the last save.';
+
+  @override
+  String get workspaceDiscard => 'Don\'t save';
+
+  @override
+  String get workspaceUndoNotice => 'Action undone';
+
+  @override
+  String get workspaceRedoNotice => 'Action redone';
+
+  @override
+  String get railBottomZone => 'Bottom of rail';
+
+  @override
+  String get railUnusedItems => 'Unused items';
+
+  @override
+  String get railUsedItems => 'On the rail';
+
+  @override
+  String get railPinBottom => 'Move to bottom';
+
+  @override
+  String get railPinTop => 'Move to top';
+
+  @override
+  String get railDragHint =>
+      'Drag buttons into the rail to add or reorder them. Drag back here to remove. Click to toggle; Alt + ↑ / ↓ moves a focused button.';
+
+  @override
   String get logicBlocks => 'Logic blocks';
 
   @override

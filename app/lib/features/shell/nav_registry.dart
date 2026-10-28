@@ -62,7 +62,7 @@ const List<NavSection> kNavSections = <NavSection>[
     label: 'Workspace',
     icon: Icons.extension_outlined,
     subtitle: 'Канвас обработки модулей',
-    modes: {AppMode.researcher, AppMode.developer},
+    modes: {AppMode.consumer, AppMode.researcher, AppMode.developer},
   ),
   NavSection(
     id: SectionId.entity,

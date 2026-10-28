@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(tr -d '[:space:]' < "${ROOT_DIR}/VERSION")"
 APP_NAME="Qualia-Engine"
-DIST_OUT="${DIST_OUT:-${ROOT_DIR}/builds}"
+DIST_OUT="${DIST_OUT:-${ROOT_DIR}/builds/${VERSION}}"
 
 log() { printf '\033[1;34m[bci]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[bci]\033[0m %s\n' "$*"; }
@@ -23,5 +23,4 @@ ensure_flutter() {
 
 mkdir_dist_out() {
   mkdir -p "${DIST_OUT}"
-  # Earlier builds may belong to the user; packaging must not remove them.
 }

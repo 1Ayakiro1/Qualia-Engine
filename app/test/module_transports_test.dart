@@ -443,6 +443,140 @@ void main() {
     },
   );
 
+  test(
+    'module-supplied identities cannot bypass internal workspace links',
+    () async {
+      // Same package, three instances: only the host-owned a -> b link is allowed.
+      // All peers claim c/another workspace as their desired recipient and source.
+      final hostile = script.replaceFirst(
+        '"type": "output", "port": "output",',
+        '"type": "output", "source": "c", "instanceId": "c", '
+            '"target": "c", "workspaceId": "other", "port": "output",',
+      );
+      expect(hostile, isNot(script));
+      final installed = await store.install(package(manifest, source: hostile));
+      final statuses = <String, String>{};
+      final values = <String, dynamic>{};
+      final children = <Process>[];
+      final runtime = ModuleRuntime(
+        store: store,
+        onUpdate: (id, status, state) {
+          statuses[id] = status;
+          if (state.containsKey('result')) values[id] = state['result'];
+        },
+        launchPackaged: (command) async {
+          final child = await launchTracked(command);
+          children.add(child);
+          return child;
+        },
+      );
+      addTearDown(runtime.dispose);
+      final nodes = [
+        WorkspaceNode(
+          id: 'source',
+          module: LogicBlocks.module(LogicBlockType.select),
+          kind: WorkspaceNodeKind.logic,
+          logicType: LogicBlockType.select,
+        ),
+        for (final id in ['a', 'b', 'c'])
+          WorkspaceNode(id: id, module: installed),
+      ];
+      final links = [
+        const WorkspaceLink(
+          source: 'source',
+          output: 'output',
+          target: 'a',
+          input: 'input',
+        ),
+        const WorkspaceLink(
+          source: 'a',
+          output: 'output',
+          target: 'b',
+          input: 'input',
+        ),
+      ];
+      runtime.sync('scoped', nodes, links, [installed]);
+      await wait(
+        () => ['a', 'b', 'c'].every((id) => statuses[id] == 'running'),
+        statuses,
+      );
+      final payload = {'target': 'c', 'workspaceId': 'other', 'score': 42};
+      runtime.routeOutput('source', 'output', payload, 32);
+      await wait(() => values['b'] != null, statuses);
+      expect(values['b'], payload);
+      expect(values.containsKey('c'), isFalse);
+
+      // Disabled recipients do not receive even a well-formed, linked message.
+      runtime.sync(
+        'scoped',
+        [
+          for (final node in nodes)
+            node.id == 'b'
+                ? WorkspaceNode(
+                    id: 'b',
+                    module: installed,
+                    settings: {'enabled': false},
+                  )
+                : node,
+        ],
+        links,
+        [installed],
+      );
+      values.clear();
+      runtime.routeOutput('source', 'output', 'disabled-target', 32);
+      await wait(() => values['a'] == 'disabled-target', statuses);
+      expect(values.containsKey('b'), isFalse);
+      expect(values.containsKey('c'), isFalse);
+      runtime.sync('other', [], [], [installed]);
+      await Future.wait(children.map((p) => p.exitCode))
+          .timeout(const Duration(seconds: 3));
+    },
+  );
+
+  for (final handshake in [
+    {'type': 'ready', 'protocol': 2},
+    {
+      'type': 'ready',
+      'protocol': 1,
+      'requires': ['direct-instance-rpc'],
+    },
+  ]) {
+    test('middle API rejects unsupported handshake: $handshake', () async {
+      final source =
+          '''import json, sys
+print(${jsonEncode(jsonEncode(handshake))}, flush=True)
+for line in sys.stdin:
+    pass
+''';
+      final rejected = await store.install(package(manifest, source: source));
+      final sibling = await store.install(
+        package({...manifest, 'id': 'sibling'}),
+      );
+      final statuses = <String, String>{};
+      final runtime = ModuleRuntime(
+        store: store,
+        launchPackaged: launchTracked,
+        onUpdate: (id, status, _) => statuses[id] = status,
+      );
+      addTearDown(runtime.dispose);
+      runtime.sync(
+        'handshake',
+        [
+          WorkspaceNode(id: 'rejected', module: rejected),
+          WorkspaceNode(id: 'sibling', module: sibling),
+        ],
+        [],
+        [rejected, sibling],
+      );
+      await wait(
+        () =>
+            statuses['rejected'] == 'error: invalid protocol frame' &&
+            statuses['sibling'] == 'running',
+        statuses,
+      );
+    });
+  }
+
   test('TCP connection close fails only its instance', () async {
     final source = '''import socket, os
 with socket.create_server((os.environ['QUALIA_MODULE_HOST'], int(os.environ['QUALIA_MODULE_PORT']))) as server:

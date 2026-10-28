@@ -1,9 +1,13 @@
 # Qualia AI API
 
-Контракт **Qualia AI API 1.0** предназначен для ИИ-моделей, которые создают
+Контракт **Qualia AI API 1.1.0** предназначен для ИИ-моделей, которые создают
 модули, анализируют workspace и предлагают изменения движка. Это локальный
 JSON-RPC 2.0 сервис поверх `stdin/stdout`: один JSON-объект на строку, ответ
 также одна строка JSON. Вызов не требует Flutter и работает на Python 3.
+
+Это **внешний (`external`) development binding**. Три уровня и их границы:
+[API_LAYERS.md](API_LAYERS.md). Он не управляет живыми module instances;
+`module.validate` проверяет документ, а не вызывает модуль.
 
 ## Границы безопасности
 
@@ -43,6 +47,20 @@ python3 tools/qualia_ai_api.py
 Возвращает API/engine version, contract versions, полный snapshot разрешённых
 зависимостей, capabilities и явные safety guarantees. `initialize` — алиас для
 клиентов, ожидающих привычное имя handshake.
+
+Начиная с 1.1.0, `api.layer` равен `external`, а `apiLayers` содержит полную
+трёхуровневую архитектурную карту с implemented/notImplemented возможностями.
+
+### `api.describe`
+
+Без параметров возвращает весь SDK descriptor уровней; с
+`{"layer":"internal"}`, `middle` или `external` — один уровень. Unknown layer
+даёт `-32602`. Метод возвращает описание контракта, не выдаёт разрешений и не
+включает будущие возможности.
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"api.describe","params":{"layer":"middle"}}
+```
 
 ### `module.validate`
 
@@ -96,6 +114,10 @@ Embedded manifest — только declarative metadata; доверие и ус�
 absolute paths, traversal и build/secrets paths. В ответе есть рекомендуемый
 `versionBump`, `requiresReview` и обязательные проверки. Для `core`, dependency
 и plugin review обязателен.
+
+Необязательный `apiLayers: ["internal", "middle", "external"]` указывает
+затронутые границы (только реально изменяемые). Значения проверяются; изменение
+любой API-границы требует review. Старые клиенты могут не передавать это поле.
 
 ### `version.compare`
 

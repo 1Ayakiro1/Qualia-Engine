@@ -505,7 +505,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                key: const ValueKey('marketplace kind spacing'),
+                padding: const EdgeInsets.all(20),
                 child: Wrap(
                   spacing: 20,
                   runSpacing: 12,
@@ -586,15 +587,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                 );
                           }),
                           onHorizontalDragEnd: (_) => _saveFilterWidth(),
-                          child: SizedBox(
-                            width: 8,
-                            child: Center(
-                              child: Container(
-                                width: 1,
-                                color: context.palette.hover,
-                              ),
-                            ),
-                          ),
+                          // Retain the resize hit target without a visual rule.
+                          child: const SizedBox(width: 20),
                         ),
                       ),
                     Expanded(
@@ -602,7 +596,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                            padding: EdgeInsets.fromLTRB(
+                              !compact && _filters ? 0 : 20,
+                              0,
+                              20,
+                              20,
+                            ),
                             child: Row(
                               children: [
                                 if (compact) ...[
@@ -671,7 +670,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                            padding: EdgeInsets.fromLTRB(
+                              !compact && _filters ? 0 : 20,
+                              0,
+                              20,
+                              20,
+                            ),
                             child: Wrap(
                               spacing: 12,
                               runSpacing: 6,
@@ -720,8 +724,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                   controller: _scroll,
                                   slivers: [
                                     SliverPadding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        20,
+                                      padding: EdgeInsets.fromLTRB(
+                                        !compact && _filters ? 0 : 20,
                                         0,
                                         20,
                                         20,
@@ -977,10 +981,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
         key: const ValueKey('marketplace filters scroll'),
         controller: _filterScroll,
         primary: false,
-        padding: const EdgeInsets.fromLTRB(20, 8, 0, 20),
+        padding: const EdgeInsets.fromLTRB(20, 0, 0, 20),
         children: [
           DesktopPane(
             child: Padding(
+              key: const ValueKey('marketplace filters header'),
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
@@ -996,7 +1001,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   DesktopIconButton(
                     icon: Icons.restart_alt,
                     tooltip: context.l10n.textResetFilters463,
-                    size: 26,
+                    size: 32,
+                    iconSize: 18,
                     onPressed: () {
                       _filterChanged(() {
                         _category = 'All';
@@ -1011,7 +1017,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     DesktopIconButton(
                       icon: Icons.chevron_left,
                       tooltip: context.l10n.textToggleFilters464,
-                      size: 26,
+                      size: 32,
+                      iconSize: 18,
                       onPressed: () => setState(() => _filters = false),
                     ),
                 ],
@@ -1135,28 +1142,33 @@ class _FilterOption extends StatelessWidget {
     selected: selected,
     selectedColor: context.palette.hover,
     borderRadius: BorderRadius.circular(7),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            selected ? Icons.check : Icons.circle_outlined,
-            size: 14,
-            color: selected ? context.palette.text : context.palette.mutedText,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: selected
-                    ? context.palette.text
-                    : context.palette.mutedText,
-                fontSize: 14,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 40),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Icons.check : Icons.circle_outlined,
+              size: 14,
+              color: selected
+                  ? context.palette.text
+                  : context.palette.mutedText,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected
+                      ? context.palette.text
+                      : context.palette.mutedText,
+                  fontSize: 14,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -1240,7 +1252,7 @@ class _CatalogCard extends StatelessWidget {
                     children: [
                       Icon(
                         catalogIcon(entry.iconName),
-                        size: 22,
+                        size: 32,
                         color: context.palette.text,
                       ),
                       const SizedBox(width: 9),

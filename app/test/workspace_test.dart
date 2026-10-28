@@ -525,10 +525,7 @@ void main() {
       );
       await tester.tap(find.text('Add module'));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('workspace module search')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('desktop menu search')), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('workspace select menu')));
@@ -1396,6 +1393,9 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(find.text('MODULE SETTINGS'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('workspace view menu')),
+    );
     await tester.tap(find.byKey(const ValueKey('workspace view menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Frame all (F)'));
@@ -1405,7 +1405,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('rail dialog reuses desktop controls and restores hidden rail', (
+  testWidgets('rail editor reuses desktop controls and restores hidden rail', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 850);
@@ -1426,19 +1426,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Rail settings'));
     await tester.pumpAndSettle();
-    expect(
-      tester
-          .getSize(
-            find
-                .descendant(
-                  of: find.byType(RailSettingsDialog),
-                  matching: find.byType(SizedBox),
-                )
-                .first,
-          )
-          .width,
-      greaterThanOrEqualTo(600),
-    );
+    expect(find.byType(RailCustomizer), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
     expect(find.byType(CheckboxListTile), findsNothing);
     expect(find.byType(SwitchListTile), findsNothing);
     await _capture(tester, capture, 'rail-settings-dark.png');

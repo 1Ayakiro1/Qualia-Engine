@@ -31,7 +31,7 @@ extern "C" {
 // Returns BCI_CORE_ABI_VERSION.
 BCI_API int bci_engine_abi_version(void);
 
-// Returns the core semantic version string ("0.5.2-dev.1"). Valid for the whole
+// Returns the core semantic version string ("0.5.2-dev.2"). Valid for the whole
 // process lifetime.
 BCI_API const char* bci_engine_core_version(void);
 

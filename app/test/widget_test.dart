@@ -10,11 +10,24 @@ import 'package:bci_engine/core/theme/app_palette.dart';
 import 'package:bci_engine/core/theme/app_theme.dart';
 import 'package:bci_engine/features/common/widgets.dart';
 import 'package:bci_engine/features/shell/app_shell.dart';
+import 'package:bci_engine/features/shell/rail_settings.dart';
+import 'package:bci_engine/state/app_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> openDashboard(WidgetTester tester) async {
+  // Dashboard is optional in the rail and no longer the startup tab.
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(AppShell)),
+  );
+  container.read(railProvider.notifier).setSection(SectionId.dashboard, true);
+  await tester.pumpAndSettle();
+  await tester.tap(find.byTooltip('Dashboard'));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
-  testWidgets('app shell renders top bar and dashboard', (
+  testWidgets('app shell starts directly on the module canvas', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -23,8 +36,8 @@ void main() {
     expect(find.text('Ayakiro BCI Engine'), findsOneWidget);
     expect(find.byTooltip('user&dev switcher'), findsNothing);
     expect(find.text('Потребитель'), findsNothing);
-    // Dashboard header.
-    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
+    expect(find.text('Dashboard'), findsNothing);
   });
 
   testWidgets('Workspace remains available without the rail mode switcher', (
@@ -102,7 +115,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('100%'), findsWidgets);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
     await tester.sendKeyEvent(LogicalKeyboardKey.equal);
@@ -114,7 +127,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
     await tester.pump();
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('100%'), findsWidgets);
   });
 
   testWidgets('shell shortcuts survive terminal panel toggles', (
@@ -122,6 +135,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
+    await openDashboard(tester);
 
     await tester.tap(
       find.byKey(const ValueKey<String>('terminal panel toggle')),
@@ -166,7 +180,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpAndSettle();
     expect(transform.value.getMaxScaleOnAxis(), lessThan(1));
-    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('100%'), findsWidgets);
     await mouse.moveTo(tester.getCenter(find.byTooltip('Workspace')));
     await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -300,7 +314,7 @@ void main() {
     }
     await tester.tap(find.text('About Us'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.5.2-dev.1'), findsOneWidget);
+    expect(find.textContaining('Version 0.5.2-dev.2'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 
@@ -597,7 +611,9 @@ void main() {
     await tester.tap(find.byTooltip('Rail settings'));
     await tester.pumpAndSettle();
 
-    final workspace = find.byKey(const ValueKey('rail setting Workspace'));
+    final workspace = find.byKey(
+      const ValueKey('rail available section:modules'),
+    );
     await tester.scrollUntilVisible(
       workspace,
       100,
@@ -612,7 +628,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(workspace);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.byTooltip('Done'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Workspace'), findsNothing);
   });
@@ -699,7 +715,7 @@ void main() {
 
     await tester.tap(find.text('Back to app'));
     await tester.pumpAndSettle();
-    expect(find.text('Dashboard'), findsWidgets);
+    expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
   });
 
   testWidgets('global search focuses, toggles its menu, and closes outside', (
@@ -787,6 +803,8 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
+    // The canvas intentionally has no generic tab strip; other sections retain it.
+    await openDashboard(tester);
 
     expect(find.byTooltip('Create new tab'), findsOneWidget);
     final createTab = find.byKey(
@@ -802,6 +820,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Close tab'), findsWidgets);
 
+    await tester.tap(find.byTooltip('Close tab').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Close tab').first);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Close tab').first);
@@ -873,6 +893,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pumpAndSettle();
+    await openDashboard(tester);
 
     // Tab creation through the tab strip plus button.
     final int beforeTabs = AppLogger.instance.length;
@@ -910,9 +931,10 @@ void main() {
     (WidgetTester tester) async {
       await tester.pumpWidget(const ProviderScope(child: BciApp()));
       await tester.pump(const Duration(milliseconds: 100));
+      await openDashboard(tester);
 
-      expect(find.byTooltip('Close tab'), findsOneWidget);
-      final close = find.byTooltip('Close tab');
+      expect(find.byTooltip('Close tab'), findsNWidgets(2));
+      final close = find.byTooltip('Close tab').first;
       expect(tester.getSize(close), const Size(22, 22));
       expect(find.byType(DesktopIconButton), findsWidgets);
     },

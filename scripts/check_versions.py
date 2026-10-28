@@ -33,6 +33,23 @@ def main() -> int:
     for name, value in expected.items():
         if contracts.get(name) != value:
             fail(f"contracts.{name} must be {value}")
+    description = json.loads((ROOT / "app/assets/module_sdk/api_layers.json").read_text(encoding="utf-8"))
+    if lock.get("apiLayers") != description:
+        fail("API layers differ from SDK descriptor; run scripts/generate_version_lock.py")
+    layers = description.get("layers", {})
+    if set(layers) != {"internal", "middle", "external"}:
+        fail("SDK descriptor must define exactly internal, middle and external layers")
+    for name, layer in layers.items():
+        if not SEMVER.fullmatch(layer.get("version", "")):
+            fail(f"invalid API layer version: {name}")
+    if layers["middle"]["protocol"] != contracts["moduleProtocol"] or layers["middle"]["manifestSchema"] != contracts["moduleSchema"]:
+        fail("middle layer does not match module protocol/schema contracts")
+    api_version = layers["external"]["bindings"]["aiDevelopment"]["version"]
+    if lock["engine"].get("apiVersion") != api_version:
+        fail("external AI API version differs from engine.apiVersion")
+    api_source = (ROOT / "tools/qualia_ai_api.py").read_text(encoding="utf-8")
+    if f'API_VERSION = "{api_version}"' not in api_source:
+        fail("external AI API implementation version differs from descriptor")
     dependencies = lock.get("dependencies")
     if not isinstance(dependencies, dict) or not dependencies.get("application") or not dependencies.get("plugins"):
         fail("lock must contain application and plugins dependency snapshots")

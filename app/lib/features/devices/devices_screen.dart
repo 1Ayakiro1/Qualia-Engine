@@ -66,12 +66,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
         ),
         for (final _DeviceEntry entry in _entries)
           Card(
-            child: SwitchListTile(
-              value: _connected[entry.name] ?? false,
-              onChanged: entry.available
-                  ? (bool value) =>
-                        setState(() => _connected[entry.name] = value)
-                  : null,
+            child: ListTile(
+              trailing: DesktopToggle(
+                value: _connected[entry.name] ?? false,
+                onChanged: entry.available
+                    ? (bool value) =>
+                          setState(() => _connected[entry.name] = value)
+                    : null,
+              ),
               title: Text(context.hostLabel(entry.name)),
               subtitle: Text(
                 '${entry.kind} · ${entry.kind == 'virtual'
@@ -80,7 +82,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
                     ? context.l10n.deviceBoardDescription
                     : context.hostLabel(entry.description)}',
               ),
-              secondary: Icon(switch (entry.kind) {
+              leading: Icon(switch (entry.kind) {
                 'virtual' => Icons.memory,
                 'serial' => Icons.usb,
                 _ => Icons.sensors,

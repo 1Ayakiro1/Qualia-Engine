@@ -104,7 +104,7 @@ class _ModuleControl extends StatelessWidget {
         return Row(
           children: [
             Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
-            Switch(
+            DesktopToggle(
               value: value == true,
               onChanged: (next) => onChanged(id, next),
             ),

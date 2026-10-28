@@ -12,14 +12,96 @@ import '../../state/workspace_state.dart';
 import '../common/desktop_menu.dart';
 import '../common/widgets.dart';
 
+/// A deliberate checkpoint, independent from automatic crash recovery.
+Future<bool> saveWorkspaceProgress(BuildContext context, WidgetRef ref) async {
+  final controller = ref.read(workspaceProvider.notifier);
+  final graph = ref.read(workspaceProvider);
+  for (final project in graph.projects.where(
+    (p) =>
+        controller.needsProjectName(p.id) &&
+        (p.id == graph.activeProjectId || p.nodes.isNotEmpty),
+  )) {
+    await editWorkspace(context, ref, project: project, naming: true);
+    if (!context.mounted || controller.needsProjectName(project.id)) {
+      return false;
+    }
+  }
+  try {
+    await controller.saveProgress();
+    return true;
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.workspaceSaveFailed)));
+    }
+    return false;
+  }
+}
+
+Future<bool> confirmWorkspaceClose(BuildContext context, WidgetRef ref) async {
+  final controller = ref.read(workspaceProvider.notifier);
+  if (!controller.hasUnsavedChanges) {
+    try {
+      await controller.flushRecovery();
+      return true;
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.workspaceSaveFailed)),
+        );
+      }
+      return false;
+    }
+  }
+  final choice = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(context.l10n.workspaceUnsavedTitle),
+      content: SizedBox(
+        width: 420,
+        child: Text(context.l10n.workspaceUnsavedMessage),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.textCancel198),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, 'discard'),
+          child: Text(context.l10n.workspaceDiscard),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, 'save'),
+          child: Text(context.l10n.workspaceSave),
+        ),
+      ],
+    ),
+  );
+  if (!context.mounted || choice == null) return false;
+  if (choice == 'save') return saveWorkspaceProgress(context, ref);
+  try {
+    await controller.discardProgress();
+    return true;
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.workspaceSaveFailed)));
+    }
+    return false;
+  }
+}
+
 Future<void> editWorkspace(
   BuildContext context,
   WidgetRef ref, {
   WorkspaceProject? project,
+  bool naming = false,
 }) async {
   final value = await showDialog<(String, String)>(
     context: context,
-    builder: (_) => _WorkspaceEditor(project: project),
+    builder: (_) => _WorkspaceEditor(project: project, naming: naming),
   );
   if (value == null || !context.mounted) return;
   final controller = ref.read(workspaceProvider.notifier);
@@ -386,14 +468,17 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
 }
 
 class _WorkspaceEditor extends StatefulWidget {
-  const _WorkspaceEditor({this.project});
+  const _WorkspaceEditor({this.project, this.naming = false});
   final WorkspaceProject? project;
+  final bool naming;
   @override
   State<_WorkspaceEditor> createState() => _WorkspaceEditorState();
 }
 
 class _WorkspaceEditorState extends State<_WorkspaceEditor> {
-  late final _name = TextEditingController(text: widget.project?.name);
+  late final _name = TextEditingController(
+    text: widget.naming ? '' : widget.project?.name,
+  );
   late final _description = TextEditingController(
     text: widget.project?.description,
   );
@@ -407,7 +492,9 @@ class _WorkspaceEditorState extends State<_WorkspaceEditor> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      widget.project == null
+      widget.naming
+          ? context.l10n.workspaceSave
+          : widget.project == null
           ? context.l10n.workspaceCreate
           : context.l10n.workspaceEdit,
     ),

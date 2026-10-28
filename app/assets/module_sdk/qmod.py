@@ -224,6 +224,8 @@ def main():
             shutil.copyfile(template / name, project / name)
         shutil.copytree(sdk / "include", project / "include")
         shutil.copyfile(__file__, project / "qmod.py")
+        if (sdk / "api_layers.json").is_file():
+            shutil.copyfile(sdk / "api_layers.json", project / "api_layers.json")
         return
     manifest = check(project)
     if args.command == "check":

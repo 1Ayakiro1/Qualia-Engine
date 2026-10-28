@@ -355,7 +355,7 @@ class _PreferencesContent extends ConsumerWidget {
                       title: context.l10n.textDefaultPermissions372,
                       description:
                           context.l10n.textByDefaultAyakiroCanReadAndEdit373,
-                      control: Switch(
+                      control: DesktopToggle(
                         value: workspaceAccess,
                         onChanged: onWorkspaceAccessChanged,
                       ),
@@ -368,7 +368,7 @@ class _PreferencesContent extends ConsumerWidget {
                         context.l10n.textLearnMoreAboutElevatedRisks376,
                         style: TextStyle(color: context.palette.text),
                       ),
-                      control: Switch(
+                      control: DesktopToggle(
                         value: fullAccess,
                         onChanged: onFullAccessChanged,
                       ),
@@ -433,7 +433,7 @@ class _PreferencesContent extends ConsumerWidget {
                       title: context.l10n.textBottomPanel385,
                       description:
                           context.l10n.textShowTheBottomPanelControlInThe386,
-                      control: Switch(
+                      control: DesktopToggle(
                         value: bottomPanel,
                         onChanged: onBottomPanelChanged,
                       ),
@@ -443,7 +443,7 @@ class _PreferencesContent extends ConsumerWidget {
                       description: context
                           .l10n
                           .textKeepYourComputerAwakeWhileAyakiroIs388,
-                      control: Switch(
+                      control: DesktopToggle(
                         value: keepAwake,
                         onChanged: onKeepAwakeChanged,
                       ),

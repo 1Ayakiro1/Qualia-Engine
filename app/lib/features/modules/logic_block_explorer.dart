@@ -21,7 +21,7 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
     final graph = ref.watch(workspaceProvider);
     final controller = ref.read(workspaceProvider.notifier);
     return ExplorerDisclosureSection(
-      title: context.l10n.logicBlocks,
+      title: context.l10n.logicBlocks.toUpperCase(),
       expanded: _expanded,
       onToggle: () => setState(() => _expanded = !_expanded),
       children: [
@@ -38,6 +38,9 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: TextButton.icon(
+            style: TextButton.styleFrom(
+              textStyle: const TextStyle(fontSize: 12),
+            ),
             icon: Icon(
               graph.showLogicBlocks
                   ? Icons.visibility_outlined

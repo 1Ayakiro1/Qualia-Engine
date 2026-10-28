@@ -645,6 +645,7 @@ class LocalModuleStore {
     }
     for (final name in [
       'qmod.py',
+      'api_layers.json',
       'include/qualia.hpp',
       'include/json.hpp',
       'template/CMakeLists.txt',

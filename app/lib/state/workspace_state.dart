@@ -96,6 +96,135 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool _disposed = false;
   late final ModuleRuntime _runtime;
   static const storageKey = 'qualia.workspace.v1';
+  final List<String> _undo = [];
+  final List<String> _redo = [];
+  String? _lastDocument;
+  String? _savedDocument;
+  final Set<String> _namedProjects = {};
+  int historyNotice = 0;
+  bool lastHistoryWasRedo = false;
+  static const savedStorageKey = 'qualia.workspace.saved.v1';
+  Future<void> _persistence = Future.value();
+
+  Future<void> _persist(Future<void> Function() write) {
+    final next = _persistence.then((_) => write());
+    // A failed disk write must not poison later save attempts.
+    _persistence = next.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stack) {},
+    );
+    return next;
+  }
+
+  // Recovery is automatic; an explicit save is a separate user checkpoint.
+  String _progress(String document) {
+    final json = jsonDecode(document) as Map<String, dynamic>;
+    return jsonEncode(json['projects']);
+  }
+
+  bool get hasUnsavedChanges =>
+      _lastDocument != null &&
+      _savedDocument != null &&
+      _progress(_lastDocument!) != _progress(_savedDocument!);
+
+  bool needsProjectName(String id) => !_namedProjects.contains(id);
+
+  Future<void> saveProgress() async {
+    _saveTimer?.cancel();
+    final document = _document();
+    await _persist(() async {
+      final prefs = await SharedPreferences.getInstance();
+      if (!await prefs.setString(storageKey, document) ||
+          !await prefs.setString(savedStorageKey, document)) {
+        throw StateError('Workspace could not be saved.');
+      }
+      _savedDocument = document;
+    });
+    if (!_disposed) state = state.copyWith();
+  }
+
+  Future<void> discardProgress() async {
+    final saved = _savedDocument;
+    if (saved == null) return;
+    _saveTimer?.cancel();
+    final draft = _document();
+    final current = jsonDecode(draft) as Map<String, dynamic>;
+    final baseline = jsonDecode(saved) as Map<String, dynamic>;
+    current['projects'] = baseline['projects'];
+    current['activeProjectId'] = baseline['activeProjectId'];
+    current['namedProjects'] = baseline['namedProjects'];
+    // Removing an Explorer package also removes its host library reference.
+    // Restoring saved nodes must restore those references, but not erase newly
+    // installed packages or unrelated catalog preferences.
+    final requiredModules = <String>{
+      for (final project in baseline['projects'] as List? ?? [])
+        for (final node in (project as Map)['nodes'] as List? ?? [])
+          ((node as Map)['module'] as Map)['slug'] as String,
+    };
+    final library = (current['library'] as List).cast<Map>();
+    String identity(Map module) =>
+        '${module['slug']}@${module['version']}:${module['local_package'] ?? module['release_id'] ?? ''}';
+    final installed = library.map(identity).toSet();
+    current['library'] = [
+      ...library,
+      for (final module in (baseline['library'] as List? ?? []).cast<Map>())
+        if (requiredModules.contains(module['slug']) &&
+            !installed.contains(identity(module)))
+          module,
+    ];
+    current['removedModuleIds'] = (current['removedModuleIds'] as List)
+        .where((id) => !requiredModules.contains(id))
+        .toList();
+    _restoreDocument(current);
+    _changed(recordHistory: false);
+    _saveTimer?.cancel();
+    try {
+      await _save(reportFailure: true);
+      _undo.clear();
+      _redo.clear();
+    } catch (_) {
+      _restoreDocument(jsonDecode(draft) as Map<String, dynamic>);
+      _lastDocument = draft;
+      _syncRuntime();
+      rethrow;
+    }
+  }
+
+  Future<void> flushRecovery() async {
+    _saveTimer?.cancel();
+    await _save(reportFailure: true);
+  }
+
+  bool _historyGroup = false;
+  bool _groupRecorded = false;
+
+  bool get canUndo => _undo.isNotEmpty;
+  bool get canRedo => _redo.isNotEmpty;
+
+  /// Pointer-driven edits are one undo step, rather than one per frame.
+  void beginHistoryGroup() {
+    _historyGroup = true;
+    _groupRecorded = false;
+  }
+
+  void endHistoryGroup() {
+    _historyGroup = false;
+    _groupRecorded = false;
+  }
+
+  void undo() => _restoreHistory(_undo, _redo);
+  void redo() => _restoreHistory(_redo, _undo);
+
+  void _restoreHistory(List<String> source, List<String> destination) {
+    if (source.isEmpty || _lastDocument == null) return;
+    lastHistoryWasRedo = identical(source, _redo);
+    historyNotice++;
+    endHistoryGroup();
+    destination.add(_lastDocument!);
+    _restoreDocument(jsonDecode(source.removeLast()) as Map<String, dynamic>);
+    _changed(recordHistory: false);
+  }
+
   @override
   WorkspaceState build() {
     _runtime = ModuleRuntime(
@@ -104,8 +233,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         final node = state.nodes.where((n) => n.id == id).firstOrNull;
         if (node == null ||
             node.settings['enabled'] == false ||
-            state.moduleActiveOverrides[node.module.id] == false ||
-            state.hiddenModuleIds.contains(node.module.id)) {
+            state.moduleActiveOverrides[node.module.id] == false) {
           return;
         }
         if (status == 'starting') {
@@ -146,89 +274,109 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           projects: [WorkspaceProject(id: 'default', name: 'Workspace')],
         );
         _syncRuntime();
+        _lastDocument = _document();
+        _savedDocument = _lastDocument;
         return;
       }
       final json = jsonDecode(raw) as Map<String, dynamic>;
-      final nodes = (json['nodes'] as List? ?? [])
-          .map(
-            (item) =>
-                WorkspaceNode.fromJson(Map<String, dynamic>.from(item as Map)),
-          )
-          .toList();
-      final links = <WorkspaceLink>[];
-      for (final item in json['links'] as List? ?? []) {
-        final link = WorkspaceLink.fromJson(
-          Map<String, dynamic>.from(item as Map),
-        );
-        if (validateWorkspaceLink(nodes, links, link) == null) links.add(link);
-      }
-      state = WorkspaceState(
-        nodes: nodes,
-        links: links,
-        library: (json['library'] as List? ?? [])
-            .map(
-              (item) =>
-                  SystemModule.fromJson(Map<String, dynamic>.from(item as Map)),
-            )
-            .toList(),
-        presets: (json['presets'] as List? ?? [])
-            .map(
-              (item) => WorkspacePreset.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ),
-            )
-            .toList(),
-        presetModuleIds: json['presetModuleIds'] == null
-            ? null
-            : List<String>.from(json['presetModuleIds'] as List),
-        moduleActiveOverrides: {
-          for (final entry
-              in (json['moduleActiveOverrides'] as Map? ?? {}).entries)
-            if (entry.key is String && entry.value is bool)
-              entry.key as String: entry.value as bool,
-        },
-        hiddenModuleIds: (json['hiddenModuleIds'] as List? ?? [])
-            .whereType<String>()
-            .toSet(),
-        removedModuleIds: (json['removedModuleIds'] as List? ?? [])
-            .whereType<String>()
-            .toSet(),
-        showLogicBlocks: json['showLogicBlocks'] != false,
-        showModuleBlocks: json['showModuleBlocks'] != false,
-        loaded: true,
-        authorMetadata: {
-          for (final entry in (json['authorMetadata'] as Map? ?? {}).entries)
-            entry.key as String: Map<String, dynamic>.from(entry.value as Map),
-        },
-      );
-      final projects = (json['projects'] as List? ?? [])
-          .map(
-            (p) =>
-                WorkspaceProject.fromJson(Map<String, dynamic>.from(p as Map)),
-          )
-          .toList();
-      if (projects.isEmpty) {
-        projects.add(state.activeProject);
-      }
-      final active =
-          projects.where((p) => p.id == json['activeProjectId']).firstOrNull ??
-          projects.first;
-      state = state.copyWith(
-        projects: projects,
-        activeProjectId: active.id,
-        nodes: active.nodes,
-        links: active.links,
-        presetModuleIds: active.presetModuleIds,
-        clearPreset: active.presetModuleIds == null,
-      );
+      _restoreDocument(json);
       _syncRuntime();
+      _lastDocument = _document();
+      _savedDocument = prefs.getString(savedStorageKey) ?? _lastDocument;
     } catch (error) {
-      if (!_disposed) state = state.copyWith(loaded: true);
+      if (!_disposed) {
+        state = state.copyWith(loaded: true);
+        _lastDocument = _document();
+        _savedDocument = _lastDocument;
+      }
       logW(LogSource.modules, 'Workspace could not be restored: $error');
     }
   }
 
-  void _changed() {
+  /// JSON snapshots deliberately omit volatile runtime values and processes.
+  void _restoreDocument(Map<String, dynamic> json) {
+    final nodes = (json['nodes'] as List? ?? [])
+        .map(
+          (item) =>
+              WorkspaceNode.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    final links = <WorkspaceLink>[];
+    for (final item in json['links'] as List? ?? []) {
+      final link = WorkspaceLink.fromJson(
+        Map<String, dynamic>.from(item as Map),
+      );
+      if (validateWorkspaceLink(nodes, links, link) == null) links.add(link);
+    }
+    final restored = WorkspaceState(
+      nodes: nodes,
+      links: links,
+      library: (json['library'] as List? ?? [])
+          .map(
+            (item) =>
+                SystemModule.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList(),
+      presets: (json['presets'] as List? ?? [])
+          .map(
+            (item) => WorkspacePreset.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList(),
+      presetModuleIds: json['presetModuleIds'] == null
+          ? null
+          : List<String>.from(json['presetModuleIds'] as List),
+      moduleActiveOverrides: {
+        for (final entry
+            in (json['moduleActiveOverrides'] as Map? ?? {}).entries)
+          if (entry.key is String && entry.value is bool)
+            entry.key as String: entry.value as bool,
+      },
+      hiddenModuleIds: (json['hiddenModuleIds'] as List? ?? [])
+          .whereType<String>()
+          .toSet(),
+      removedModuleIds: (json['removedModuleIds'] as List? ?? [])
+          .whereType<String>()
+          .toSet(),
+      showLogicBlocks: json['showLogicBlocks'] != false,
+      showModuleBlocks: json['showModuleBlocks'] != false,
+      loaded: true,
+      authorMetadata: {
+        for (final entry in (json['authorMetadata'] as Map? ?? {}).entries)
+          entry.key as String: Map<String, dynamic>.from(entry.value as Map),
+      },
+    );
+    final projects = (json['projects'] as List? ?? [])
+        .map(
+          (p) => WorkspaceProject.fromJson(Map<String, dynamic>.from(p as Map)),
+        )
+        .toList();
+    if (projects.isEmpty) {
+      projects.add(restored.activeProject);
+    }
+    final active =
+        projects.where((p) => p.id == json['activeProjectId']).firstOrNull ??
+        projects.first;
+    _namedProjects
+      ..clear()
+      ..addAll(
+        (json['namedProjects'] as List?)?.whereType<String>() ??
+            projects
+                .where((p) => p.id != 'default' || p.name != 'Workspace')
+                .map((p) => p.id),
+      );
+    state = restored.copyWith(
+      projects: projects,
+      activeProjectId: active.id,
+      nodes: active.nodes,
+      links: active.links,
+      presetModuleIds: active.presetModuleIds,
+      clearPreset: active.presetModuleIds == null,
+    );
+  }
+
+  void _changed({bool recordHistory = true}) {
     final project = state.activeProject.copyWith(
       nodes: state.nodes,
       links: state.links,
@@ -242,6 +390,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           ? [for (final p in state.projects) p.id == project.id ? project : p]
           : [...state.projects, project],
     );
+    final document = _document();
+    if (recordHistory && _lastDocument != null && document != _lastDocument) {
+      if (!_historyGroup || !_groupRecorded) {
+        _undo.add(_lastDocument!);
+        if (_undo.length > 50) _undo.removeAt(0);
+        _groupRecorded = true;
+      }
+      _redo.clear();
+    }
+    _lastDocument = document;
     _syncRuntime();
     _saveTimer?.cancel();
     _saveTimer = Timer(
@@ -255,8 +413,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       (n) => n.module.isLocal || n.isLogic,
     )) {
       if (node.settings['enabled'] == false ||
-          state.moduleActiveOverrides[node.module.id] == false ||
-          state.hiddenModuleIds.contains(node.module.id)) {
+          state.moduleActiveOverrides[node.module.id] == false) {
         node.runtimeStatus = 'stopped';
         node.runtimeValues.clear();
         node.runtimeHistory.clear();
@@ -279,40 +436,47 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _runtime.sync(
       state.activeProjectId,
       state.nodes
-          .where(
-            (node) =>
-                state.moduleActiveOverrides[node.module.id] != false &&
-                !state.hiddenModuleIds.contains(node.module.id),
-          )
+          .where((node) => state.moduleActiveOverrides[node.module.id] != false)
           .toList(),
       state.links,
       state.library,
     );
   }
 
-  Future<void> _save() async {
-    final json = jsonEncode({
-      'nodes': state.nodes.map((node) => node.toJson()).toList(),
-      'links': state.links.map((link) => link.toJson()).toList(),
-      'library': state.library
-          .map((module) => module.toWorkspaceJson())
-          .toList(),
-      'presets': state.presets.map((preset) => preset.toJson()).toList(),
-      'presetModuleIds': state.presetModuleIds,
-      'authorMetadata': state.authorMetadata,
-      'projects': state.projects.map((p) => p.toJson()).toList(),
-      'activeProjectId': state.activeProjectId,
-      'moduleActiveOverrides': state.moduleActiveOverrides,
-      'hiddenModuleIds': state.hiddenModuleIds.toList(),
-      'removedModuleIds': state.removedModuleIds.toList(),
-      'showLogicBlocks': state.showLogicBlocks,
-      'showModuleBlocks': state.showModuleBlocks,
-    });
+  String _document() => jsonEncode({
+    'nodes': state.nodes.map((node) => node.toJson()).toList(),
+    'links': state.links.map((link) => link.toJson()).toList(),
+    'library': state.library.map((module) => module.toWorkspaceJson()).toList(),
+    'presets': state.presets.map((preset) => preset.toJson()).toList(),
+    'presetModuleIds': state.presetModuleIds,
+    'authorMetadata': state.authorMetadata,
+    'projects': state.projects.map((p) => p.toJson()).toList(),
+    'activeProjectId': state.activeProjectId,
+    'moduleActiveOverrides': state.moduleActiveOverrides,
+    'hiddenModuleIds': state.hiddenModuleIds.toList(),
+    'removedModuleIds': state.removedModuleIds.toList(),
+    'showLogicBlocks': state.showLogicBlocks,
+    'showModuleBlocks': state.showModuleBlocks,
+    'namedProjects': _namedProjects.toList(),
+  });
+
+  Future<void> _save({bool reportFailure = false}) async {
+    final json = _document();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(storageKey, json);
+      await _persist(() async {
+        final prefs = await SharedPreferences.getInstance();
+        if (_savedDocument != null && !prefs.containsKey(savedStorageKey)) {
+          if (!await prefs.setString(savedStorageKey, _savedDocument!)) {
+            throw StateError('Workspace checkpoint could not be saved.');
+          }
+        }
+        if (!await prefs.setString(storageKey, json)) {
+          throw StateError('Workspace could not be saved.');
+        }
+      });
     } catch (error) {
       logW(LogSource.modules, 'Workspace could not be saved: $error');
+      if (reportFailure) rethrow;
     }
   }
 
@@ -326,6 +490,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       name: cleaned,
       description: description.trim(),
     );
+    _namedProjects.add(project.id);
     state = state.copyWith(projects: [...state.projects, project]);
     switchProject(project.id);
     return project.id;
@@ -349,6 +514,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (cleaned.isEmpty || cleaned.length > 80) {
       throw const FormatException('Invalid workspace name.');
     }
+    _namedProjects.add(id);
     state = state.copyWith(
       projects: [
         for (final project in state.projects)
@@ -431,6 +597,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         '${module.id}@${module.version}:${module.localPackage ?? module.releaseId ?? ''}':
             module,
     };
+    _namedProjects.add(id);
     state = state.copyWith(
       projects: [...state.projects, project],
       library: dependencies.values.toList(),

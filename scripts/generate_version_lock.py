@@ -44,10 +44,12 @@ def main() -> int:
     application = {name: packages[name] for name in sorted(direct) if name in packages}
     plugin_names = {name for name in packages if any(token in name for token in ("_linux", "_windows", "_macos", "_android", "_ios", "_platform_interface"))}
     plugins = {name: packages[name] for name in sorted(plugin_names)}
+    api_layers = json.loads((ROOT / "app/assets/module_sdk/api_layers.json").read_text(encoding="utf-8"))
     lock = {
         "format": "qualia-lock", "lockVersion": 1,
         "generatedBy": "scripts/generate_version_lock.py",
-        "engine": {"name": "Qualia Engine", "version": version, "coreVersion": version, "coreAbi": 3, "apiVersion": "1.0.0"},
+        "engine": {"name": "Qualia Engine", "version": version, "coreVersion": version, "coreAbi": 3, "apiVersion": api_layers["layers"]["external"]["bindings"]["aiDevelopment"]["version"]},
+        "apiLayers": api_layers,
         "contracts": {"moduleSchema": 1, "moduleProtocol": 1, "workspacePackage": 1, "coreAbi": 3, "supportedTargets": ["linux-x64", "linux-arm64", "windows-x64", "windows-arm64", "macos-x64", "macos-arm64"]},
         "toolchain": {"flutter": "3.47.5", "dart": ">=3.13.4 <4.0.0", "cmake": ">=3.21", "python": "3.12", "go": "1.23.6"},
         "dependencies": {"application": application, "plugins": plugins, "resolved": {name: packages[name] for name in sorted(packages)}, "native": {"catch2": {"version": "2.13.10", "sha256": "3725c0f0a75f376a5005dde31ead0feb8f7da7507644c201b814443de8355170"}}},

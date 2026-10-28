@@ -56,6 +56,23 @@ class AppTheme {
       scaffoldBackgroundColor: palette.background,
       canvasColor: palette.background,
       dividerColor: palette.hover,
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.black
+              : Colors.white,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.white
+              : const Color(0xFF454545),
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+        thumbIcon: const WidgetStatePropertyAll(Icon(Icons.circle, size: 0)),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        padding: EdgeInsets.zero,
+      ),
       scrollbarTheme: ScrollbarThemeData(
         thickness: const WidgetStatePropertyAll(3),
         radius: const Radius.circular(3),

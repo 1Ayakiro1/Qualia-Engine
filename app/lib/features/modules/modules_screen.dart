@@ -69,10 +69,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   final Set<String> _selection = {};
   WorkspaceNodeColor? _colorFilter;
   bool _menuOpen = false;
+  bool _pickerOpen = false;
   String? _openedId;
   bool _inspector = false;
   _PortRef? _pendingPort;
   Offset? _wireEnd;
+  Offset? _wireGlobal;
   Offset? _panPosition;
   int? _panPointer;
   bool _panModifier = false;
@@ -112,6 +114,22 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
           ..translateByDouble(-4800, -4800, 0, 1);
       });
     });
+    ref.listenManual(workspaceProvider, (_, next) {
+      final interactive = next.nodes
+          .where(
+            (node) =>
+                !next.hiddenModuleIds.contains(node.module.id) &&
+                (node.isLogic ? next.showLogicBlocks : next.showModuleBlocks),
+          )
+          .map((node) => node.id)
+          .toSet();
+      _selection.retainAll(interactive);
+      if (!interactive.contains(_selectedId)) _selectedId = null;
+      if (_pendingPort != null && !interactive.contains(_pendingPort!.node)) {
+        _pendingPort = null;
+        _wireEnd = null;
+      }
+    });
   }
 
   bool get _panKeyPressed =>
@@ -134,6 +152,14 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       return;
     }
     _focus.requestFocus();
+    if (_pendingPort != null) {
+      _pick(
+        position: _sceneAt(event.position),
+        global: event.position,
+        fromPort: _pendingPort,
+      );
+      return;
+    }
     setState(() {
       _marqueePointer = event.pointer;
       _marqueeStart = _sceneAt(event.position);
@@ -277,6 +303,11 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   }
 
   void _setNodeInteraction(bool active) {
+    if (active) {
+      _controller.beginHistoryGroup();
+    } else {
+      _controller.endHistoryGroup();
+    }
     final generation = ++_interactionGeneration;
     if (active) {
       setState(() => _nodeInteracting = true);
@@ -301,6 +332,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
             : ref.read(workspaceProvider).showModuleBlocks,
       )
       .where((node) => _colorFilter == null || node.headerColor == _colorFilter)
+      .where(
+        (node) => !ref
+            .read(workspaceProvider)
+            .hiddenModuleIds
+            .contains(node.module.id),
+      )
       .toList();
 
   void _filterColor(WorkspaceNodeColor? color) => setState(() {
@@ -312,9 +349,13 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   });
 
   void _selectColor(WorkspaceNodeColor color) {
-    final nodes = ref
-        .read(workspaceProvider)
-        .nodes
+    final graph = ref.read(workspaceProvider);
+    final nodes = graph.nodes
+        .where(
+          (node) =>
+              !graph.hiddenModuleIds.contains(node.module.id) &&
+              (node.isLogic ? graph.showLogicBlocks : graph.showModuleBlocks),
+        )
         .where((node) => node.headerColor == color)
         .toList();
     setState(() {
@@ -424,21 +465,122 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     }
   }
 
-  Future<void> _pick({Offset? position, WorkspaceNode? replace}) async {
-    final module = await showDialog<SystemModule>(
-      context: context,
-      builder: (context) => _ModulePicker(
-        modules: widget.modules,
-        replacing: replace != null,
-        onMarketplace: widget.onMarketplace,
-      ),
-    );
-    if (module == null || !mounted) return;
-    if (replace != null) {
-      _controller.replaceNode(replace.id, module);
+  Future<void> _pick({
+    Offset? position,
+    Offset? global,
+    WorkspaceNode? replace,
+    _PortRef? fromPort,
+  }) async {
+    if (_pickerOpen) return;
+    _pickerOpen = true;
+    final projectId = ref.read(workspaceProvider).activeProjectId;
+    final box = _viewportKey.currentContext!.findRenderObject() as RenderBox;
+    final anchor = global ?? box.localToGlobal(const Offset(24, 12));
+    final scene = position ?? _center - const Offset(120, 80);
+    final modules = {for (final m in widget.modules) m.id: m}.values.where((m) {
+      if (fromPort == null) return true;
+      final ports = m.manifest['ports'];
+      final opposite = ports is Map
+          ? ports[fromPort.output ? 'inputs' : 'outputs']
+          : null;
+      // Absent declarations use the normal default input/output.
+      return opposite is! List ||
+          opposite.whereType<String>().any((p) => p.trim().isNotEmpty);
+    }).toList();
+    List<DesktopMenuEntry<String>> entries(String query) => modules
+        .where(
+          (m) =>
+              '${m.displayName(context)} ${m.displayCategory(context)} ${m.id}'
+                  .toLowerCase()
+                  .contains(query.trim().toLowerCase()),
+        )
+        .map(
+          (m) => DesktopMenuEntry(value: m.id, label: m.displayName(context)),
+        )
+        .toList();
+    try {
+      final id = await showDesktopMenu<String>(
+        context: context,
+        position: anchor,
+        width: 280,
+        itemHeight: 38,
+        entries: entries(''),
+        search: DesktopMenuSearch(
+          hint: context.l10n.textSearchAvailableModules317,
+          emptyLabel: context.l10n.workspaceNoSearchResults,
+          results: entries,
+        ),
+      );
+      if (!mounted ||
+          id == null ||
+          ref.read(workspaceProvider).activeProjectId != projectId) {
+        return;
+      }
+      final module = modules.where((m) => m.id == id).firstOrNull;
+      if (module == null) return;
+      if (replace != null) {
+        _controller.replaceNode(replace.id, module);
+      } else {
+        if (fromPort != null &&
+            !ref
+                .read(workspaceProvider)
+                .nodes
+                .any(
+                  (n) =>
+                      n.id == fromPort.node &&
+                      (fromPort.output ? n.outputs : n.inputs).contains(
+                        fromPort.port,
+                      ),
+                )) {
+          return;
+        }
+        _controller.beginHistoryGroup();
+        try {
+          final node = _addAt(module, scene);
+          if (fromPort != null) {
+            final ports = fromPort.output ? node.inputs : node.outputs;
+            if (ports.isNotEmpty) {
+              _connect(
+                fromPort,
+                _PortRef(node.id, ports.first, !fromPort.output),
+              );
+            }
+          }
+          _select(node);
+        } finally {
+          _controller.endHistoryGroup();
+        }
+      }
+    } finally {
+      _pickerOpen = false;
+      if (mounted) {
+        setState(() {
+          _pendingPort = null;
+          _wireEnd = null;
+          _wireGlobal = null;
+        });
+        _focus.requestFocus();
+      }
+    }
+  }
+
+  void _finishPortDrag(DraggableDetails details) {
+    final port = _pendingPort;
+    final global = _wireGlobal;
+    final box = _viewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (!details.wasAccepted &&
+        port != null &&
+        global != null &&
+        box != null &&
+        (Offset.zero & box.size).contains(box.globalToLocal(global)) &&
+        _nodeAt(global) == null) {
+      _pick(position: _sceneAt(global), global: global, fromPort: port);
     } else {
-      final node = _addAt(module, position ?? _center - const Offset(120, 80));
-      _select(node);
+      setState(() {
+        _pendingPort = null;
+        _wireEnd = null;
+        _wireGlobal = null;
+      });
     }
   }
 
@@ -590,11 +732,11 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         }
       }
       if (node != null && action == 'sameColor') _selectColor(node.headerColor);
-      if (action == 'add') _pick(position: scene);
+      if (action == 'add') _pick(position: scene, global: global);
       if (action == 'open' && node != null) setState(() => _openedId = node.id);
       if (action == 'window' && node != null) await _detach(node);
       if (action == 'fullscreen' && node != null) await _fullscreen(node);
-      if (action == 'replace') _pick(replace: node);
+      if (action == 'replace') _pick(replace: node, global: global);
       if (action == 'delete' && node != null) {
         _controller.removeNode(node.id);
         setState(() {
@@ -834,6 +976,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     }
     return CallbackShortcuts(
       bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
+            _controller.undo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): _controller.redo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true):
+            _controller.redo,
         ...NavigationBindings.instance.callbacks({
           NavigationAction.dismiss: () {
             _endMarquee(cancel: true);
@@ -853,7 +1004,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         },
         const SingleActivator(LogicalKeyboardKey.keyA, control: true): () =>
             setState(() {
-              _selection.addAll(visibleNodes.map((node) => node.id));
+              _selection.addAll(_visibleNodes.map((node) => node.id));
             }),
         const SingleActivator(LogicalKeyboardKey.keyF): () =>
             _fit(visibleNodes),
@@ -886,333 +1037,363 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                       height: 60,
                       color: context.palette.panel,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(
-                        children: [
-                          DesktopMenuButton<String>(
-                            key: const ValueKey('workspace project menu'),
-                            tooltip: context.l10n.workspaceProjectActions,
-                            width: 320,
-                            entries: [
-                              for (final project in graph.projects)
-                                DesktopMenuEntry(
-                                  value: project.id,
-                                  label: project.name,
-                                  markerColor:
-                                      project.id == graph.activeProjectId
-                                      ? context.palette.text
-                                      : null,
-                                ),
-                              DesktopMenuEntry(
-                                value: '__create',
-                                label: context.l10n.workspaceCreate,
-                                dividerBefore: true,
+                      child: LayoutBuilder(
+                        builder: (context, bounds) => Row(
+                          children: [
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: math.min(240, bounds.maxWidth * .5),
                               ),
-                              DesktopMenuEntry(
-                                value: '__manage',
-                                label: context.l10n.workspaceManager,
-                              ),
-                            ],
-                            onSelected: (id) {
-                              if (id == '__create') {
-                                editWorkspace(context, ref);
-                              } else if (id == '__manage') {
-                                showWorkspaceManager(context);
-                              } else {
-                                _controller.switchProject(id);
-                              }
-                            },
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.account_tree_outlined,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 9),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 160,
+                              child: DesktopMenuButton<String>(
+                                key: const ValueKey('workspace project menu'),
+                                tooltip: context.l10n.workspaceProjectActions,
+                                width: 320,
+                                entries: [
+                                  for (final project in graph.projects)
+                                    DesktopMenuEntry(
+                                      value: project.id,
+                                      label: project.name,
+                                      markerColor:
+                                          project.id == graph.activeProjectId
+                                          ? context.palette.text
+                                          : null,
+                                    ),
+                                  DesktopMenuEntry(
+                                    value: '__create',
+                                    label: context.l10n.workspaceCreate,
+                                    dividerBefore: true,
                                   ),
-                                  child: Text(
-                                    graph.activeProject.name,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.expand_more, size: 16),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  DesktopMenuButton<String>(
-                                    key: const ValueKey('workspace add menu'),
-                                    width: 320,
-                                    itemHeight: 48,
-                                    tooltip:
-                                        context.l10n.textAddModuleToCanvas299,
-                                    entries: [
-                                      DesktopMenuEntry(
-                                        value: 'logic',
-                                        label: context.l10n.logicAdd,
-                                        submenu: [
-                                          for (final type
-                                              in LogicBlockType.values)
-                                            DesktopMenuEntry(
-                                              value: 'logic:${type.name}',
-                                              label: context.logicBlockLabel(
-                                                type.name,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'module',
-                                        label: context.l10n.textAddModule158,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'marketplace',
-                                        label: context.hostLabel('Marketplace'),
-                                        enabled: widget.onMarketplace != null,
-                                      ),
-                                    ],
-                                    onSelected: (action) {
-                                      if (action.startsWith('logic:')) {
-                                        _select(
-                                          _controller.addLogicBlock(
-                                            LogicBlockType.values.firstWhere(
-                                              (t) =>
-                                                  t.name == action.substring(6),
-                                            ),
-                                            _center - const Offset(120, 80),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      if (action == 'module') {
-                                        _pick();
-                                      } else {
-                                        widget.onMarketplace?.call();
-                                      }
-                                    },
-                                    child: _toolbarLabel(
-                                      context.l10n.textAdd294,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  DesktopMenuButton<String>(
-                                    key: const ValueKey(
-                                      'workspace select menu',
-                                    ),
-                                    width: 340,
-                                    itemHeight: 48,
-                                    tooltip: context.l10n.workspaceSelectHint,
-                                    entries: [
-                                      DesktopMenuEntry(
-                                        value: 'all',
-                                        label: context.l10n.workspaceSelectAll,
-                                        shortcut: 'Ctrl+A',
-                                        enabled: visibleNodes.isNotEmpty,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'none',
-                                        label: context.l10n.workspaceDeselect,
-                                        enabled: _selection.isNotEmpty,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'selectColor',
-                                        label:
-                                            context.l10n.workspaceSelectByColor,
-                                        submenu: workspaceColorEntries(
-                                          context,
-                                          'selectColor:',
-                                        ),
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'color',
-                                        label:
-                                            context.l10n.workspaceColorSelected,
-                                        enabled: _selection.isNotEmpty,
-                                        submenu: workspaceColorEntries(
-                                          context,
-                                          'color:',
-                                        ),
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'delete',
-                                        label: context
-                                            .l10n
-                                            .workspaceDeleteSelected,
-                                        shortcut: 'Del',
-                                        dividerBefore: true,
-                                        enabled: _selection.isNotEmpty,
-                                      ),
-                                    ],
-                                    onSelected: (action) {
-                                      if (action == 'all') {
-                                        setState(() {
-                                          _selection.addAll(
-                                            visibleNodes.map((node) => node.id),
-                                          );
-                                        });
-                                      }
-                                      if (action == 'none') _clearSelection();
-                                      if (action == 'delete') {
-                                        _deleteSelection();
-                                      }
-                                      if (action.startsWith('selectColor:')) {
-                                        _selectColor(
-                                          WorkspaceNodeColor.fromJson(
-                                            action.substring(12),
-                                          ),
-                                        );
-                                      }
-                                      if (action.startsWith('color:')) {
-                                        _controller.setNodeColors(
-                                          {..._selection},
-                                          WorkspaceNodeColor.fromJson(
-                                            action.substring(6),
-                                          ),
-                                        );
-                                        if (_colorFilter != null) {
-                                          _filterColor(null);
-                                        }
-                                      }
-                                    },
-                                    child: _toolbarLabel(
-                                      context.l10n.workspaceSelect,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  DesktopMenuButton<String>(
-                                    key: const ValueKey('workspace view menu'),
-                                    width: 360,
-                                    itemHeight: 48,
-                                    tooltip: context.l10n.textView62,
-                                    entries: [
-                                      DesktopMenuEntry(
-                                        value: 'showLogic',
-                                        label: graph.showLogicBlocks
-                                            ? context.l10n.logicHide
-                                            : context.l10n.logicShow,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'showModules',
-                                        label: graph.showModuleBlocks
-                                            ? context.l10n.moduleBlocksHide
-                                            : context.l10n.moduleBlocksShow,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'in',
-                                        label: context.l10n.workspaceZoomIn,
-                                        shortcut: 'Ctrl+Plus',
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'out',
-                                        label: context.l10n.workspaceZoomOut,
-                                        shortcut: 'Ctrl+Minus',
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'actual',
-                                        label: context.l10n.workspaceActualSize,
-                                        shortcut: 'Ctrl+0',
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'fit',
-                                        label: context.l10n.textFrameAllF300,
-                                        dividerBefore: true,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'selected',
-                                        label: context
-                                            .l10n
-                                            .workspaceFrameSelection,
-                                        enabled: _selection.isNotEmpty,
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'filterColor',
-                                        label: _colorFilter == null
-                                            ? context
-                                                  .l10n
-                                                  .workspaceFilterByColor
-                                            : '${context.l10n.workspaceFilterByColor}: ${_colorFilter!.label(context)}',
-                                        submenu: [
-                                          DesktopMenuEntry(
-                                            value: 'filterAll',
-                                            label:
-                                                context.l10n.workspaceAllColors,
-                                          ),
-                                          ...workspaceColorEntries(
-                                            context,
-                                            'filterColor:',
-                                          ),
-                                        ],
-                                      ),
-                                      DesktopMenuEntry(
-                                        value: 'inspector',
-                                        label:
-                                            context.l10n.textModuleSettings301,
-                                        dividerBefore: true,
-                                      ),
-                                    ],
-                                    onSelected: (action) {
-                                      if (action == 'showLogic' ||
-                                          action == 'showModules') {
-                                        _controller.setBlockVisibility(
-                                          logic: action == 'showLogic'
-                                              ? !graph.showLogicBlocks
-                                              : null,
-                                          modules: action == 'showModules'
-                                              ? !graph.showModuleBlocks
-                                              : null,
-                                        );
-                                        _clearSelection();
-                                        return;
-                                      }
-                                      if (action == 'filterAll') {
-                                        _filterColor(null);
-                                      } else if (action.startsWith(
-                                        'filterColor:',
-                                      )) {
-                                        _filterColor(
-                                          WorkspaceNodeColor.fromJson(
-                                            action.substring(12),
-                                          ),
-                                        );
-                                      } else {
-                                        _viewAction(action, visibleNodes);
-                                      }
-                                    },
-                                    child: _toolbarLabel(
-                                      _colorFilter == null
-                                          ? context.l10n.textView62
-                                          : '${context.l10n.textView62} · ${_colorFilter!.label(context)}',
-                                    ),
+                                  DesktopMenuEntry(
+                                    value: '__manage',
+                                    label: context.l10n.workspaceManager,
                                   ),
                                 ],
+                                onSelected: (id) {
+                                  if (id == '__create') {
+                                    editWorkspace(context, ref);
+                                  } else if (id == '__manage') {
+                                    showWorkspaceManager(context);
+                                  } else {
+                                    _controller.switchProject(id);
+                                  }
+                                },
+                                child: SizedBox(
+                                  height: 40,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.account_tree_outlined,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 9),
+                                        Flexible(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 160,
+                                            ),
+                                            child: Text(
+                                              graph.activeProject.name,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Icon(Icons.expand_more, size: 16),
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          DesktopIconButton(
-                            key: const ValueKey('workspace toggle inspector'),
-                            icon: Icons.view_sidebar_outlined,
-                            tooltip: inspector
-                                ? context.l10n.workspaceHideSidebar
-                                : context.l10n.workspaceShowSidebar,
-                            size: 42,
-                            iconSize: 22,
-                            onPressed: () => _setInspector(!inspector),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    DesktopMenuButton<String>(
+                                      key: const ValueKey('workspace add menu'),
+                                      width: 320,
+                                      itemHeight: 48,
+                                      tooltip:
+                                          context.l10n.textAddModuleToCanvas299,
+                                      entries: [
+                                        DesktopMenuEntry(
+                                          value: 'logic',
+                                          label: context.l10n.logicAdd,
+                                          submenu: [
+                                            for (final type
+                                                in LogicBlockType.values)
+                                              DesktopMenuEntry(
+                                                value: 'logic:${type.name}',
+                                                label: context.logicBlockLabel(
+                                                  type.name,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'module',
+                                          label: context.l10n.textAddModule158,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'marketplace',
+                                          label: context.hostLabel(
+                                            'Marketplace',
+                                          ),
+                                          enabled: widget.onMarketplace != null,
+                                        ),
+                                      ],
+                                      onSelected: (action) {
+                                        if (action.startsWith('logic:')) {
+                                          _select(
+                                            _controller.addLogicBlock(
+                                              LogicBlockType.values.firstWhere(
+                                                (t) =>
+                                                    t.name ==
+                                                    action.substring(6),
+                                              ),
+                                              _center - const Offset(120, 80),
+                                            ),
+                                          );
+                                          return;
+                                        }
+                                        if (action == 'module') {
+                                          _pick();
+                                        } else {
+                                          widget.onMarketplace?.call();
+                                        }
+                                      },
+                                      child: _toolbarLabel(
+                                        context.l10n.textAdd294,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    DesktopMenuButton<String>(
+                                      key: const ValueKey(
+                                        'workspace select menu',
+                                      ),
+                                      width: 340,
+                                      itemHeight: 48,
+                                      tooltip: context.l10n.workspaceSelectHint,
+                                      entries: [
+                                        DesktopMenuEntry(
+                                          value: 'all',
+                                          label:
+                                              context.l10n.workspaceSelectAll,
+                                          shortcut: 'Ctrl+A',
+                                          enabled: visibleNodes.isNotEmpty,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'none',
+                                          label: context.l10n.workspaceDeselect,
+                                          enabled: _selection.isNotEmpty,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'selectColor',
+                                          label: context
+                                              .l10n
+                                              .workspaceSelectByColor,
+                                          submenu: workspaceColorEntries(
+                                            context,
+                                            'selectColor:',
+                                          ),
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'color',
+                                          label: context
+                                              .l10n
+                                              .workspaceColorSelected,
+                                          enabled: _selection.isNotEmpty,
+                                          submenu: workspaceColorEntries(
+                                            context,
+                                            'color:',
+                                          ),
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'delete',
+                                          label: context
+                                              .l10n
+                                              .workspaceDeleteSelected,
+                                          shortcut: 'Del',
+                                          dividerBefore: true,
+                                          enabled: _selection.isNotEmpty,
+                                        ),
+                                      ],
+                                      onSelected: (action) {
+                                        if (action == 'all') {
+                                          setState(() {
+                                            _selection.addAll(
+                                              _visibleNodes.map(
+                                                (node) => node.id,
+                                              ),
+                                            );
+                                          });
+                                        }
+                                        if (action == 'none') _clearSelection();
+                                        if (action == 'delete') {
+                                          _deleteSelection();
+                                        }
+                                        if (action.startsWith('selectColor:')) {
+                                          _selectColor(
+                                            WorkspaceNodeColor.fromJson(
+                                              action.substring(12),
+                                            ),
+                                          );
+                                        }
+                                        if (action.startsWith('color:')) {
+                                          _controller.setNodeColors(
+                                            {..._selection},
+                                            WorkspaceNodeColor.fromJson(
+                                              action.substring(6),
+                                            ),
+                                          );
+                                          if (_colorFilter != null) {
+                                            _filterColor(null);
+                                          }
+                                        }
+                                      },
+                                      child: _toolbarLabel(
+                                        context.l10n.workspaceSelect,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    DesktopMenuButton<String>(
+                                      key: const ValueKey(
+                                        'workspace view menu',
+                                      ),
+                                      width: 360,
+                                      itemHeight: 48,
+                                      tooltip: context.l10n.textView62,
+                                      entries: [
+                                        DesktopMenuEntry(
+                                          value: 'showLogic',
+                                          label: graph.showLogicBlocks
+                                              ? context.l10n.logicHide
+                                              : context.l10n.logicShow,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'showModules',
+                                          label: graph.showModuleBlocks
+                                              ? context.l10n.moduleBlocksHide
+                                              : context.l10n.moduleBlocksShow,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'in',
+                                          label: context.l10n.workspaceZoomIn,
+                                          shortcut: 'Ctrl+Plus',
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'out',
+                                          label: context.l10n.workspaceZoomOut,
+                                          shortcut: 'Ctrl+Minus',
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'actual',
+                                          label:
+                                              context.l10n.workspaceActualSize,
+                                          shortcut: 'Ctrl+0',
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'fit',
+                                          label: context.l10n.textFrameAllF300,
+                                          dividerBefore: true,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'selected',
+                                          label: context
+                                              .l10n
+                                              .workspaceFrameSelection,
+                                          enabled: _selection.isNotEmpty,
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'filterColor',
+                                          label: _colorFilter == null
+                                              ? context
+                                                    .l10n
+                                                    .workspaceFilterByColor
+                                              : '${context.l10n.workspaceFilterByColor}: ${_colorFilter!.label(context)}',
+                                          submenu: [
+                                            DesktopMenuEntry(
+                                              value: 'filterAll',
+                                              label: context
+                                                  .l10n
+                                                  .workspaceAllColors,
+                                            ),
+                                            ...workspaceColorEntries(
+                                              context,
+                                              'filterColor:',
+                                            ),
+                                          ],
+                                        ),
+                                        DesktopMenuEntry(
+                                          value: 'inspector',
+                                          label: context
+                                              .l10n
+                                              .textModuleSettings301,
+                                          dividerBefore: true,
+                                        ),
+                                      ],
+                                      onSelected: (action) {
+                                        if (action == 'showLogic' ||
+                                            action == 'showModules') {
+                                          _controller.setBlockVisibility(
+                                            logic: action == 'showLogic'
+                                                ? !graph.showLogicBlocks
+                                                : null,
+                                            modules: action == 'showModules'
+                                                ? !graph.showModuleBlocks
+                                                : null,
+                                          );
+                                          _clearSelection();
+                                          return;
+                                        }
+                                        if (action == 'filterAll') {
+                                          _filterColor(null);
+                                        } else if (action.startsWith(
+                                          'filterColor:',
+                                        )) {
+                                          _filterColor(
+                                            WorkspaceNodeColor.fromJson(
+                                              action.substring(12),
+                                            ),
+                                          );
+                                        } else {
+                                          _viewAction(action, visibleNodes);
+                                        }
+                                      },
+                                      child: _toolbarLabel(
+                                        _colorFilter == null
+                                            ? context.l10n.textView62
+                                            : '${context.l10n.textView62} · ${_colorFilter!.label(context)}',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            DesktopIconButton(
+                              key: const ValueKey('workspace toggle inspector'),
+                              icon: Icons.view_sidebar_outlined,
+                              tooltip: inspector
+                                  ? context.l10n.workspaceHideSidebar
+                                  : context.l10n.workspaceShowSidebar,
+                              size: 42,
+                              iconSize: 22,
+                              onPressed: () => _setInspector(!inspector),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     Expanded(
@@ -1431,6 +1612,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                               .id] ==
                                                           false,
                                                   ignorePointer:
+                                                      graph.hiddenModuleIds
+                                                          .contains(
+                                                            node.module.id,
+                                                          ) ||
                                                       _panModifier ||
                                                       _panPointer != null,
                                                   selected: _selection.contains(
@@ -1525,14 +1710,13 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                       (port, position) =>
                                                           setState(() {
                                                             _pendingPort = port;
+                                                            _wireGlobal =
+                                                                position;
                                                             _wireEnd = _sceneAt(
                                                               position,
                                                             );
                                                           }),
-                                                  onDragEnd: () => setState(() {
-                                                    _pendingPort = null;
-                                                    _wireEnd = null;
-                                                  }),
+                                                  onDragEnd: _finishPortDrag,
                                                 ),
                                               if (_marqueeStart != null &&
                                                   _marqueeEnd != null)
@@ -1880,15 +2064,18 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     );
   }
 
-  Widget _toolbarLabel(String label) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 14)),
-        const SizedBox(width: 6),
-        const Icon(Icons.expand_more, size: 16),
-      ],
+  Widget _toolbarLabel(String label) => SizedBox(
+    height: 40,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          const Icon(Icons.expand_more, size: 16),
+        ],
+      ),
     ),
   );
 }
@@ -1929,7 +2116,7 @@ class _WorkspaceNodeView extends StatelessWidget {
   final ValueChanged<_PortRef> onPort;
   final void Function(_PortRef a, _PortRef b) onConnect;
   final void Function(_PortRef port, Offset position) onDragPort;
-  final VoidCallback onDragEnd;
+  final ValueChanged<DraggableDetails> onDragEnd;
   final void Function(_PortRef port, Offset position) onPortMenu;
   final bool ignorePointer;
   final bool dimmed;
@@ -1940,319 +2127,70 @@ class _WorkspaceNodeView extends StatelessWidget {
     top: node.position.dy,
     child: IgnorePointer(
       ignoring: ignorePointer || hidden,
-      child: Listener(
-        onPointerDown: (event) {
-          if (event.buttons == kPrimaryMouseButton) onInteraction(true);
-        },
-        onPointerUp: (_) => onInteraction(false),
-        onPointerCancel: (_) => onInteraction(false),
-        child: DesktopFocusableAction(
-          onActivate: hidden ? null : onOpen,
-          onFocus: onSelect,
-          onContextMenu: () {
-            final box = context.findRenderObject() as RenderBox;
-            onMenu(box.localToGlobal(const Offset(24, 24)));
+      child: ExcludeFocus(
+        excluding: hidden,
+        child: Listener(
+          onPointerDown: (event) {
+            if (event.buttons == kPrimaryMouseButton) {
+              onSelect();
+              onInteraction(true);
+            }
           },
-          label: node.module.displayName(context),
-          child: Semantics(
-            key: ValueKey('workspace selection ${node.id}'),
-            selected: selected,
-            child: GestureDetector(
-              onTap: onSelect,
-              onSecondaryTapUp: (details) => onMenu(details.globalPosition),
-              child: RepaintBoundary(
-                child: Opacity(
-                  opacity: dimmed || node.settings['enabled'] == false
-                      ? .58
-                      : 1,
-                  child: Container(
-                    key: ValueKey('workspace node ${node.id}'),
-                    width: node.width,
-                    height: node.height,
-                    decoration: BoxDecoration(
-                      color: context.palette.panel,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(35),
-                          blurRadius: 16,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                      border: Border.all(
-                        color:
-                            selected && NavigationBindings.instance.keyboardMode
-                            ? context.palette.text.withAlpha(150)
-                            : context.palette.hover,
+          onPointerUp: (_) => onInteraction(false),
+          onPointerCancel: (_) => onInteraction(false),
+          child: DesktopFocusableAction(
+            onActivate: hidden ? null : onOpen,
+            onFocus: onSelect,
+            onContextMenu: () {
+              final box = context.findRenderObject() as RenderBox;
+              onMenu(box.localToGlobal(const Offset(24, 24)));
+            },
+            label: node.module.displayName(context),
+            child: Semantics(
+              key: ValueKey('workspace selection ${node.id}'),
+              selected: selected,
+              child: GestureDetector(
+                onTap: onSelect,
+                onSecondaryTapUp: (details) => onMenu(details.globalPosition),
+                child: RepaintBoundary(
+                  child: Opacity(
+                    opacity: dimmed || node.settings['enabled'] == false
+                        ? .58
+                        : 1,
+                    child: Container(
+                      key: ValueKey('workspace node ${node.id}'),
+                      width: node.width,
+                      height: node.height,
+                      decoration: BoxDecoration(
+                        color: context.palette.panel,
+                        borderRadius: BorderRadius.circular(10),
+                        // Keep the one-pixel content inset used by port geometry.
+                        border: Border.all(color: context.palette.hover),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Listener(
-                              onPointerDown: (event) {
-                                if (event.buttons != kPrimaryMouseButton) {
-                                  return;
-                                }
-                                onSelect();
-                                onDragStart(
-                                  DragStartDetails(
-                                    globalPosition: event.position,
-                                  ),
-                                );
-                                onInteraction(true);
-                              },
-                              onPointerMove: (event) {
-                                if (event.buttons == kPrimaryMouseButton) {
-                                  onMove(
-                                    DragUpdateDetails(
-                                      globalPosition: event.position,
-                                      delta: event.delta,
-                                    ),
-                                  );
-                                }
-                              },
-                              onPointerUp: (_) => onInteraction(false),
-                              onPointerCancel: (_) => onInteraction(false),
-                              child: MouseRegion(
-                                cursor: SystemMouseCursors.move,
-                                child: Container(
-                                  key: ValueKey('workspace header ${node.id}'),
-                                  height: WorkspaceNode.headerHeight,
-                                  decoration: BoxDecoration(
-                                    color: node.headerColor.headerBackground(
-                                      context,
-                                    ),
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(9),
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        node.isLogic
-                                            ? Icons.account_tree_outlined
-                                            : Icons.extension_outlined,
-                                        size: 18,
-                                        color: context.palette.text,
-                                      ),
-                                      const SizedBox(width: 9),
-                                      Expanded(
-                                        child: Text(
-                                          node.isLogic
-                                              ? context.logicBlockLabel(
-                                                  node.logicType.name,
-                                                )
-                                              : node.module.displayName(
-                                                  context,
-                                                ),
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      if (hidden)
-                                        Icon(
-                                          Icons.visibility_off_outlined,
-                                          size: 15,
-                                          color: context.palette.mutedText,
-                                        ),
-                                      Icon(
-                                        Icons.drag_indicator,
-                                        size: 15,
-                                        color: context.palette.mutedText,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              height: WorkspaceNode.portsTopPadding,
-                            ),
-                            for (
-                              var index = 0;
-                              index <
-                                  math.max(
-                                    node.inputs.length,
-                                    node.outputs.length,
-                                  );
-                              index++
-                            )
-                              SizedBox(
-                                height: WorkspaceNode.portRowHeight,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: index < node.inputs.length
-                                          ? _PortView(
-                                              label: node.portLabel(
-                                                node.inputs[index],
-                                                false,
-                                              ),
-                                              type: node.portType(
-                                                node.inputs[index],
-                                                false,
-                                              ),
-                                              ref: _PortRef(
-                                                node.id,
-                                                node.inputs[index],
-                                                false,
-                                              ),
-                                              onTap: onPort,
-                                              onConnect: onConnect,
-                                              onDrag: onDragPort,
-                                              onDragEnd: onDragEnd,
-                                              color: node.portColor(
-                                                node.inputs[index],
-                                                false,
-                                              ),
-                                              onMenu: onPortMenu,
-                                            )
-                                          : const SizedBox(),
-                                    ),
-                                    Expanded(
-                                      child: index < node.outputs.length
-                                          ? _PortView(
-                                              label: node.portLabel(
-                                                node.outputs[index],
-                                                true,
-                                              ),
-                                              type: node.portType(
-                                                node.outputs[index],
-                                                true,
-                                              ),
-                                              ref: _PortRef(
-                                                node.id,
-                                                node.outputs[index],
-                                                true,
-                                              ),
-                                              onTap: onPort,
-                                              onConnect: onConnect,
-                                              onDrag: onDragPort,
-                                              onDragEnd: onDragEnd,
-                                              color: node.portColor(
-                                                node.outputs[index],
-                                                true,
-                                              ),
-                                              onMenu: onPortMenu,
-                                            )
-                                          : const SizedBox(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            SizedBox(
-                              height: 34,
-                              child: Row(
-                                children: [
-                                  TextButton(
-                                    onPressed: node.isLogic
-                                        ? null
-                                        : () => onAddPort(false),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(72, 28),
-                                      backgroundColor: context.palette.hover,
-                                      foregroundColor: context.palette.text,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      textStyle: const TextStyle(fontSize: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                    ),
-                                    child: Text(context.l10n.textInput307),
-                                  ),
-                                  const Spacer(),
-                                  TextButton(
-                                    onPressed: node.isLogic
-                                        ? null
-                                        : () => onAddPort(true),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(72, 28),
-                                      backgroundColor: context.palette.hover,
-                                      foregroundColor: context.palette.text,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      textStyle: const TextStyle(fontSize: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                    ),
-                                    child: Text(context.l10n.textOutput308),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Spacer(),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 3, 28, 12),
-                              child: SizedBox(
-                                height: 34,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: hidden ? null : onOpen,
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              7,
-                                            ),
-                                          ),
-                                        ),
-                                        icon: const Icon(
-                                          Icons.open_in_new,
-                                          size: 13,
-                                        ),
-                                        label: Text(
-                                          context.l10n.textOpen309,
-                                          style: TextStyle(fontSize: 14),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    DesktopIconButton(
-                                      key: ValueKey(
-                                        'workspace detach ${node.id}',
-                                      ),
-                                      icon: Icons.open_in_new,
-                                      tooltip: context.l10n.moduleOpenWindow,
-                                      onPressed: hidden ? null : onDetach,
-                                      size: 34,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                      // Selection is document interaction state, not keyboard
+                      // focus. Paint above the opaque header and controls.
+                      foregroundDecoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selected
+                              ? context.palette.text.withAlpha(150)
+                              : context.palette.hover,
+                          width: selected ? 1.5 : 1,
                         ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: DesktopTooltip(
-                            message: context.l10n.workspaceResizeNode,
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                              child: Listener(
-                                key: ValueKey('workspace resize ${node.id}'),
-                                behavior: HitTestBehavior.opaque,
+                      ),
+                      child: Stack(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Listener(
                                 onPointerDown: (event) {
                                   if (event.buttons != kPrimaryMouseButton) {
                                     return;
@@ -2267,7 +2205,7 @@ class _WorkspaceNodeView extends StatelessWidget {
                                 },
                                 onPointerMove: (event) {
                                   if (event.buttons == kPrimaryMouseButton) {
-                                    onResize(
+                                    onMove(
                                       DragUpdateDetails(
                                         globalPosition: event.position,
                                         delta: event.delta,
@@ -2277,20 +2215,297 @@ class _WorkspaceNodeView extends StatelessWidget {
                                 },
                                 onPointerUp: (_) => onInteraction(false),
                                 onPointerCancel: (_) => onInteraction(false),
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.move,
+                                  child: Container(
+                                    key: ValueKey(
+                                      'workspace header ${node.id}',
+                                    ),
+                                    height: WorkspaceNode.headerHeight,
+                                    decoration: BoxDecoration(
+                                      color: node.headerColor.headerBackground(
+                                        context,
+                                      ),
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(9),
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          node.isLogic
+                                              ? Icons.account_tree_outlined
+                                              : Icons.extension_outlined,
+                                          size: 18,
+                                          color: context.palette.text,
+                                        ),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            node.isLogic
+                                                ? context.logicBlockLabel(
+                                                    node.logicType.name,
+                                                  )
+                                                : node.module.displayName(
+                                                    context,
+                                                  ),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        if (hidden)
+                                          Icon(
+                                            Icons.visibility_off_outlined,
+                                            size: 15,
+                                            color: context.palette.mutedText,
+                                          ),
+                                        Icon(
+                                          Icons.drag_indicator,
+                                          size: 15,
+                                          color: context.palette.mutedText,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(
+                                height: WorkspaceNode.portsTopPadding,
+                              ),
+                              for (
+                                var index = 0;
+                                index <
+                                    math.max(
+                                      node.inputs.length,
+                                      node.outputs.length,
+                                    );
+                                index++
+                              )
+                                SizedBox(
+                                  height: WorkspaceNode.portRowHeight,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: index < node.inputs.length
+                                            ? _PortView(
+                                                label: node.portLabel(
+                                                  node.inputs[index],
+                                                  false,
+                                                ),
+                                                type: node.portType(
+                                                  node.inputs[index],
+                                                  false,
+                                                ),
+                                                ref: _PortRef(
+                                                  node.id,
+                                                  node.inputs[index],
+                                                  false,
+                                                ),
+                                                onTap: onPort,
+                                                onConnect: onConnect,
+                                                onDrag: onDragPort,
+                                                onDragEnd: onDragEnd,
+                                                color: node.portColor(
+                                                  node.inputs[index],
+                                                  false,
+                                                ),
+                                                onMenu: onPortMenu,
+                                              )
+                                            : const SizedBox(),
+                                      ),
+                                      Expanded(
+                                        child: index < node.outputs.length
+                                            ? _PortView(
+                                                label: node.portLabel(
+                                                  node.outputs[index],
+                                                  true,
+                                                ),
+                                                type: node.portType(
+                                                  node.outputs[index],
+                                                  true,
+                                                ),
+                                                ref: _PortRef(
+                                                  node.id,
+                                                  node.outputs[index],
+                                                  true,
+                                                ),
+                                                onTap: onPort,
+                                                onConnect: onConnect,
+                                                onDrag: onDragPort,
+                                                onDragEnd: onDragEnd,
+                                                color: node.portColor(
+                                                  node.outputs[index],
+                                                  true,
+                                                ),
+                                                onMenu: onPortMenu,
+                                              )
+                                            : const SizedBox(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              SizedBox(
+                                height: 34,
+                                child: Row(
+                                  children: [
+                                    TextButton(
+                                      onPressed: node.isLogic
+                                          ? null
+                                          : () => onAddPort(false),
+                                      style: TextButton.styleFrom(
+                                        minimumSize: const Size(72, 28),
+                                        backgroundColor: context.palette.hover,
+                                        foregroundColor: context.palette.text,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(context.l10n.textInput307),
+                                    ),
+                                    const Spacer(),
+                                    TextButton(
+                                      onPressed: node.isLogic
+                                          ? null
+                                          : () => onAddPort(true),
+                                      style: TextButton.styleFrom(
+                                        minimumSize: const Size(72, 28),
+                                        backgroundColor: context.palette.hover,
+                                        foregroundColor: context.palette.text,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 14,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(context.l10n.textOutput308),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  3,
+                                  28,
+                                  12,
+                                ),
                                 child: SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: Icon(
-                                    Icons.south_east,
-                                    size: 14,
-                                    color: context.palette.mutedText,
+                                  height: 34,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: hidden ? null : onOpen,
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                            ),
+                                          ),
+                                          icon: const Icon(
+                                            Icons.open_in_new,
+                                            size: 13,
+                                          ),
+                                          label: Text(
+                                            context.l10n.textOpen309,
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      DesktopIconButton(
+                                        key: ValueKey(
+                                          'workspace detach ${node.id}',
+                                        ),
+                                        icon: Icons.open_in_new,
+                                        tooltip: context.l10n.moduleOpenWindow,
+                                        onPressed: hidden ? null : onDetach,
+                                        size: 34,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: DesktopTooltip(
+                              message: context.l10n.workspaceResizeNode,
+                              child: MouseRegion(
+                                cursor:
+                                    SystemMouseCursors.resizeUpLeftDownRight,
+                                child: Listener(
+                                  key: ValueKey('workspace resize ${node.id}'),
+                                  behavior: HitTestBehavior.opaque,
+                                  onPointerDown: (event) {
+                                    if (event.buttons != kPrimaryMouseButton) {
+                                      return;
+                                    }
+                                    onSelect();
+                                    onDragStart(
+                                      DragStartDetails(
+                                        globalPosition: event.position,
+                                      ),
+                                    );
+                                    onInteraction(true);
+                                  },
+                                  onPointerMove: (event) {
+                                    if (event.buttons == kPrimaryMouseButton) {
+                                      onResize(
+                                        DragUpdateDetails(
+                                          globalPosition: event.position,
+                                          delta: event.delta,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  onPointerUp: (_) => onInteraction(false),
+                                  onPointerCancel: (_) => onInteraction(false),
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Icon(
+                                      Icons.south_east,
+                                      size: 14,
+                                      color: context.palette.mutedText,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -2321,7 +2536,7 @@ class _PortView extends StatelessWidget {
   final ValueChanged<_PortRef> onTap;
   final void Function(_PortRef a, _PortRef b) onConnect;
   final void Function(_PortRef port, Offset position) onDrag;
-  final VoidCallback onDragEnd;
+  final ValueChanged<DraggableDetails> onDragEnd;
   final WorkspaceNodeColor color;
   final void Function(_PortRef port, Offset position) onMenu;
   @override
@@ -2332,7 +2547,7 @@ class _PortView extends StatelessWidget {
       data: ref,
       feedback: const SizedBox(width: 10, height: 10),
       onDragUpdate: (details) => onDrag(ref, details.globalPosition),
-      onDragEnd: (_) => onDragEnd(),
+      onDragEnd: onDragEnd,
       child: DesktopFocusableAction(
         onActivate: () => onTap(ref),
         label: '$label · ${_portTypeLabel(context, type)}',
@@ -2647,7 +2862,7 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
       }),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children,
@@ -2664,7 +2879,7 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
         children: [
           DesktopPane(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   Expanded(
@@ -2672,8 +2887,7 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
                       context.l10n.textMODULESETTINGS310,
                       style: TextStyle(
                         fontSize: 14,
-                        letterSpacing: 1,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -2690,7 +2904,7 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
               children: [
                 if (node == null)
                   DesktopPane(
@@ -2708,49 +2922,51 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
                 else ...[
                   DesktopPane(
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(10, 4, 10, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
                             node!.module.displayName(context),
                             style: const TextStyle(
-                              fontSize: 17,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Text(
-                            node!.module.displayDescription(context),
+                            '${context.hostLabel(node!.module.category)} · ${node!.module.version}',
                             style: TextStyle(
                               color: context.palette.mutedText,
-                              fontSize: 14,
-                              height: 1.5,
+                              fontSize: 12,
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
+                          Row(
+                            key: const ValueKey('workspace inspector actions'),
                             children: [
-                              DesktopIconButton(
-                                onPressed: widget.onOpen,
-                                icon: Icons.open_in_new,
-                                label: context.l10n.textOpen309,
-                                tooltip: context.l10n.textOpen309,
-                                size: 34,
+                              Expanded(
+                                child: DesktopIconButton(
+                                  onPressed: widget.onOpen,
+                                  icon: Icons.launch,
+                                  label: context.l10n.textOpen309,
+                                  tooltip: context.l10n.textOpen309,
+                                  size: 30,
+                                ),
                               ),
+                              const SizedBox(width: 6),
                               DesktopIconButton(
                                 icon: Icons.open_in_new,
                                 tooltip: context.l10n.moduleOpenWindow,
                                 onPressed: widget.onDetach,
-                                size: 34,
+                                size: 30,
                               ),
+                              const SizedBox(width: 6),
                               DesktopIconButton(
                                 icon: Icons.fullscreen,
                                 tooltip: context.l10n.moduleFullscreen,
                                 onPressed: widget.onFullscreen,
-                                size: 34,
+                                size: 30,
                               ),
                             ],
                           ),
@@ -2887,99 +3103,4 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
       ),
     ),
   );
-}
-
-class _ModulePicker extends StatefulWidget {
-  const _ModulePicker({
-    required this.modules,
-    required this.replacing,
-    this.onMarketplace,
-  });
-  final List<SystemModule> modules;
-  final bool replacing;
-  final VoidCallback? onMarketplace;
-  @override
-  State<_ModulePicker> createState() => _ModulePickerState();
-}
-
-class _ModulePickerState extends State<_ModulePicker> {
-  String _query = '';
-  @override
-  Widget build(BuildContext context) {
-    final modules = widget.modules
-        .where(
-          (module) =>
-              '${module.displayName(context)} ${module.displayCategory(context)}'
-                  .toLowerCase()
-                  .contains(_query.trim().toLowerCase()),
-        )
-        .toList();
-    return AlertDialog(
-      title: Text(
-        widget.replacing
-            ? context.l10n.textReplaceModule295
-            : context.l10n.textAddModule158,
-      ),
-      content: SizedBox(
-        width: 420,
-        height: 340,
-        child: Column(
-          children: [
-            TextField(
-              key: const ValueKey('workspace module search'),
-              autofocus: true,
-              onChanged: (value) => setState(() => _query = value),
-              decoration: InputDecoration(
-                hintText: context.l10n.textSearchAvailableModules317,
-                prefixIcon: Icon(Icons.search, size: 18),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: modules.isEmpty
-                  ? Center(
-                      child: Text(
-                        context.l10n.textNoAvailableModulesAddADraftOr318,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: context.palette.mutedText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: modules.length,
-                      itemBuilder: (context, index) => ListTile(
-                        leading: const Icon(Icons.extension_outlined, size: 18),
-                        title: Text(
-                          modules[index].displayName(context),
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          modules[index].displayCategory(context),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                        onTap: () => Navigator.pop(context, modules[index]),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        if (widget.onMarketplace != null)
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onMarketplace!();
-            },
-            child: Text(context.l10n.textMarketplace54),
-          ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.textCancel198),
-        ),
-      ],
-    );
-  }
 }

@@ -122,6 +122,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   SectionId? _activeTab;
   List<SystemModule> _workspaceModules = const <SystemModule>[];
   String? _railExtensionId;
+  bool _railEditing = false;
   int _presetRequest = 0;
 
   List<SystemModule> get _availableModules =>
@@ -164,6 +165,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     final action = await showDesktopMenu<String>(
       context: context,
       position: position,
+      scale: _visualScale,
       width: 250,
       entries: [
         DesktopMenuEntry(value: 'delete', label: context.l10n.moduleDelete),
@@ -336,6 +338,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   void _handleFileAction(String action) {
+    if (action == 'save') unawaited(_saveWorkspace());
     if (action == 'add_workspace_preset') _addPreset();
     if (action == 'import_workspace_preset') _importPreset();
     if (action == 'new') {
@@ -351,7 +354,9 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   void _handleEditAction(String action) {
-    if (action == 'rail_settings') showRailSettings(context);
+    if (action == 'rail_settings') _openRailSettings();
+    if (action == 'undo') ref.read(workspaceProvider.notifier).undo();
+    if (action == 'redo') ref.read(workspaceProvider.notifier).redo();
   }
 
   List<NeuralEntity> _entities = List<NeuralEntity>.of(kNeuralEntities);
@@ -376,12 +381,28 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    unawaited(windowManager.setPreventClose(true).catchError((_) {}));
+    ref.listenManual(workspaceProvider, (_, next) {
+      final controller = ref.read(workspaceProvider.notifier);
+      if (_lastHistoryNotice == controller.historyNotice) return;
+      _lastHistoryNotice = controller.historyNotice;
+      final redo = controller.lastHistoryWasRedo;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showWorkspaceNotice(
+            redo
+                ? context.l10n.workspaceRedoNotice
+                : context.l10n.workspaceUndoNotice,
+          );
+        }
+      });
+    });
     _syncWindowBoundsState();
     ref.listenManual(authUserProvider, (previous, next) {
       next.whenData((_) => _loadUserModules());
     });
     _loadUserModules();
-    final initial = kNavSections.first;
+    final initial = kNavSections.firstWhere((s) => s.id == SectionId.modules);
     _openTabs.add(initial);
     _activeTab = initial.id;
   }
@@ -401,6 +422,48 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   @override
   void onWindowFocus() => _restoreShellFocus();
+
+  int _lastHistoryNotice = 0;
+  bool _closing = false;
+  bool _savingWorkspace = false;
+
+  void _showWorkspaceNotice(String message) {
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          width: 300,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  Future<void> _saveWorkspace() async {
+    if (_savingWorkspace) return;
+    _savingWorkspace = true;
+    try {
+      if (await saveWorkspaceProgress(context, ref) && mounted) {
+        _showWorkspaceNotice(context.l10n.workspaceSaved);
+      }
+    } finally {
+      _savingWorkspace = false;
+    }
+  }
+
+  @override
+  void onWindowClose() async {
+    if (_closing || _savingWorkspace) return;
+    _closing = true;
+    try {
+      if (await confirmWorkspaceClose(context, ref) && mounted) {
+        await windowManager.destroy();
+      }
+    } finally {
+      _closing = false;
+    }
+  }
 
   @override
   void onWindowMaximize() {
@@ -492,8 +555,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   }
 
   void _returnToApp() {
-    ref.read(navSectionProvider.notifier).select(SectionId.dashboard);
-    _openTab(SectionId.dashboard);
+    ref.read(navSectionProvider.notifier).select(SectionId.modules);
+    _openTab(SectionId.modules);
   }
 
   void _selectSection(SectionId id, AppMode mode) {
@@ -598,24 +661,23 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     );
   }
 
-  Future<void> _showModuleActions() async {
-    final action = await showDialog<String>(
+  Future<void> _showModuleActions({Offset? position}) async {
+    final box = context.findRenderObject() as RenderBox;
+    final action = await showDesktopMenu<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(context.l10n.textAddModule158),
-        children: [
-          for (final entry in {
-            'create-local': context.l10n.moduleCreateLocal,
-            'create-online': context.l10n.moduleCreateOnline,
-            'add-local': context.l10n.moduleAddLocal,
-            'add-online': context.l10n.moduleAddOnline,
-          }.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, entry.key),
-              child: Text(entry.value),
-            ),
-        ],
-      ),
+      position: position ?? box.localToGlobal(const Offset(80, 100)),
+      scale: _visualScale,
+      width: 280,
+      itemHeight: 38,
+      entries: [
+        for (final entry in {
+          'create-local': context.l10n.moduleCreateLocal,
+          'create-online': context.l10n.moduleCreateOnline,
+          'add-local': context.l10n.moduleAddLocal,
+          'add-online': context.l10n.moduleAddOnline,
+        }.entries)
+          DesktopMenuEntry(value: entry.key, label: entry.value),
+      ],
     );
     if (!mounted) return;
     try {
@@ -913,7 +975,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         onNavigate: (id) => _selectSection(id, mode),
         onProfile: () => _selectSection(SectionId.profile, mode),
         config: config,
-        onRailSettings: () => showRailSettings(context),
+        onRailSettings: _openRailSettings,
         extensions: ref
             .watch(workspaceProvider)
             .library
@@ -928,6 +990,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
       ),
     );
   }
+
+  void _openRailSettings() => setState(() => _railEditing = true);
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -947,14 +1011,28 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         (selected < 0 ? sections.first : sections[selected]);
 
     return CallbackShortcuts(
-      bindings: NavigationBindings.instance.callbacks({
-        NavigationAction.scaleUp: () => _changeScale(_scaleStep),
-        NavigationAction.scaleDown: () => _changeScale(-_scaleStep),
-        NavigationAction.scaleReset: _resetScale,
-        NavigationAction.openWorkspace: _openWorkspaceManager,
-        NavigationAction.findModule: () =>
-            _selectSection(SectionId.modules, mode),
-      }),
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+            _saveWorkspace,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
+            ref.read(workspaceProvider.notifier).undo(),
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): () =>
+            ref.read(workspaceProvider.notifier).redo(),
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
+            ref.read(workspaceProvider.notifier).redo(),
+        ...NavigationBindings.instance.callbacks({
+          NavigationAction.scaleUp: () => _changeScale(_scaleStep),
+          NavigationAction.scaleDown: () => _changeScale(-_scaleStep),
+          NavigationAction.scaleReset: _resetScale,
+          NavigationAction.openWorkspace: _openWorkspaceManager,
+          NavigationAction.findModule: () =>
+              _selectSection(SectionId.modules, mode),
+        }),
+      },
       child: Focus(
         focusNode: _shellFocusNode,
         autofocus: true,
@@ -999,371 +1077,403 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                           child: MediaQuery(
                             data: logicalMediaQuery,
                             child: Scaffold(
-                              body: Column(
+                              body: Stack(
                                 children: [
-                                  _TitleBar(
-                                    compact: width < 760,
-                                    onOpenDebugConsole: _openDebugConsole,
-                                    scale: uiScale,
-                                    onScaleChanged: _setScale,
-                                    onOpenPreferences: () => setState(() {
-                                      settingsItem = 'General';
-                                      ref
-                                          .read(navSectionProvider.notifier)
-                                          .select(SectionId.settings);
-                                    }),
-                                    onHelpAction: _handleHelpAction,
-                                    onViewAction: _handleViewAction,
-                                    onFileAction: _handleFileAction,
-                                    onEditAction: _handleEditAction,
-                                  ),
-                                  Expanded(
-                                    child: Stack(
+                                  ExcludeFocus(
+                                    excluding: _railEditing,
+                                    child: Column(
                                       children: [
-                                        Positioned.fill(
-                                          child: section == SectionId.profile
-                                              ? Padding(
-                                                  padding: EdgeInsets.all(
-                                                    layout.gap,
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      _buildActivityRail(
-                                                        sections: sections,
-                                                        mode: mode,
-                                                        section: section,
-                                                      ),
-                                                      if (railVisible)
-                                                        _LayoutDivider(
-                                                          key:
-                                                              const ValueKey<
-                                                                String
-                                                              >(
-                                                                'rail resize handle',
-                                                              ),
-                                                          onDrag: _resizeRail,
-                                                        ),
-                                                      Expanded(
-                                                        child: _ShellSurface(
-                                                          radius: layout.radius,
-                                                          child: ProfileScreen(
-                                                            onBack:
-                                                                _returnToApp,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
+                                        _TitleBar(
+                                          compact: width < 760,
+                                          onOpenDebugConsole: _openDebugConsole,
+                                          scale: uiScale,
+                                          onScaleChanged: _setScale,
+                                          onOpenPreferences: () => setState(() {
+                                            settingsItem = 'General';
+                                            ref
+                                                .read(
+                                                  navSectionProvider.notifier,
                                                 )
-                                              : section == SectionId.bugReport
-                                              ? Padding(
-                                                  padding: EdgeInsets.all(
-                                                    layout.gap,
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      _buildActivityRail(
-                                                        sections: sections,
-                                                        mode: mode,
-                                                        section: section,
-                                                      ),
-                                                      if (railVisible)
-                                                        _LayoutDivider(
-                                                          key:
-                                                              const ValueKey<
-                                                                String
-                                                              >(
-                                                                'rail resize handle',
-                                                              ),
-                                                          onDrag: _resizeRail,
+                                                .select(SectionId.settings);
+                                          }),
+                                          onHelpAction: _handleHelpAction,
+                                          onViewAction: _handleViewAction,
+                                          onFileAction: _handleFileAction,
+                                          onEditAction: _handleEditAction,
+                                        ),
+                                        Expanded(
+                                          child: Stack(
+                                            children: [
+                                              Positioned.fill(
+                                                child:
+                                                    section == SectionId.profile
+                                                    ? Padding(
+                                                        padding: EdgeInsets.all(
+                                                          layout.gap,
                                                         ),
-                                                      Expanded(
-                                                        child: _ShellSurface(
-                                                          radius: layout.radius,
-                                                          child:
-                                                              const BugReportScreen(),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                )
-                                              : section == SectionId.settings
-                                              ? SettingsScreen(
-                                                  initialItem: settingsItem,
-                                                  onBack: _returnToApp,
-                                                )
-                                              : Padding(
-                                                  padding: EdgeInsets.all(
-                                                    layout.gap,
-                                                  ),
-                                                  child: Stack(
-                                                    children: [
-                                                      Row(
-                                                        children: [
-                                                          _buildActivityRail(
-                                                            sections: sections,
-                                                            mode: mode,
-                                                            section: section,
-                                                          ),
-                                                          if (railVisible)
-                                                            _LayoutDivider(
-                                                              key:
-                                                                  const ValueKey<
-                                                                    String
-                                                                  >(
-                                                                    'rail resize handle',
-                                                                  ),
-                                                              onDrag:
-                                                                  _resizeRail,
+                                                        child: Row(
+                                                          children: [
+                                                            _buildActivityRail(
+                                                              sections:
+                                                                  sections,
+                                                              mode: mode,
+                                                              section: section,
                                                             ),
-                                                          if (_explorerVisible &&
-                                                              active.id !=
-                                                                  SectionId
-                                                                      .extensions &&
-                                                              _railExtensionId ==
-                                                                  null) ...[
-                                                            _ShellSurface(
-                                                              key:
-                                                                  active.id ==
-                                                                      SectionId
-                                                                          .extensions
-                                                                  ? const ValueKey<
+                                                            if (railVisible)
+                                                              _LayoutDivider(
+                                                                key:
+                                                                    const ValueKey<
                                                                       String
                                                                     >(
-                                                                      'extensions explorer pane',
-                                                                    )
-                                                                  : null,
-                                                              width:
-                                                                  effectiveExplorerWidth,
-                                                              radius:
-                                                                  layout.radius,
-                                                              child: _Explorer(
-                                                                width:
-                                                                    effectiveExplorerWidth,
-                                                                sections:
-                                                                    sections,
-                                                                selected:
-                                                                    selected < 0
-                                                                    ? 0
-                                                                    : selected,
-                                                                showModuleActions:
-                                                                    active.id ==
-                                                                    SectionId
-                                                                        .modules,
-                                                                showEntityActions:
-                                                                    active.id ==
-                                                                    SectionId
-                                                                        .entity,
-                                                                showExtensionActions:
-                                                                    active.id ==
-                                                                    SectionId
-                                                                        .extensions,
-                                                                modules:
-                                                                    _availableModules,
-                                                                hiddenModuleIds:
-                                                                    graph
-                                                                        .hiddenModuleIds,
-                                                                entities:
-                                                                    _entities,
-                                                                extensions:
-                                                                    kUserExtensions,
-                                                                selectedExtensionId:
-                                                                    _selectedExtensionId,
-                                                                onExtensionSelected:
-                                                                    (
-                                                                      extension,
-                                                                    ) => setState(
-                                                                      () => _selectedExtensionId =
-                                                                          extension
-                                                                              .id,
+                                                                      'rail resize handle',
                                                                     ),
-                                                                onExtensionNotification:
-                                                                    _addNotification,
-                                                                selectedEntity:
-                                                                    _selectedEntity,
-                                                                onSelected:
-                                                                    (
-                                                                      index,
-                                                                    ) => _selectSection(
-                                                                      sections[index]
-                                                                          .id,
-                                                                      mode,
-                                                                    ),
-                                                                onAddModule:
-                                                                    _showModuleActions,
-                                                                onRemoveModule:
-                                                                    _removeModule,
-                                                                onEditModule:
-                                                                    _showModuleEditStub,
-                                                                onModuleSettings:
-                                                                    (
-                                                                      module,
-                                                                      position,
-                                                                    ) => _showModuleSettings(
-                                                                      module,
-                                                                      position,
-                                                                    ),
-                                                                onModuleActiveChanged:
-                                                                    _setModuleActive,
-                                                                onAddEntity:
-                                                                    _showEntityEditor,
-                                                                onRemoveEntity:
-                                                                    _removeEntity,
-                                                                onEditEntity:
-                                                                    _showEntityEditor,
-                                                                onEntitySelected:
-                                                                    (
-                                                                      entity,
-                                                                    ) => setState(
-                                                                      () => _selectedEntity =
-                                                                          entity,
-                                                                    ),
-                                                                selectedModule:
-                                                                    _selectedModule,
-                                                                onModuleSelected:
-                                                                    (
-                                                                      module,
-                                                                    ) => setState(
-                                                                      () => _selectedModule =
-                                                                          module,
-                                                                    ),
+                                                                onDrag:
+                                                                    _resizeRail,
                                                               ),
-                                                            ),
-                                                            _LayoutDivider(
-                                                              key:
-                                                                  active.id ==
-                                                                      SectionId
-                                                                          .extensions
-                                                                  ? const ValueKey<
-                                                                      String
-                                                                    >(
-                                                                      'extensions resize handle',
-                                                                    )
-                                                                  : const ValueKey<
-                                                                      String
-                                                                    >(
-                                                                      'explorer resize handle',
-                                                                    ),
-                                                              onDrag: (delta) =>
-                                                                  _resizeExplorer(
-                                                                    delta,
-                                                                    width,
-                                                                  ),
+                                                            Expanded(
+                                                              child: _ShellSurface(
+                                                                radius: layout
+                                                                    .radius,
+                                                                child: ProfileScreen(
+                                                                  onBack:
+                                                                      _returnToApp,
+                                                                ),
+                                                              ),
                                                             ),
                                                           ],
-                                                          Expanded(
-                                                            child: _ShellSurface(
-                                                              radius:
-                                                                  layout.radius,
-                                                              child:
-                                                                  _railExtensionId !=
-                                                                      null
-                                                                  ? ExtensionRailPage(
-                                                                      module: graph.library.firstWhere(
-                                                                        (
-                                                                          module,
-                                                                        ) =>
-                                                                            module.id ==
-                                                                            _railExtensionId,
-                                                                      ),
-                                                                      onBack: () => setState(
-                                                                        () => _railExtensionId =
-                                                                            null,
-                                                                      ),
-                                                                    )
-                                                                  : active.id ==
-                                                                        SectionId
-                                                                            .extensions
-                                                                  ? const MarketplaceScreen()
-                                                                  : Column(
-                                                                      children: [
-                                                                        if (active.id !=
-                                                                            SectionId.modules)
-                                                                          _EditorTabs(
-                                                                            tabs:
-                                                                                _openTabs,
-                                                                            active:
-                                                                                _activeTab,
-                                                                            onCreate: () => _showTabPicker(
-                                                                              mode,
-                                                                            ),
-                                                                            onSelect: (id) => _selectSection(
-                                                                              id,
-                                                                              mode,
-                                                                            ),
-                                                                            onClose:
-                                                                                _closeTab,
-                                                                            explorerVisible:
-                                                                                _explorerVisible,
-                                                                            onToggleExplorer: () => setState(
-                                                                              () => _explorerVisible = !_explorerVisible,
-                                                                            ),
-                                                                            showExplorerToggle:
-                                                                                active.id ==
-                                                                                SectionId.modules,
-                                                                          ),
-                                                                        Expanded(
-                                                                          child:
-                                                                              _activeTabSection == null
-                                                                              ? _EmptyEditor(onCreate: () => _showTabPicker(mode))
-                                                                              : _SectionBody(
-                                                                                  onOpenMarketplace: () => _selectSection(SectionId.extensions, mode),
-                                                                                  section: active.id,
-                                                                                  modules: _availableModules,
-                                                                                  onAddModule: _showModuleActions,
-                                                                                  onEditModule: _showModuleEditor,
-                                                                                  onRemoveModule: _removeModule,
-                                                                                  entities: _entities,
-                                                                                  selectedModule: _selectedModule,
-                                                                                  inspectorOpen: active.id == SectionId.modules ? _moduleInspectorOpen : _extensionInspectorOpen,
-                                                                                  selectedExtensionId: _selectedExtensionId,
-                                                                                  extensionInspectorOpen: _extensionInspectorOpen,
-                                                                                  onToggleInspector: () => setState(() {
-                                                                                    if (active.id == SectionId.modules) {
-                                                                                      _moduleInspectorOpen = !_moduleInspectorOpen;
-                                                                                    } else if (active.id == SectionId.extensions) {
-                                                                                      _extensionInspectorOpen = !_extensionInspectorOpen;
-                                                                                    }
-                                                                                  }),
-                                                                                  onSelectExtension: (extension) => setState(() => _selectedExtensionId = extension.id),
-                                                                                  selectedEntity: _selectedEntity,
-                                                                                  onAddEntity: _showEntityEditor,
-                                                                                  onEditEntity: _showEntityEditor,
-                                                                                  onRemoveEntity: _removeEntity,
-                                                                                  onToggleEntityInstalled: _toggleEntityInstalled,
-                                                                                ),
-                                                                        ),
-                                                                        if (active.id !=
-                                                                            SectionId.modules)
-                                                                          _TerminalPanel(
-                                                                            open:
-                                                                                terminalOpen,
-                                                                            onToggle: () {
-                                                                              setState(() {
-                                                                                terminalOpen = !terminalOpen;
-                                                                              });
-                                                                              logD(
-                                                                                LogSource.terminal,
-                                                                                terminalOpen
-                                                                                    ? 'панель терминала раскрыта'
-                                                                                    : 'панель терминала свернута',
-                                                                              );
-                                                                              _restoreShellFocus();
-                                                                            },
-                                                                          ),
-                                                                      ],
-                                                                    ),
+                                                        ),
+                                                      )
+                                                    : section ==
+                                                          SectionId.bugReport
+                                                    ? Padding(
+                                                        padding: EdgeInsets.all(
+                                                          layout.gap,
+                                                        ),
+                                                        child: Row(
+                                                          children: [
+                                                            _buildActivityRail(
+                                                              sections:
+                                                                  sections,
+                                                              mode: mode,
+                                                              section: section,
                                                             ),
-                                                          ),
-                                                        ],
+                                                            if (railVisible)
+                                                              _LayoutDivider(
+                                                                key:
+                                                                    const ValueKey<
+                                                                      String
+                                                                    >(
+                                                                      'rail resize handle',
+                                                                    ),
+                                                                onDrag:
+                                                                    _resizeRail,
+                                                              ),
+                                                            Expanded(
+                                                              child: _ShellSurface(
+                                                                radius: layout
+                                                                    .radius,
+                                                                child:
+                                                                    const BugReportScreen(),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      )
+                                                    : section ==
+                                                          SectionId.settings
+                                                    ? SettingsScreen(
+                                                        initialItem:
+                                                            settingsItem,
+                                                        onBack: _returnToApp,
+                                                      )
+                                                    : Padding(
+                                                        padding: EdgeInsets.all(
+                                                          layout.gap,
+                                                        ),
+                                                        child: Stack(
+                                                          children: [
+                                                            Row(
+                                                              children: [
+                                                                _buildActivityRail(
+                                                                  sections:
+                                                                      sections,
+                                                                  mode: mode,
+                                                                  section:
+                                                                      section,
+                                                                ),
+                                                                if (railVisible)
+                                                                  _LayoutDivider(
+                                                                    key:
+                                                                        const ValueKey<
+                                                                          String
+                                                                        >(
+                                                                          'rail resize handle',
+                                                                        ),
+                                                                    onDrag:
+                                                                        _resizeRail,
+                                                                  ),
+                                                                if (_explorerVisible &&
+                                                                    active.id !=
+                                                                        SectionId
+                                                                            .extensions &&
+                                                                    _railExtensionId ==
+                                                                        null) ...[
+                                                                  _ShellSurface(
+                                                                    key:
+                                                                        active.id ==
+                                                                            SectionId.extensions
+                                                                        ? const ValueKey<
+                                                                            String
+                                                                          >(
+                                                                            'extensions explorer pane',
+                                                                          )
+                                                                        : null,
+                                                                    width:
+                                                                        effectiveExplorerWidth,
+                                                                    radius: layout
+                                                                        .radius,
+                                                                    child: _Explorer(
+                                                                      width:
+                                                                          effectiveExplorerWidth,
+                                                                      sections:
+                                                                          sections,
+                                                                      selected:
+                                                                          selected <
+                                                                              0
+                                                                          ? 0
+                                                                          : selected,
+                                                                      showModuleActions:
+                                                                          active
+                                                                              .id ==
+                                                                          SectionId
+                                                                              .modules,
+                                                                      showEntityActions:
+                                                                          active
+                                                                              .id ==
+                                                                          SectionId
+                                                                              .entity,
+                                                                      showExtensionActions:
+                                                                          active
+                                                                              .id ==
+                                                                          SectionId
+                                                                              .extensions,
+                                                                      modules:
+                                                                          _availableModules,
+                                                                      hiddenModuleIds:
+                                                                          graph
+                                                                              .hiddenModuleIds,
+                                                                      canvasModuleIds: graph
+                                                                          .nodes
+                                                                          .where(
+                                                                            (
+                                                                              n,
+                                                                            ) =>
+                                                                                !n.isLogic,
+                                                                          )
+                                                                          .map(
+                                                                            (
+                                                                              n,
+                                                                            ) =>
+                                                                                n.module.id,
+                                                                          )
+                                                                          .toSet(),
+                                                                      onShowModule: (module) => ref
+                                                                          .read(
+                                                                            workspaceProvider.notifier,
+                                                                          )
+                                                                          .setModuleHidden(
+                                                                            module.id,
+                                                                            false,
+                                                                          ),
+                                                                      entities:
+                                                                          _entities,
+                                                                      extensions:
+                                                                          kUserExtensions,
+                                                                      selectedExtensionId:
+                                                                          _selectedExtensionId,
+                                                                      onExtensionSelected: (
+                                                                        extension,
+                                                                      ) => setState(() => _selectedExtensionId = extension.id),
+                                                                      onExtensionNotification:
+                                                                          _addNotification,
+                                                                      selectedEntity:
+                                                                          _selectedEntity,
+                                                                      onSelected:
+                                                                          (
+                                                                            index,
+                                                                          ) => _selectSection(
+                                                                            sections[index].id,
+                                                                            mode,
+                                                                          ),
+                                                                      onAddModule: (
+                                                                        position,
+                                                                      ) => _showModuleActions(position: position),
+                                                                      onRemoveModule:
+                                                                          _removeModule,
+                                                                      onEditModule:
+                                                                          _showModuleEditStub,
+                                                                      onModuleSettings:
+                                                                          (
+                                                                            module,
+                                                                            position,
+                                                                          ) => _showModuleSettings(
+                                                                            module,
+                                                                            position,
+                                                                          ),
+                                                                      onModuleActiveChanged:
+                                                                          _setModuleActive,
+                                                                      onAddEntity:
+                                                                          _showEntityEditor,
+                                                                      onRemoveEntity:
+                                                                          _removeEntity,
+                                                                      onEditEntity:
+                                                                          _showEntityEditor,
+                                                                      onEntitySelected:
+                                                                          (
+                                                                            entity,
+                                                                          ) => setState(
+                                                                            () =>
+                                                                                _selectedEntity = entity,
+                                                                          ),
+                                                                      selectedModule:
+                                                                          _selectedModule,
+                                                                      onModuleSelected:
+                                                                          (
+                                                                            module,
+                                                                          ) => setState(
+                                                                            () =>
+                                                                                _selectedModule = module,
+                                                                          ),
+                                                                    ),
+                                                                  ),
+                                                                  _LayoutDivider(
+                                                                    key:
+                                                                        active.id ==
+                                                                            SectionId.extensions
+                                                                        ? const ValueKey<
+                                                                            String
+                                                                          >(
+                                                                            'extensions resize handle',
+                                                                          )
+                                                                        : const ValueKey<
+                                                                            String
+                                                                          >(
+                                                                            'explorer resize handle',
+                                                                          ),
+                                                                    onDrag:
+                                                                        (
+                                                                          delta,
+                                                                        ) => _resizeExplorer(
+                                                                          delta,
+                                                                          width,
+                                                                        ),
+                                                                  ),
+                                                                ],
+                                                                Expanded(
+                                                                  child: _ShellSurface(
+                                                                    radius: layout
+                                                                        .radius,
+                                                                    child:
+                                                                        _railExtensionId !=
+                                                                            null
+                                                                        ? ExtensionRailPage(
+                                                                            module: graph.library.firstWhere(
+                                                                              (module) => module.id == _railExtensionId,
+                                                                            ),
+                                                                            onBack: () => setState(
+                                                                              () => _railExtensionId = null,
+                                                                            ),
+                                                                          )
+                                                                        : active.id ==
+                                                                              SectionId.extensions
+                                                                        ? const MarketplaceScreen()
+                                                                        : Column(
+                                                                            children: [
+                                                                              if (active.id != SectionId.modules)
+                                                                                _EditorTabs(
+                                                                                  tabs: _openTabs,
+                                                                                  active: _activeTab,
+                                                                                  onCreate: () => _showTabPicker(mode),
+                                                                                  onSelect: (id) => _selectSection(id, mode),
+                                                                                  onClose: _closeTab,
+                                                                                  explorerVisible: _explorerVisible,
+                                                                                  onToggleExplorer: () => setState(() => _explorerVisible = !_explorerVisible),
+                                                                                  showExplorerToggle: active.id == SectionId.modules,
+                                                                                ),
+                                                                              Expanded(
+                                                                                child: _activeTabSection == null
+                                                                                    ? _EmptyEditor(onCreate: () => _showTabPicker(mode))
+                                                                                    : _SectionBody(
+                                                                                        onOpenMarketplace: () => _selectSection(SectionId.extensions, mode),
+                                                                                        section: active.id,
+                                                                                        modules: _availableModules,
+                                                                                        onAddModule: _showModuleActions,
+                                                                                        onEditModule: _showModuleEditor,
+                                                                                        onRemoveModule: _removeModule,
+                                                                                        entities: _entities,
+                                                                                        selectedModule: _selectedModule,
+                                                                                        inspectorOpen: active.id == SectionId.modules ? _moduleInspectorOpen : _extensionInspectorOpen,
+                                                                                        selectedExtensionId: _selectedExtensionId,
+                                                                                        extensionInspectorOpen: _extensionInspectorOpen,
+                                                                                        onToggleInspector: () => setState(() {
+                                                                                          if (active.id == SectionId.modules) {
+                                                                                            _moduleInspectorOpen = !_moduleInspectorOpen;
+                                                                                          } else if (active.id == SectionId.extensions) {
+                                                                                            _extensionInspectorOpen = !_extensionInspectorOpen;
+                                                                                          }
+                                                                                        }),
+                                                                                        onSelectExtension: (extension) => setState(() => _selectedExtensionId = extension.id),
+                                                                                        selectedEntity: _selectedEntity,
+                                                                                        onAddEntity: _showEntityEditor,
+                                                                                        onEditEntity: _showEntityEditor,
+                                                                                        onRemoveEntity: _removeEntity,
+                                                                                        onToggleEntityInstalled: _toggleEntityInstalled,
+                                                                                      ),
+                                                                              ),
+                                                                              if (active.id != SectionId.modules)
+                                                                                _TerminalPanel(
+                                                                                  open: terminalOpen,
+                                                                                  onToggle: () {
+                                                                                    setState(() {
+                                                                                      terminalOpen = !terminalOpen;
+                                                                                    });
+                                                                                    logD(
+                                                                                      LogSource.terminal,
+                                                                                      terminalOpen
+                                                                                          ? 'панель терминала раскрыта'
+                                                                                          : 'панель терминала свернута',
+                                                                                    );
+                                                                                    _restoreShellFocus();
+                                                                                  },
+                                                                                ),
+                                                                            ],
+                                                                          ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
                                                       ),
-                                                    ],
-                                                  ),
-                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
+                                  if (_railEditing)
+                                    Positioned.fill(
+                                      child: RailCustomizer(
+                                        railWidth: layout.railWidth,
+                                        feedbackScale: visualScale,
+                                        gap: layout.gap,
+                                        onClose: () {
+                                          setState(() => _railEditing = false);
+                                          _restoreShellFocus();
+                                        },
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -1967,6 +2077,11 @@ class _TopMenuItem extends StatelessWidget {
       case 'File':
         return [
           _MenuAction(
+            value: 'save',
+            label: context.l10n.workspaceSave,
+            shortcut: 'Ctrl+S',
+          ),
+          _MenuAction(
             value: 'add_workspace_preset',
             label: context.l10n.textAddWorkspacePreset124,
           ),
@@ -2010,7 +2125,6 @@ class _TopMenuItem extends StatelessWidget {
           _MenuAction(
             value: 'redo',
             label: context.l10n.textRedo131,
-            enabled: false,
             shortcut: 'Ctrl+Y',
           ),
           _MenuAction(
@@ -2372,14 +2486,19 @@ class _AnimatedContextMenuButtonState<T>
     link: _layerLink,
     child: TapRegion(
       groupId: _topMenuTapRegionGroup,
-      child: DesktopTooltip(
-        message: widget.tooltip,
-        child: DesktopHoverTile(
-          onTap: _toggleMenu,
-          focusNode: _triggerFocus,
-          label: widget.tooltip,
-          borderRadius: BorderRadius.circular(6),
-          child: widget.child,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (_activeMenuToken != null && _overlayEntry == null) _openMenu();
+        },
+        child: DesktopTooltip(
+          message: widget.tooltip,
+          child: DesktopHoverTile(
+            onTap: _toggleMenu,
+            focusNode: _triggerFocus,
+            label: widget.tooltip,
+            borderRadius: BorderRadius.circular(6),
+            child: widget.child,
+          ),
         ),
       ),
     ),
@@ -2532,9 +2651,7 @@ class _GlobalSearchState extends State<_GlobalSearch>
       duration: AppTheme.hoverDuration,
       curve: AppTheme.hoverCurve,
       decoration: BoxDecoration(
-        color: _focusNode.hasFocus
-            ? context.palette.panel
-            : context.palette.background,
+        color: context.palette.searchField,
         borderRadius: BorderRadius.circular(18),
       ),
       child: TapRegion(
@@ -2544,6 +2661,7 @@ class _GlobalSearchState extends State<_GlobalSearch>
           key: const ValueKey<String>('global search field'),
           controller: _controller,
           focusNode: _focusNode,
+          onTapAlwaysCalled: true,
           onTap: _toggleMenu,
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
@@ -2554,6 +2672,8 @@ class _GlobalSearchState extends State<_GlobalSearch>
           textAlign: TextAlign.center,
           style: TextStyle(color: context.palette.text, fontSize: 12),
           decoration: InputDecoration(
+            filled: true,
+            fillColor: context.palette.searchField,
             hintText: context.l10n.textSearchFilesSymbolsCtrlP152,
             hintStyle: TextStyle(
               color: context.palette.mutedText,
@@ -2761,38 +2881,13 @@ class _ActivityRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final railItems = <NavSection>[
-      NavSection(
-        id: SectionId.profile,
-        label: context.l10n.textUserProfileButton153,
-        icon: Icons.account_circle_outlined,
-        modes: {},
-      ),
-      NavSection(
-        id: SectionId.extensions,
-        label: context.l10n.textMarketplace54,
-        icon: Icons.auto_awesome_mosaic_outlined,
-        modes: {},
-      ),
-      NavSection(
-        id: SectionId.modules,
-        label: 'Workspace',
-        icon: Icons.extension_outlined,
-        modes: {},
-      ),
-      NavSection(
-        id: SectionId.entity,
-        label: context.l10n.textEntity47,
-        icon: Icons.hub_outlined,
-        modes: {},
-      ),
-      NavSection(
-        id: SectionId.bugReport,
-        label: context.l10n.textBugReport154,
-        icon: Icons.bug_report_outlined,
-        modes: {},
-      ),
-    ];
+    final entries = {
+      for (final entry in railEntries(context, extensions)) entry.id: entry,
+    };
+    final ordered = [
+      ...config.topKeys,
+      ...config.bottomKeys,
+    ].where(entries.containsKey).map((key) => entries[key]!).toList();
 
     return GestureDetector(
       onSecondaryTapDown: (details) async {
@@ -2824,59 +2919,56 @@ class _ActivityRail extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final item in railItems.where(
-                      (item) => config.sections.contains(item.id),
-                    ))
-                      _RailButton(
-                        item: item,
-                        active: item.id == selectedSection,
-                        enabled: true,
-                        onTap: item.label == 'User profile button'
-                            ? onProfile
-                            : () => onNavigate(item.id),
-                      ),
-                    for (final item in kNavSections.where(
-                      (item) =>
-                          config.sections.contains(item.id) &&
-                          !railItems.any((old) => old.id == item.id) &&
-                          item.id != SectionId.settings,
-                    ))
-                      _RailButton(
-                        item: item,
-                        active: item.id == selectedSection,
-                        enabled: true,
-                        onTap: () => onNavigate(item.id),
-                      ),
-                    for (final module in extensions)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: DesktopIconButton(
-                          icon: extensionRailIcon(module),
-                          tooltip: module.displayName(context),
-                          onPressed: () => onExtension(module),
-                          size: 40,
-                          iconSize: 20,
-                        ),
-                      ),
-                  ],
+              child: LayoutBuilder(
+                builder: (context, bounds) => SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (final item in ordered) ...[
+                        if (config.bottomKeys.firstOrNull == item.id)
+                          SizedBox(
+                            height: math.max(
+                              0,
+                              bounds.maxHeight - ordered.length * 44,
+                            ),
+                          ),
+                        if (item.section != null)
+                          _RailButton(
+                            item: NavSection(
+                              id: item.section!,
+                              label: switch (item.section!) {
+                                SectionId.profile =>
+                                  context.l10n.textUserProfileButton153,
+                                SectionId.settings => 'configs',
+                                SectionId.bugReport =>
+                                  context.l10n.textBugReport154,
+                                _ => item.label,
+                              },
+                              icon: item.icon,
+                              modes: const {},
+                            ),
+                            active: item.section == selectedSection,
+                            enabled: true,
+                            onTap: item.section == SectionId.profile
+                                ? onProfile
+                                : () => onNavigate(item.section!),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: DesktopIconButton(
+                              icon: item.icon,
+                              tooltip: item.label,
+                              onPressed: () => onExtension(item.module!),
+                              size: 40,
+                              iconSize: 20,
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
-            if (config.sections.contains(SectionId.settings))
-              _RailButton(
-                item: const NavSection(
-                  id: SectionId.settings,
-                  label: 'configs',
-                  icon: Icons.settings_outlined,
-                  modes: {},
-                ),
-                active: selectedSection == SectionId.settings,
-                enabled: true,
-                onTap: () => onNavigate(SectionId.settings),
-              ),
             const SizedBox(height: 8),
           ],
         ),
@@ -2968,6 +3060,8 @@ class _Explorer extends StatefulWidget {
     required this.onModuleSettings,
     required this.onModuleActiveChanged,
     required this.hiddenModuleIds,
+    required this.canvasModuleIds,
+    required this.onShowModule,
     this.onAddModule,
     this.onRemoveModule,
     this.onEditModule,
@@ -2995,7 +3089,9 @@ class _Explorer extends StatefulWidget {
   final void Function(SystemModule module, Offset position) onModuleSettings;
   final void Function(SystemModule module, bool active) onModuleActiveChanged;
   final Set<String> hiddenModuleIds;
-  final VoidCallback? onAddModule;
+  final Set<String> canvasModuleIds;
+  final ValueChanged<SystemModule> onShowModule;
+  final ValueChanged<Offset>? onAddModule;
   final ValueChanged<SystemModule>? onRemoveModule;
   final ValueChanged<SystemModule>? onEditModule;
   final VoidCallback? onAddEntity;
@@ -3079,10 +3175,18 @@ class _ExplorerState extends State<_Explorer> {
                   ),
                   const Spacer(),
                   if (widget.showModuleActions) ...[
-                    _ExplorerActionButton(
-                      icon: Icons.add,
-                      tooltip: context.l10n.textAddModule158,
-                      onPressed: widget.onAddModule,
+                    Builder(
+                      builder: (buttonContext) => _ExplorerActionButton(
+                        icon: Icons.add,
+                        tooltip: context.l10n.textAddModule158,
+                        onPressed: () {
+                          final box =
+                              buttonContext.findRenderObject() as RenderBox;
+                          widget.onAddModule?.call(
+                            box.localToGlobal(Offset(0, box.size.height)),
+                          );
+                        },
+                      ),
                     ),
                     _ExplorerActionButton(
                       icon: Icons.remove,
@@ -3243,6 +3347,10 @@ class _ExplorerState extends State<_Explorer> {
                                         ),
                                         child: _ModuleItem(
                                           module: module,
+                                          onCanvas: widget.canvasModuleIds
+                                              .contains(module.id),
+                                          onShow: () =>
+                                              widget.onShowModule(module),
                                           hidden: widget.hiddenModuleIds
                                               .contains(module.id),
                                           selected:
@@ -3325,6 +3433,10 @@ class _ExplorerState extends State<_Explorer> {
                                         ),
                                         child: _ModuleItem(
                                           module: module,
+                                          onCanvas: widget.canvasModuleIds
+                                              .contains(module.id),
+                                          onShow: () =>
+                                              widget.onShowModule(module),
                                           catalog: true,
                                           hidden: widget.hiddenModuleIds
                                               .contains(module.id),
@@ -3489,7 +3601,7 @@ class _ModuleSearchField extends StatelessWidget {
                 onPressed: onClear,
               ),
         filled: true,
-        fillColor: context.palette.background,
+        fillColor: context.palette.searchField,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -3535,6 +3647,8 @@ class _ModuleItem extends StatefulWidget {
     required this.module,
     required this.onTap,
     required this.onSettings,
+    required this.onCanvas,
+    required this.onShow,
     this.hidden = false,
     this.catalog = false,
     this.selected = false,
@@ -3542,6 +3656,8 @@ class _ModuleItem extends StatefulWidget {
   final SystemModule module;
   final VoidCallback onTap;
   final ValueChanged<Offset> onSettings;
+  final bool onCanvas;
+  final VoidCallback onShow;
   final bool hidden;
   final bool catalog;
   final bool selected;
@@ -3627,23 +3743,35 @@ class _ModuleItemState extends State<_ModuleItem> {
                             size: 27,
                             iconSize: 16,
                           )
-                        : Icon(
-                            widget.hidden
-                                ? Icons.visibility_off_outlined
-                                : Icons.circle,
+                        : widget.hidden
+                        ? DesktopIconButton(
+                            key: ValueKey('show module ${widget.module.id}'),
+                            icon: Icons.visibility_off_outlined,
+                            tooltip: context.l10n.textShow232,
+                            onPressed: widget.onShow,
+                            size: 27,
+                            iconSize: 15,
+                          )
+                        : widget.onCanvas
+                        ? Icon(
+                            Icons.circle,
                             key: const ValueKey('module status dot'),
-                            size: widget.hidden ? 15 : 6,
+                            size: 6,
                             color: widget.module.active
                                 ? context.palette.text
                                 : context.palette.mutedText,
-                          ),
+                          )
+                        : const SizedBox(width: 6),
                   ),
                   if (widget.hidden && _hovered) ...[
                     const SizedBox(width: 6),
-                    Icon(
-                      Icons.visibility_off_outlined,
-                      size: 15,
-                      color: context.palette.mutedText,
+                    DesktopIconButton(
+                      key: ValueKey('show module ${widget.module.id}'),
+                      icon: Icons.visibility_off_outlined,
+                      tooltip: context.l10n.textShow232,
+                      onPressed: widget.onShow,
+                      size: 27,
+                      iconSize: 15,
                     ),
                   ],
                 ],
