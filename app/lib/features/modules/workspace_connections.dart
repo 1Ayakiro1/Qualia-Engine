@@ -16,13 +16,29 @@ Paint workspaceConnectionPaint(
 ) {
   final paint = Paint()
     ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
     ..strokeCap = StrokeCap.round
-    ..strokeWidth = 2
+    ..strokeWidth = 2.2
     ..color = output;
   if (output != input && (to - from).distanceSquared > .001) {
     paint.shader = ui.Gradient.linear(from, to, [output, input]);
   }
   return paint;
+}
+
+Path workspaceConnectionPath(Offset from, Offset to) {
+  final direction = to.dx >= from.dx ? 1.0 : -1.0;
+  final bend = math.max(60.0, (to.dx - from.dx).abs() * .45);
+  return Path()
+    ..moveTo(from.dx, from.dy)
+    ..cubicTo(
+      from.dx + direction * bend,
+      from.dy,
+      to.dx - direction * bend,
+      to.dy,
+      to.dx,
+      to.dy,
+    );
 }
 
 void paintWorkspaceConnection(
@@ -32,11 +48,8 @@ void paintWorkspaceConnection(
   Color output,
   Color input,
 ) {
-  final dx = math.max(60.0, (to.dx - from.dx).abs() * .45);
   canvas.drawPath(
-    Path()
-      ..moveTo(from.dx, from.dy)
-      ..cubicTo(from.dx + dx, from.dy, to.dx - dx, to.dy, to.dx, to.dy),
+    workspaceConnectionPath(from, to),
     workspaceConnectionPaint(from, to, output, input),
   );
 }

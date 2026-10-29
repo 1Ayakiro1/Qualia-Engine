@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.2-dev.4] — 2026-10-29 (development snapshot, not a 0.5.2 release)
+
+- Add protruding circular input/output ports while preserving stable graph
+  coordinates and connection endpoints.
+- Add a Workspace canvas tool rail for selection, freehand annotations,
+  connection cutting and output branching.
+- Persist canvas annotations in workspace projects and packages.
+- Move module and Logic Block creation into the Workspace inspector while
+  keeping the Explorer optional for the rest of the shell.
+- Make Workspace canvas width and height configurable per project, with safe
+  limits and legacy-project defaults; empty canvas area is not serialized.
+- Improve connection curves with anti-aliased strokes and stable reverse-edge
+  geometry, and keep Linux rendering on the monitor's native GTK refresh clock
+  for high-refresh displays when using the native embedder build.
+
 ## [0.5.2-dev.3] — 2026-10-29 (development snapshot, not a 0.5.2 release)
 
 - Add native-style hover switching for shared horizontal desktop menus, including

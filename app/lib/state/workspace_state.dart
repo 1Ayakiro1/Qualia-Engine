@@ -18,6 +18,7 @@ class WorkspaceState {
   const WorkspaceState({
     this.nodes = const [],
     this.links = const [],
+    this.annotations = const [],
     this.library = const [],
     this.presets = const [],
     this.presetModuleIds,
@@ -30,15 +31,19 @@ class WorkspaceState {
     this.loaded = false,
     this.projects = const [],
     this.activeProjectId = 'default',
+    this.canvasWidth = WorkspaceProject.defaultCanvasWidth,
+    this.canvasHeight = WorkspaceProject.defaultCanvasHeight,
   });
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
+  final List<WorkspaceAnnotation> annotations;
   final List<SystemModule> library;
   final List<WorkspacePreset> presets;
   final List<String>? presetModuleIds;
   final bool loaded;
   final List<WorkspaceProject> projects;
   final String activeProjectId;
+  final double canvasWidth, canvasHeight;
 
   /// Host-owned module state. A missing entry follows the catalog's default.
   final Map<String, bool> moduleActiveOverrides;
@@ -52,12 +57,16 @@ class WorkspaceState {
         name: 'Workspace',
         nodes: nodes,
         links: links,
+        annotations: annotations,
         presetModuleIds: presetModuleIds,
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight,
       );
   final Map<String, Map<String, dynamic>> authorMetadata;
   WorkspaceState copyWith({
     List<WorkspaceNode>? nodes,
     List<WorkspaceLink>? links,
+    List<WorkspaceAnnotation>? annotations,
     List<SystemModule>? library,
     List<WorkspacePreset>? presets,
     List<String>? presetModuleIds,
@@ -66,6 +75,8 @@ class WorkspaceState {
     bool? loaded,
     List<WorkspaceProject>? projects,
     String? activeProjectId,
+    double? canvasWidth,
+    double? canvasHeight,
     Map<String, bool>? moduleActiveOverrides,
     Set<String>? hiddenModuleIds,
     Set<String>? removedModuleIds,
@@ -74,6 +85,7 @@ class WorkspaceState {
   }) => WorkspaceState(
     nodes: nodes ?? this.nodes,
     links: links ?? this.links,
+    annotations: annotations ?? this.annotations,
     library: library ?? this.library,
     presets: presets ?? this.presets,
     authorMetadata: authorMetadata ?? this.authorMetadata,
@@ -83,6 +95,8 @@ class WorkspaceState {
     loaded: loaded ?? this.loaded,
     projects: projects ?? this.projects,
     activeProjectId: activeProjectId ?? this.activeProjectId,
+    canvasWidth: canvasWidth ?? this.canvasWidth,
+    canvasHeight: canvasHeight ?? this.canvasHeight,
     moduleActiveOverrides: moduleActiveOverrides ?? this.moduleActiveOverrides,
     hiddenModuleIds: hiddenModuleIds ?? this.hiddenModuleIds,
     removedModuleIds: removedModuleIds ?? this.removedModuleIds,
@@ -308,9 +322,22 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       );
       if (validateWorkspaceLink(nodes, links, link) == null) links.add(link);
     }
+    final annotations = (json['annotations'] as List? ?? [])
+        .map(
+          (item) => WorkspaceAnnotation.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
     final restored = WorkspaceState(
       nodes: nodes,
       links: links,
+      annotations: annotations,
+      canvasWidth: WorkspaceProject.parseCanvasSize(json['canvasWidth']),
+      canvasHeight: WorkspaceProject.parseCanvasSize(
+        json['canvasHeight'],
+        fallback: WorkspaceProject.defaultCanvasHeight,
+      ),
       library: (json['library'] as List? ?? [])
           .map(
             (item) =>
@@ -371,6 +398,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       activeProjectId: active.id,
       nodes: active.nodes,
       links: active.links,
+      annotations: active.annotations,
+      canvasWidth: active.canvasWidth,
+      canvasHeight: active.canvasHeight,
       presetModuleIds: active.presetModuleIds,
       clearPreset: active.presetModuleIds == null,
     );
@@ -380,6 +410,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     final project = state.activeProject.copyWith(
       nodes: state.nodes,
       links: state.links,
+      annotations: state.annotations,
+      canvasWidth: state.canvasWidth,
+      canvasHeight: state.canvasHeight,
       presetModuleIds: state.presetModuleIds,
       clearPreset: state.presetModuleIds == null,
     );
@@ -446,6 +479,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   String _document() => jsonEncode({
     'nodes': state.nodes.map((node) => node.toJson()).toList(),
     'links': state.links.map((link) => link.toJson()).toList(),
+    'annotations': state.annotations
+        .map((annotation) => annotation.toJson())
+        .toList(),
+    'canvasWidth': state.canvasWidth,
+    'canvasHeight': state.canvasHeight,
     'library': state.library.map((module) => module.toWorkspaceJson()).toList(),
     'presets': state.presets.map((preset) => preset.toJson()).toList(),
     'presetModuleIds': state.presetModuleIds,
@@ -503,6 +541,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       activeProjectId: id,
       nodes: project.nodes,
       links: project.links,
+      annotations: project.annotations,
+      canvasWidth: project.canvasWidth,
+      canvasHeight: project.canvasHeight,
       presetModuleIds: project.presetModuleIds,
       clearPreset: project.presetModuleIds == null,
     );
@@ -526,6 +567,23 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _changed();
   }
 
+  void setCanvasSize({double? width, double? height}) {
+    final nextWidth = width ?? state.canvasWidth;
+    final nextHeight = height ?? state.canvasHeight;
+    if (!nextWidth.isFinite || !nextHeight.isFinite) return;
+    if (nextWidth < WorkspaceProject.minCanvasSize ||
+        nextHeight < WorkspaceProject.minCanvasSize ||
+        nextWidth > WorkspaceProject.maxCanvasSize ||
+        nextHeight > WorkspaceProject.maxCanvasSize) {
+      return;
+    }
+    if (nextWidth == state.canvasWidth && nextHeight == state.canvasHeight) {
+      return;
+    }
+    state = state.copyWith(canvasWidth: nextWidth, canvasHeight: nextHeight);
+    _changed();
+  }
+
   void deleteProject(String id) {
     final remaining = state.projects.where((p) => p.id != id).toList();
     if (remaining.length == state.projects.length) return;
@@ -544,6 +602,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         activeProjectId: project.id,
         nodes: project.nodes,
         links: project.links,
+        annotations: project.annotations,
+        canvasWidth: project.canvasWidth,
+        canvasHeight: project.canvasHeight,
         presetModuleIds: project.presetModuleIds,
         clearPreset: project.presetModuleIds == null,
       );
@@ -571,6 +632,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
             'target': ids[link.target],
           },
       ],
+      'annotations': source.annotations
+          .map((annotation) => annotation.toJson())
+          .toList(),
     });
     for (final node in project.nodes) {
       if (node.isLogic) continue;
@@ -790,6 +854,27 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(
       links: state.links.where((old) => old != link).toList(),
     );
+    _changed();
+  }
+
+  void addAnnotation(WorkspaceAnnotation annotation) {
+    if (annotation.points.length < 2 || state.annotations.length >= 200) return;
+    state = state.copyWith(annotations: [...state.annotations, annotation]);
+    _changed();
+  }
+
+  void removeAnnotation(String id) {
+    final next = state.annotations
+        .where((annotation) => annotation.id != id)
+        .toList();
+    if (next.length == state.annotations.length) return;
+    state = state.copyWith(annotations: next);
+    _changed();
+  }
+
+  void clearAnnotations() {
+    if (state.annotations.isEmpty) return;
+    state = state.copyWith(annotations: const []);
     _changed();
   }
 

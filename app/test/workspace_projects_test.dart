@@ -93,6 +93,14 @@ void main() {
       id: 'source',
       name: 'Shared',
       nodes: [a, b],
+      annotations: const [
+        WorkspaceAnnotation(
+          id: 'annotation-1',
+          points: [Offset(10, 20), Offset(30, 40)],
+          color: 0xFF00FF00,
+          width: 5,
+        ),
+      ],
       links: [
         WorkspaceLink(
           source: 'a',
@@ -113,11 +121,41 @@ void main() {
     final first = scope.read(workspaceProvider).activeProject;
     expect(first.nodes.first.inputLabels['input'], 'Label');
     expect(first.links.single.source, first.nodes.first.id);
+    expect(first.annotations.single.id, 'annotation-1');
+    expect(first.annotations.single.points, const [
+      Offset(10, 20),
+      Offset(30, 40),
+    ]);
+    expect(first.annotations.single.color, 0xFF00FF00);
+    expect(first.annotations.single.width, 5);
     controller.importProject(package, [module]);
     final second = scope.read(workspaceProvider).activeProject;
     expect(first.nodes.first.id, isNot(second.nodes.first.id));
     expect(scope.read(workspaceProvider).library.single.id, module.id);
     scope.dispose();
+  });
+  test('custom canvas dimensions round-trip without changing graph data', () {
+    final source = WorkspaceProject(
+      id: 'sized',
+      name: 'Sized',
+      canvasWidth: 24000,
+      canvasHeight: 18000,
+    );
+    final restored = WorkspaceProject.fromPackage(
+      jsonDecode(jsonEncode(source.toPackage())) as Map<String, dynamic>,
+    );
+    expect(restored.canvasWidth, 24000);
+    expect(restored.canvasHeight, 18000);
+    expect(restored.nodes, isEmpty);
+    expect(restored.links, isEmpty);
+    expect(
+      () => WorkspaceProject.fromJson({
+        'id': 'bad',
+        'name': 'Bad',
+        'canvasWidth': 100,
+      }),
+      throwsFormatException,
+    );
   });
   test('resolver trusts host previews instead of embedded manifests and requires exact versions', () async {
     final preview = previewModules.first;

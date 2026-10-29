@@ -51,39 +51,55 @@ class WorkspaceRevision {
 
 /// Independent graph document. Catalog/library preferences remain host-global.
 class WorkspaceProject {
+  static const defaultCanvasWidth = 10000.0;
+  static const defaultCanvasHeight = 10000.0;
+  static const minCanvasSize = 2000.0;
+  static const maxCanvasSize = 100000.0;
+
   const WorkspaceProject({
     required this.id,
     required this.name,
     this.description = '',
     this.nodes = const [],
     this.links = const [],
+    this.annotations = const [],
     this.presetModuleIds,
     this.revision,
+    this.canvasWidth = defaultCanvasWidth,
+    this.canvasHeight = defaultCanvasHeight,
   });
   final String id, name, description;
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
+  final List<WorkspaceAnnotation> annotations;
   final List<String>? presetModuleIds;
   final WorkspaceRevision? revision;
+  final double canvasWidth, canvasHeight;
   WorkspaceProject copyWith({
     String? name,
     String? description,
     List<WorkspaceNode>? nodes,
     List<WorkspaceLink>? links,
+    List<WorkspaceAnnotation>? annotations,
     List<String>? presetModuleIds,
     bool clearPreset = false,
     WorkspaceRevision? revision,
     bool clearRevision = false,
+    double? canvasWidth,
+    double? canvasHeight,
   }) => WorkspaceProject(
     id: id,
     name: name ?? this.name,
     description: description ?? this.description,
     nodes: nodes ?? this.nodes,
     links: links ?? this.links,
+    annotations: annotations ?? this.annotations,
     presetModuleIds: clearPreset
         ? null
         : presetModuleIds ?? this.presetModuleIds,
     revision: clearRevision ? null : revision ?? this.revision,
+    canvasWidth: canvasWidth ?? this.canvasWidth,
+    canvasHeight: canvasHeight ?? this.canvasHeight,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -91,13 +107,19 @@ class WorkspaceProject {
     'description': description,
     'nodes': nodes.map((n) => n.toJson()).toList(),
     'links': links.map((l) => l.toJson()).toList(),
+    'annotations': annotations.map((a) => a.toJson()).toList(),
     'presetModuleIds': presetModuleIds,
+    if (canvasWidth != defaultCanvasWidth) 'canvasWidth': canvasWidth,
+    if (canvasHeight != defaultCanvasHeight) 'canvasHeight': canvasHeight,
     if (revision != null) 'revision': revision!.toJson(),
   };
   factory WorkspaceProject.fromJson(Map<String, dynamic> json) {
     final rawNodes = json['nodes'] as List? ?? [];
     final rawLinks = json['links'] as List? ?? [];
-    if (rawNodes.length > 500 || rawLinks.length > 8000) {
+    final rawAnnotations = json['annotations'] as List? ?? [];
+    if (rawNodes.length > 500 ||
+        rawLinks.length > 8000 ||
+        rawAnnotations.length > 200) {
       throw const FormatException('Workspace graph is too large.');
     }
     final nodes = rawNodes
@@ -123,9 +145,21 @@ class WorkspaceProject {
       }
       links.add(link);
     }
+    final annotations = rawAnnotations
+        .map(
+          (item) => WorkspaceAnnotation.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
     final name = (json['name'] as String? ?? 'Workspace').trim();
     final id = json['id'] as String;
     final description = json['description'] as String? ?? '';
+    final canvasWidth = parseCanvasSize(json['canvasWidth']);
+    final canvasHeight = parseCanvasSize(
+      json['canvasHeight'],
+      fallback: defaultCanvasHeight,
+    );
     if (id.isEmpty ||
         id.length > 160 ||
         description.length > 4000 ||
@@ -139,11 +173,26 @@ class WorkspaceProject {
       description: description,
       nodes: nodes,
       links: links,
+      annotations: annotations,
       presetModuleIds: (json['presetModuleIds'] as List?)?.cast<String>(),
+      canvasWidth: canvasWidth,
+      canvasHeight: canvasHeight,
       revision: json.containsKey('revision')
           ? WorkspaceRevision.fromJson(json['revision'])
           : null,
     );
+  }
+
+  static double parseCanvasSize(
+    dynamic value, {
+    double fallback = defaultCanvasWidth,
+  }) {
+    if (value == null) return fallback;
+    final size = value is num ? value.toDouble() : double.nan;
+    if (!size.isFinite || size < minCanvasSize || size > maxCanvasSize) {
+      throw const FormatException('Invalid workspace canvas size.');
+    }
+    return size;
   }
 
   /// Values are declarative only. Installing executable packages is a separate

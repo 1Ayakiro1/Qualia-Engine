@@ -238,6 +238,62 @@ class WorkspaceNode {
       : {};
 }
 
+/// Host-owned freehand markup drawn over a workspace graph. It is separate
+/// from module settings and never participates in runtime execution.
+class WorkspaceAnnotation {
+  const WorkspaceAnnotation({
+    required this.id,
+    required this.points,
+    this.color = 0xFFE7E7E7,
+    this.width = 3,
+  });
+
+  final String id;
+  final List<Offset> points;
+  final int color;
+  final double width;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'points': [
+      for (final point in points) [point.dx, point.dy],
+    ],
+    'color': color,
+    'width': width,
+  };
+
+  factory WorkspaceAnnotation.fromJson(Map<String, dynamic> json) {
+    final rawPoints = json['points'] as List? ?? const [];
+    if (rawPoints.length > 10000) {
+      throw const FormatException('Workspace annotation is too large.');
+    }
+    final points = <Offset>[];
+    for (final raw in rawPoints) {
+      if (raw is! List || raw.length != 2 || raw[0] is! num || raw[1] is! num) {
+        throw const FormatException('Invalid workspace annotation point.');
+      }
+      final point = Offset(
+        (raw[0] as num).toDouble(),
+        (raw[1] as num).toDouble(),
+      );
+      if (!point.dx.isFinite || !point.dy.isFinite) {
+        throw const FormatException('Invalid workspace annotation point.');
+      }
+      points.add(point);
+    }
+    final width = (json['width'] as num?)?.toDouble() ?? 3;
+    if (width <= 0 || !width.isFinite) {
+      throw const FormatException('Invalid workspace annotation width.');
+    }
+    return WorkspaceAnnotation(
+      id: json['id'] as String? ?? WorkspaceId.create('annotation'),
+      points: points,
+      color: (json['color'] as num?)?.toInt() ?? 0xFFE7E7E7,
+      width: width.clamp(1, 32).toDouble(),
+    );
+  }
+}
+
 class WorkspaceLink {
   const WorkspaceLink({
     required this.source,

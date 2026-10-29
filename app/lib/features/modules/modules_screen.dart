@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/modules/module_registry.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/workspace/workspace_model.dart';
+import '../../core/workspace/workspace_project.dart';
 import '../../state/workspace_state.dart';
 import '../common/widgets.dart';
 import '../common/desktop_menu.dart';
@@ -22,6 +23,7 @@ import 'workspace_connections.dart';
 import 'active_module_view.dart';
 import '../common/desktop_focus.dart';
 import '../../core/modules/module_window_session.dart';
+import '../../core/workspace/workspace_id.dart';
 import '../common/navigation_bindings.dart';
 import 'workspace_manager.dart';
 import '../../core/logic/logic_blocks.dart';
@@ -64,8 +66,9 @@ class _PortRef {
   final bool output;
 }
 
+enum _CanvasTool { select, pencil, cut, branch }
+
 class _ModulesScreenState extends ConsumerState<ModulesScreen> {
-  static const _sceneSize = 10000.0;
   final _transform = TransformationController(
     Matrix4.identity()..translateByDouble(-4800, -4800, 0, 1),
   );
@@ -79,6 +82,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   String? _openedId;
   bool _inspector = false;
   bool _snapToGrid = false;
+  _CanvasTool _canvasTool = _CanvasTool.select;
+  int? _annotationPointer;
+  List<Offset> _annotationPoints = const [];
   _PortRef? _pendingPort;
   Offset? _wireEnd;
   Offset? _wireGlobal;
@@ -96,6 +102,19 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   Offset? _nodeDragPosition;
   bool _nodeInteracting = false;
   int _interactionGeneration = 0;
+  double _lastCanvasWidth = WorkspaceProject.defaultCanvasWidth;
+  double _lastCanvasHeight = WorkspaceProject.defaultCanvasHeight;
+
+  double get _canvasWidth => ref.read(workspaceProvider).canvasWidth;
+  double get _canvasHeight => ref.read(workspaceProvider).canvasHeight;
+  double get _canvasOriginX =>
+      _canvasWidth == WorkspaceProject.defaultCanvasWidth
+      ? 4800
+      : _canvasWidth / 2;
+  double get _canvasOriginY =>
+      _canvasHeight == WorkspaceProject.defaultCanvasHeight
+      ? 4800
+      : _canvasHeight / 2;
 
   @override
   void initState() {
@@ -118,10 +137,26 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         _marqueeEnd = null;
         _marqueePointer = null;
         _transform.value = Matrix4.identity()
-          ..translateByDouble(-4800, -4800, 0, 1);
+          ..translateByDouble(-_canvasOriginX, -_canvasOriginY, 0, 1);
       });
     });
     ref.listenManual(workspaceProvider, (_, next) {
+      if (next.canvasWidth != _lastCanvasWidth ||
+          next.canvasHeight != _lastCanvasHeight) {
+        _lastCanvasWidth = next.canvasWidth;
+        _lastCanvasHeight = next.canvasHeight;
+        _transform.value = Matrix4.identity()
+          ..translateByDouble(
+            next.canvasWidth == WorkspaceProject.defaultCanvasWidth
+                ? -4800
+                : -next.canvasWidth / 2,
+            next.canvasHeight == WorkspaceProject.defaultCanvasHeight
+                ? -4800
+                : -next.canvasHeight / 2,
+            0,
+            1,
+          );
+      }
       final interactive = next.nodes
           .where(
             (node) =>
@@ -156,6 +191,14 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     if (event.buttons != kPrimaryMouseButton ||
         _panKeyPressed ||
         _panPointer != null) {
+      return;
+    }
+    if (_isCanvasDrawingTool) {
+      _startCanvasTool(event);
+      return;
+    }
+    if (_canvasTool == _CanvasTool.branch) {
+      _focus.requestFocus();
       return;
     }
     _focus.requestFocus();
@@ -431,6 +474,116 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     widget.onSelectedModule?.call(null);
   });
 
+  void _setCanvasTool(_CanvasTool tool) {
+    setState(() {
+      _canvasTool = tool;
+      _annotationPointer = null;
+      _annotationPoints = const [];
+      if (tool != _CanvasTool.branch) {
+        _pendingPort = null;
+        _wireEnd = null;
+      }
+    });
+  }
+
+  bool get _isCanvasDrawingTool =>
+      _canvasTool == _CanvasTool.pencil || _canvasTool == _CanvasTool.cut;
+
+  void _startCanvasTool(PointerDownEvent event) {
+    if (event.buttons != kPrimaryMouseButton || _panKeyPressed) return;
+    final point = _sceneAt(event.position);
+    if (_canvasTool == _CanvasTool.pencil) {
+      setState(() {
+        _annotationPointer = event.pointer;
+        _annotationPoints = [point];
+      });
+    } else if (_canvasTool == _CanvasTool.cut) {
+      setState(() {
+        _annotationPointer = event.pointer;
+        _annotationPoints = [point];
+      });
+    }
+  }
+
+  void _updateCanvasTool(PointerMoveEvent event) {
+    if (event.pointer != _annotationPointer) return;
+    final point = _sceneAt(event.position);
+    if (_annotationPoints.isEmpty ||
+        (point - _annotationPoints.last).distance > 2) {
+      setState(() => _annotationPoints = [..._annotationPoints, point]);
+    }
+  }
+
+  double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final delta = end - start;
+    final lengthSquared = delta.distanceSquared;
+    if (lengthSquared == 0) return (point - start).distance;
+    final t =
+        ((point - start).dx * delta.dx + (point - start).dy * delta.dy) /
+        lengthSquared;
+    final clamped = t.clamp(0.0, 1.0);
+    return (point - (start + delta * clamped)).distance;
+  }
+
+  bool _linkNearPath(
+    WorkspaceLink link,
+    List<WorkspaceNode> nodes,
+    List<Offset> stroke,
+  ) {
+    final source = nodes.where((node) => node.id == link.source).firstOrNull;
+    final target = nodes.where((node) => node.id == link.target).firstOrNull;
+    if (source == null || target == null) return false;
+    final from = source.portPosition(link.output, true);
+    final to = target.portPosition(link.input, false);
+    var previous = from;
+    final cutWidth = 14 / _transform.value.getMaxScaleOnAxis();
+    final direction = to.dx >= from.dx ? 1.0 : -1.0;
+    final dx = math.max(60.0, (to.dx - from.dx).abs() * .45);
+    for (var index = 1; index <= 20; index++) {
+      final t = index / 20;
+      final inverse = 1 - t;
+      final next = Offset(
+        inverse * inverse * inverse * from.dx +
+            3 * inverse * inverse * t * (from.dx + direction * dx) +
+            3 * inverse * t * t * (to.dx - direction * dx) +
+            t * t * t * to.dx,
+        inverse * inverse * inverse * from.dy +
+            3 * inverse * inverse * t * from.dy +
+            3 * inverse * t * t * to.dy +
+            t * t * t * to.dy,
+      );
+      for (final point in stroke) {
+        if (_distanceToSegment(point, previous, next) < cutWidth) return true;
+      }
+      previous = next;
+    }
+    return false;
+  }
+
+  void _finishCanvasTool(PointerEvent event) {
+    if (event.pointer != _annotationPointer) return;
+    final points = _annotationPoints;
+    setState(() {
+      _annotationPointer = null;
+      _annotationPoints = const [];
+    });
+    if (_canvasTool == _CanvasTool.pencil && points.length > 1) {
+      _controller.addAnnotation(
+        WorkspaceAnnotation(
+          id: WorkspaceId.create('annotation'),
+          points: points,
+        ),
+      );
+    } else if (_canvasTool == _CanvasTool.cut && points.isNotEmpty) {
+      final graph = ref.read(workspaceProvider);
+      for (final link in graph.links) {
+        if (_linkNearPath(link, graph.nodes, points)) {
+          _controller.disconnect(link);
+        }
+      }
+    }
+  }
+
   void _hideModule(WorkspaceNode node) {
     if (node.isLogic) return;
     _controller.setModuleHidden(node.module.id, true);
@@ -518,8 +671,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     for (final node in nodes) {
       final position = node.position + delta;
       positions[node.id] = Offset(
-        position.dx.clamp(0, _sceneSize - node.width).toDouble(),
-        position.dy.clamp(0, _sceneSize - node.height).toDouble(),
+        position.dx.clamp(0, _canvasWidth - node.width).toDouble(),
+        position.dy.clamp(0, _canvasHeight - node.height).toDouble(),
       );
     }
     delta = positions[nodes.first.id]! - nodes.first.position;
@@ -686,6 +839,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         (Offset.zero & box.size).contains(box.globalToLocal(global)) &&
         _nodeAt(global) == null) {
       _pick(position: _sceneAt(global), global: global, fromPort: port);
+    } else if (details.wasAccepted &&
+        _canvasTool == _CanvasTool.branch &&
+        port != null &&
+        port.output) {
+      setState(() {
+        _pendingPort = port;
+        _wireEnd = null;
+        _wireGlobal = null;
+      });
     } else {
       setState(() {
         _pendingPort = null;
@@ -941,8 +1103,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       ),
     );
     if (error != null) _message(context.hostLabel(error));
+    final branch = _canvasTool == _CanvasTool.branch;
     setState(() {
-      _pendingPort = null;
+      _pendingPort = branch && from.output ? from : null;
       _wireEnd = null;
     });
   }
@@ -1024,7 +1187,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   void _fit(List<WorkspaceNode> nodes) {
     if (nodes.isEmpty) {
       _transform.value = Matrix4.identity()
-        ..translateByDouble(-4800, -4800, 0, 1);
+        ..translateByDouble(-_canvasOriginX, -_canvasOriginY, 0, 1);
       return;
     }
     final size =
@@ -1700,8 +1863,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                       child: GestureDetector(
                                         behavior: HitTestBehavior.opaque,
                                         child: SizedBox(
-                                          width: _sceneSize,
-                                          height: _sceneSize,
+                                          width: _canvasWidth,
+                                          height: _canvasHeight,
                                           child: Stack(
                                             clipBehavior: Clip.none,
                                             children: [
@@ -1710,19 +1873,46 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                   behavior:
                                                       HitTestBehavior.opaque,
                                                   onPointerDown: _startMarquee,
-                                                  onPointerMove: _updateMarquee,
+                                                  onPointerMove: (event) {
+                                                    if (_isCanvasDrawingTool) {
+                                                      _updateCanvasTool(event);
+                                                    } else {
+                                                      _updateMarquee(event);
+                                                    }
+                                                  },
                                                   onPointerUp: (event) {
-                                                    if (event.pointer ==
+                                                    if (_isCanvasDrawingTool) {
+                                                      _finishCanvasTool(event);
+                                                    } else if (event.pointer ==
                                                         _marqueePointer) {
                                                       _endMarquee();
                                                     }
                                                   },
                                                   onPointerCancel: (event) {
-                                                    if (event.pointer ==
+                                                    if (_isCanvasDrawingTool) {
+                                                      _finishCanvasTool(event);
+                                                    } else if (event.pointer ==
                                                         _marqueePointer) {
                                                       _endMarquee(cancel: true);
                                                     }
                                                   },
+                                                ),
+                                              ),
+                                              Positioned.fill(
+                                                child: IgnorePointer(
+                                                  child: CustomPaint(
+                                                    painter:
+                                                        WorkspaceAnnotationPainter(
+                                                          annotations:
+                                                              graph.annotations,
+                                                          activePoints:
+                                                              _annotationPoints,
+                                                          activeColor: context
+                                                              .palette
+                                                              .text,
+                                                          activeWidth: 3,
+                                                        ),
+                                                  ),
                                                 ),
                                               ),
                                               Positioned.fill(
@@ -1776,6 +1966,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                           .contains(
                                                             node.module.id,
                                                           ) ||
+                                                      _isCanvasDrawingTool ||
                                                       _panModifier ||
                                                       _panPointer != null,
                                                   selected: _selection.contains(
@@ -1857,7 +2048,16 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                         output,
                                                       ),
                                                   onPort: (port) {
-                                                    if (_pendingPort != null) {
+                                                    if (_canvasTool ==
+                                                            _CanvasTool
+                                                                .branch &&
+                                                        _pendingPort == null &&
+                                                        port.output) {
+                                                      setState(() {
+                                                        _pendingPort = port;
+                                                      });
+                                                    } else if (_pendingPort !=
+                                                        null) {
                                                       _connect(
                                                         _pendingPort!,
                                                         port,
@@ -2043,6 +2243,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                   link.input,
                                                   false,
                                                 );
+                                                final direction =
+                                                    to.dx >= from.dx
+                                                    ? 1.0
+                                                    : -1.0;
                                                 final bend = math.max(
                                                   60.0,
                                                   (to.dx - from.dx).abs() * .45,
@@ -2050,9 +2254,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                 final wire = Path()
                                                   ..moveTo(from.dx, from.dy)
                                                   ..cubicTo(
-                                                    from.dx + bend,
+                                                    from.dx + direction * bend,
                                                     from.dy,
-                                                    to.dx - bend,
+                                                    to.dx - direction * bend,
                                                     to.dy,
                                                     to.dx,
                                                     to.dy,
@@ -2100,6 +2304,16 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                             );
                                           },
                                         ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 12,
+                                      top: 72,
+                                      child: _CanvasToolRail(
+                                        tool: _canvasTool,
+                                        onSelected: _setCanvasTool,
+                                        onClearAnnotations: () =>
+                                            _controller.clearAnnotations(),
                                       ),
                                     ),
                                     Positioned(
@@ -2228,6 +2442,17 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                         .where((node) => !node.isLogic)
                         .toList(),
                     onSelectNode: (node) => _select(node, focusCanvas: false),
+                    onAddModule: () => _pick(),
+                    onAddLogic: (type) => _select(
+                      _controller.addLogicBlock(
+                        type,
+                        _center - const Offset(120, 80),
+                      ),
+                    ),
+                    canvasWidth: graph.canvasWidth,
+                    canvasHeight: graph.canvasHeight,
+                    onCanvasSizeChanged: (width, height) =>
+                        _controller.setCanvasSize(width: width, height: height),
                   ),
                 ),
             ],
@@ -2770,14 +2995,29 @@ class _PortView extends StatelessWidget {
                       ),
                     ),
                   ),
-                Container(
+                SizedBox(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(
-                    color: candidates.isNotEmpty
-                        ? context.palette.text
-                        : color.tint ?? context.palette.mutedText,
-                    borderRadius: BorderRadius.circular(3),
+                  child: Transform.scale(
+                    scale: 1.4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: candidates.isNotEmpty
+                            ? context.palette.text
+                            : color.tint ?? context.palette.mutedText,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: context.palette.background,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(80),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 if (!ref.output)
@@ -2917,6 +3157,128 @@ class _GridPainter extends CustomPainter {
       oldDelegate.rulersOnly != rulersOnly;
 }
 
+class WorkspaceAnnotationPainter extends CustomPainter {
+  const WorkspaceAnnotationPainter({
+    required this.annotations,
+    this.activePoints = const [],
+    required this.activeColor,
+    required this.activeWidth,
+  });
+
+  final List<WorkspaceAnnotation> annotations;
+  final List<Offset> activePoints;
+  final Color activeColor;
+  final double activeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    void drawStroke(List<Offset> points, Color color, double width) {
+      if (points.length < 2) return;
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final point in points.skip(1)) {
+        path.lineTo(point.dx, point.dy);
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
+
+    for (final annotation in annotations) {
+      drawStroke(annotation.points, Color(annotation.color), annotation.width);
+    }
+    drawStroke(activePoints, activeColor, activeWidth);
+  }
+
+  @override
+  bool shouldRepaint(covariant WorkspaceAnnotationPainter oldDelegate) =>
+      oldDelegate.annotations != annotations ||
+      oldDelegate.activePoints != activePoints ||
+      oldDelegate.activeColor != activeColor ||
+      oldDelegate.activeWidth != activeWidth;
+}
+
+class _CanvasToolRail extends StatelessWidget {
+  const _CanvasToolRail({
+    required this.tool,
+    required this.onSelected,
+    required this.onClearAnnotations,
+  });
+
+  final _CanvasTool tool;
+  final ValueChanged<_CanvasTool> onSelected;
+  final VoidCallback onClearAnnotations;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button(_CanvasTool value, IconData icon, String label) =>
+        DesktopIconButton(
+          key: ValueKey('workspace canvas tool ${value.name}'),
+          icon: icon,
+          tooltip: label,
+          active: tool == value,
+          size: 36,
+          iconSize: 19,
+          onPressed: () => onSelected(value),
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: context.palette.panel.withAlpha(235),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.palette.hover),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(30),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(
+            _CanvasTool.select,
+            Icons.near_me_outlined,
+            context.hostLabel('Select'),
+          ),
+          button(
+            _CanvasTool.pencil,
+            Icons.edit_outlined,
+            context.hostLabel('Draw annotation'),
+          ),
+          button(
+            _CanvasTool.cut,
+            Icons.content_cut_outlined,
+            context.hostLabel('Cut connection'),
+          ),
+          button(
+            _CanvasTool.branch,
+            Icons.call_split_outlined,
+            context.hostLabel('Branch route'),
+          ),
+          const SizedBox(height: 3),
+          DesktopIconButton(
+            key: const ValueKey('workspace clear annotations'),
+            icon: Icons.delete_sweep_outlined,
+            tooltip: context.hostLabel('Clear annotations'),
+            size: 36,
+            iconSize: 18,
+            onPressed: onClearAnnotations,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _portTypeLabel(BuildContext context, WorkspacePortType type) =>
     switch (type) {
       WorkspacePortType.any => context.l10n.workspacePortAny,
@@ -3001,6 +3363,119 @@ class _CanvasLabel extends StatelessWidget {
   );
 }
 
+class _WorkspaceCanvasSizeEditor extends StatefulWidget {
+  const _WorkspaceCanvasSizeEditor({
+    required this.width,
+    required this.height,
+    required this.onChanged,
+  });
+
+  final double width, height;
+  final void Function(double width, double height) onChanged;
+
+  @override
+  State<_WorkspaceCanvasSizeEditor> createState() =>
+      _WorkspaceCanvasSizeEditorState();
+}
+
+class _WorkspaceCanvasSizeEditorState
+    extends State<_WorkspaceCanvasSizeEditor> {
+  late final TextEditingController _width = TextEditingController(
+    text: widget.width.round().toString(),
+  );
+  late final TextEditingController _height = TextEditingController(
+    text: widget.height.round().toString(),
+  );
+
+  @override
+  void didUpdateWidget(covariant _WorkspaceCanvasSizeEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.width != widget.width &&
+        double.tryParse(_width.text) != widget.width) {
+      _width.text = widget.width.round().toString();
+    }
+    if (oldWidget.height != widget.height &&
+        double.tryParse(_height.text) != widget.height) {
+      _height.text = widget.height.round().toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _width.dispose();
+    _height.dispose();
+    super.dispose();
+  }
+
+  void _apply() {
+    final width = double.tryParse(_width.text.trim());
+    final height = double.tryParse(_height.text.trim());
+    if (width == null || height == null) return;
+    widget.onChanged(width, height);
+  }
+
+  @override
+  Widget build(BuildContext context) => DesktopPane(
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.hostLabel('Canvas size'),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.hostLabel(
+              'Stored per workspace; empty space adds almost no file size.',
+            ),
+            style: TextStyle(fontSize: 11, color: context.palette.mutedText),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('workspace canvas width'),
+                  controller: _width,
+                  decoration: const InputDecoration(labelText: 'Width'),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (_) => _apply(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('workspace canvas height'),
+                  controller: _height,
+                  decoration: const InputDecoration(labelText: 'Height'),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (_) => _apply(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DesktopIconButton(
+            icon: Icons.check,
+            label: context.hostLabel('Apply'),
+            tooltip: context.hostLabel('Apply canvas size'),
+            onPressed: _apply,
+            size: 34,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.hostLabel('Limits: 2,000–100,000 px'),
+            style: TextStyle(fontSize: 11, color: context.palette.mutedText),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _WorkspaceInspector extends StatefulWidget {
   const _WorkspaceInspector({
     super.key,
@@ -3016,6 +3491,11 @@ class _WorkspaceInspector extends StatefulWidget {
     required this.onFullscreen,
     required this.activeNodes,
     required this.onSelectNode,
+    required this.onAddModule,
+    required this.onAddLogic,
+    required this.canvasWidth,
+    required this.canvasHeight,
+    required this.onCanvasSizeChanged,
   });
   final WorkspaceNode? node;
   final VoidCallback onClose;
@@ -3030,6 +3510,10 @@ class _WorkspaceInspector extends StatefulWidget {
   final VoidCallback? onFullscreen;
   final List<WorkspaceNode> activeNodes;
   final ValueChanged<WorkspaceNode> onSelectNode;
+  final VoidCallback onAddModule;
+  final ValueChanged<LogicBlockType> onAddLogic;
+  final double canvasWidth, canvasHeight;
+  final void Function(double width, double height) onCanvasSizeChanged;
 
   @override
   State<_WorkspaceInspector> createState() => _WorkspaceInspectorState();
@@ -3106,6 +3590,56 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+                    child: DesktopMenuButton<String>(
+                      key: const ValueKey('workspace inspector add'),
+                      tooltip: context.hostLabel('Add to canvas'),
+                      width: 250,
+                      itemHeight: 38,
+                      entries: [
+                        DesktopMenuEntry(
+                          value: 'module',
+                          label: context.l10n.textAddModule158,
+                        ),
+                        DesktopMenuEntry(
+                          value: 'logic',
+                          label: context.l10n.logicAdd,
+                          submenu: [
+                            for (final type in LogicBlockType.values)
+                              DesktopMenuEntry(
+                                value: type.name,
+                                label: context.logicBlockLabel(type.name),
+                              ),
+                          ],
+                        ),
+                      ],
+                      onSelected: (value) {
+                        if (value == 'module') {
+                          widget.onAddModule();
+                        } else {
+                          final type = LogicBlockType.values
+                              .where((item) => item.name == value)
+                              .firstOrNull;
+                          if (type != null) widget.onAddLogic(type);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add, size: 17),
+                            const SizedBox(width: 6),
+                            Text(context.hostLabel('Add to canvas')),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                     child: Text(
@@ -3361,6 +3895,11 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
                       ),
                   ]),
                 ],
+                _WorkspaceCanvasSizeEditor(
+                  width: widget.canvasWidth,
+                  height: widget.canvasHeight,
+                  onChanged: widget.onCanvasSizeChanged,
+                ),
               ],
             ),
           ),
