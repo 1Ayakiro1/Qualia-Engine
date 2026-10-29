@@ -37,6 +37,9 @@ class ModulesScreen extends ConsumerStatefulWidget {
     this.selectedModule,
     this.inspectorOpen = false,
     this.onToggleInspector,
+    this.explorerVisible = true,
+    this.onToggleExplorer,
+    this.onSelectedModule,
     this.onMarketplace,
   });
   final List<SystemModule> modules;
@@ -46,6 +49,9 @@ class ModulesScreen extends ConsumerStatefulWidget {
   final SystemModule? selectedModule;
   final bool inspectorOpen;
   final VoidCallback? onToggleInspector;
+  final bool explorerVisible;
+  final VoidCallback? onToggleExplorer;
+  final ValueChanged<SystemModule?>? onSelectedModule;
   final VoidCallback? onMarketplace;
   @override
   ConsumerState<ModulesScreen> createState() => _ModulesScreenState();
@@ -72,6 +78,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   bool _pickerOpen = false;
   String? _openedId;
   bool _inspector = false;
+  bool _snapToGrid = false;
   _PortRef? _pendingPort;
   Offset? _wireEnd;
   Offset? _wireGlobal;
@@ -414,13 +421,117 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       _selectedId = node.id;
       _inspector = true;
     });
+    widget.onSelectedModule?.call(node.isLogic ? null : node.module);
     if (focusCanvas) _focus.requestFocus();
   }
 
   void _clearSelection() => setState(() {
     _selection.clear();
     _selectedId = null;
+    widget.onSelectedModule?.call(null);
   });
+
+  void _hideModule(WorkspaceNode node) {
+    if (node.isLogic) return;
+    _controller.setModuleHidden(node.module.id, true);
+    _clearSelection();
+  }
+
+  static const double _snapSpacing = 24;
+
+  bool _overlapsAny(Set<String> moving, Map<String, Offset> positions) {
+    final nodes = ref.read(workspaceProvider).nodes;
+    for (final node in nodes.where((item) => moving.contains(item.id))) {
+      final position = positions[node.id] ?? node.position;
+      final rect = position & Size(node.width, node.height);
+      for (final other in nodes.where((item) => !moving.contains(item.id))) {
+        final otherPosition = positions[other.id] ?? other.position;
+        if (rect.overlaps(otherPosition & Size(other.width, other.height))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Apply the optional magnetic grid and avoid dropping a node on another
+  /// node. The canvas remains a finite, stable scene; only movement is
+  /// clamped at its edges.
+  Offset _moveDelta(Set<String> ids, Offset requested) {
+    // Keep the existing free-move behaviour unless the magnetic control is
+    // explicitly enabled. This also preserves sub-grid pointer movement.
+    if (!_snapToGrid) return requested;
+    final nodes = ref
+        .read(workspaceProvider)
+        .nodes
+        .where((node) => ids.contains(node.id))
+        .toList();
+    if (nodes.isEmpty) return requested;
+    var delta = requested;
+    if (_snapToGrid) {
+      final anchor = nodes.first;
+      final target = anchor.position + requested;
+      delta = Offset(
+        (target.dx / _snapSpacing).round() * _snapSpacing - anchor.position.dx,
+        (target.dy / _snapSpacing).round() * _snapSpacing - anchor.position.dy,
+      );
+      // Once the cursor is close to another module, prefer its edges over a
+      // nearby grid line. This keeps ports aligned without allowing cards to
+      // land on top of one another.
+      const edgeThreshold = 12.0;
+      final others = ref
+          .read(workspaceProvider)
+          .nodes
+          .where((item) => !ids.contains(item.id));
+      final proposed = anchor.position + delta;
+      final xEdges = <double>[];
+      final yEdges = <double>[];
+      for (final other in others) {
+        xEdges
+          ..add(other.position.dx)
+          ..add(other.position.dx + other.width)
+          ..add(other.position.dx - anchor.width)
+          ..add(other.position.dx + other.width - anchor.width);
+        yEdges
+          ..add(other.position.dy)
+          ..add(other.position.dy + other.height)
+          ..add(other.position.dy - anchor.height)
+          ..add(other.position.dy + other.height - anchor.height);
+      }
+      double snapEdge(double value, List<double> edges) {
+        final closest = edges.fold<double?>(null, (best, edge) {
+          if ((edge - value).abs() > edgeThreshold) return best;
+          return best == null || (edge - value).abs() < (best - value).abs()
+              ? edge
+              : best;
+        });
+        return closest ?? value;
+      }
+
+      final snapped = Offset(
+        snapEdge(proposed.dx, xEdges),
+        snapEdge(proposed.dy, yEdges),
+      );
+      delta = snapped - anchor.position;
+    }
+    final positions = <String, Offset>{};
+    for (final node in nodes) {
+      final position = node.position + delta;
+      positions[node.id] = Offset(
+        position.dx.clamp(0, _sceneSize - node.width).toDouble(),
+        position.dy.clamp(0, _sceneSize - node.height).toDouble(),
+      );
+    }
+    delta = positions[nodes.first.id]! - nodes.first.position;
+    if (!_overlapsAny(ids, positions)) return delta;
+    for (final alternative in [Offset(delta.dx, 0), Offset(0, delta.dy)]) {
+      final alternativePositions = {
+        for (final node in nodes) node.id: node.position + alternative,
+      };
+      if (!_overlapsAny(ids, alternativePositions)) return alternative;
+    }
+    return Offset.zero;
+  }
 
   void _deleteSelection() {
     _controller.removeNodes(_selection);
@@ -667,6 +778,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
               value: 'sameColor',
               label: context.l10n.workspaceSelectSameColor,
             ),
+            DesktopMenuEntry(value: 'hide', label: context.l10n.textHide231),
             DesktopMenuEntry(
               value: 'move',
               label: context.l10n.moduleMoveToWorkspace,
@@ -737,6 +849,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       if (action == 'window' && node != null) await _detach(node);
       if (action == 'fullscreen' && node != null) await _fullscreen(node);
       if (action == 'replace') _pick(replace: node, global: global);
+      if (action == 'hide' && node != null && !node.isLogic) {
+        _hideModule(node);
+      }
       if (action == 'delete' && node != null) {
         _controller.removeNode(node.id);
         setState(() {
@@ -1040,76 +1155,96 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                       child: LayoutBuilder(
                         builder: (context, bounds) => Row(
                           children: [
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: math.min(240, bounds.maxWidth * .5),
+                            SizedBox(
+                              width: math.max(
+                                0,
+                                math.min(240, bounds.maxWidth - 190),
                               ),
-                              child: DesktopMenuButton<String>(
-                                key: const ValueKey('workspace project menu'),
-                                tooltip: context.l10n.workspaceProjectActions,
-                                width: 320,
-                                entries: [
-                                  for (final project in graph.projects)
+                              child: ClipRect(
+                                child: DesktopMenuButton<String>(
+                                  key: const ValueKey('workspace project menu'),
+                                  tooltip: context.l10n.workspaceProjectActions,
+                                  width: 320,
+                                  entries: [
+                                    for (final project in graph.projects)
+                                      DesktopMenuEntry(
+                                        value: project.id,
+                                        label: project.name,
+                                        markerColor:
+                                            project.id == graph.activeProjectId
+                                            ? context.palette.text
+                                            : null,
+                                      ),
                                     DesktopMenuEntry(
-                                      value: project.id,
-                                      label: project.name,
-                                      markerColor:
-                                          project.id == graph.activeProjectId
-                                          ? context.palette.text
-                                          : null,
+                                      value: '__create',
+                                      label: context.l10n.workspaceCreate,
+                                      dividerBefore: true,
                                     ),
-                                  DesktopMenuEntry(
-                                    value: '__create',
-                                    label: context.l10n.workspaceCreate,
-                                    dividerBefore: true,
-                                  ),
-                                  DesktopMenuEntry(
-                                    value: '__manage',
-                                    label: context.l10n.workspaceManager,
-                                  ),
-                                ],
-                                onSelected: (id) {
-                                  if (id == '__create') {
-                                    editWorkspace(context, ref);
-                                  } else if (id == '__manage') {
-                                    showWorkspaceManager(context);
-                                  } else {
-                                    _controller.switchProject(id);
-                                  }
-                                },
-                                child: SizedBox(
-                                  height: 40,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
+                                    DesktopMenuEntry(
+                                      value: '__manage',
+                                      label: context.l10n.workspaceManager,
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.account_tree_outlined,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 9),
-                                        Flexible(
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 160,
-                                            ),
-                                            child: Text(
-                                              graph.activeProject.name,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
+                                  ],
+                                  onSelected: (id) {
+                                    if (id == '__create') {
+                                      editWorkspace(context, ref);
+                                    } else if (id == '__manage') {
+                                      showWorkspaceManager(context);
+                                    } else {
+                                      _controller.switchProject(id);
+                                    }
+                                  },
+                                  child: LayoutBuilder(
+                                    builder: (context, childBounds) {
+                                      final compact =
+                                          childBounds.maxWidth < 120;
+                                      return SizedBox(
+                                        width: double.infinity,
+                                        height: 40,
+                                        child: compact
+                                            ? const Center(
+                                                child: Icon(
+                                                  Icons.account_tree_outlined,
+                                                  size: 18,
+                                                ),
+                                              )
+                                            : Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                    ),
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons
+                                                          .account_tree_outlined,
+                                                      size: 18,
+                                                    ),
+                                                    const SizedBox(width: 9),
+                                                    Expanded(
+                                                      child: Text(
+                                                        graph
+                                                            .activeProject
+                                                            .name,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    const Icon(
+                                                      Icons.expand_more,
+                                                      size: 16,
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        const Icon(Icons.expand_more, size: 16),
-                                      ],
-                                    ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
@@ -1382,6 +1517,31 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
+                            const SizedBox(width: 6),
+                            DesktopIconButton(
+                              key: const ValueKey('workspace toggle explorer'),
+                              icon: widget.explorerVisible
+                                  ? Icons.view_sidebar_outlined
+                                  : Icons.view_sidebar,
+                              tooltip: widget.explorerVisible
+                                  ? context.l10n.textHideExplorer181
+                                  : context.l10n.textShowExplorer182,
+                              size: 42,
+                              iconSize: 21,
+                              onPressed: widget.onToggleExplorer,
+                            ),
+                            const SizedBox(width: 6),
+                            DesktopIconButton(
+                              key: const ValueKey('workspace toggle snap'),
+                              icon: Icons.grid_4x4,
+                              tooltip: context.hostLabel('Snap to grid'),
+                              size: 42,
+                              iconSize: 21,
+                              active: _snapToGrid,
+                              onPressed: () =>
+                                  setState(() => _snapToGrid = !_snapToGrid),
+                            ),
+                            const SizedBox(width: 6),
                             DesktopIconButton(
                               key: const ValueKey('workspace toggle inspector'),
                               icon: Icons.view_sidebar_outlined,
@@ -1650,7 +1810,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                         details.globalPosition;
                                                     _controller.moveNodes(
                                                       _selection,
-                                                      delta,
+                                                      _moveDelta(
+                                                        _selection,
+                                                        delta,
+                                                      ),
                                                     );
                                                   },
                                                   onResize: (details) {
@@ -1682,6 +1845,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                     () => _openedId = node.id,
                                                   ),
                                                   onDetach: () => _detach(node),
+                                                  onHide: () =>
+                                                      _hideModule(node),
                                                   onMenu: (position) => _menu(
                                                     position,
                                                     node: node,
@@ -1735,6 +1900,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                             .palette
                                                             .text
                                                             .withAlpha(20),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              6,
+                                                            ),
                                                         border: Border.all(
                                                           color: context
                                                               .palette
@@ -2055,6 +2224,10 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                     onFullscreen: selected == null
                         ? null
                         : () => _fullscreen(selected),
+                    activeNodes: graph.nodes
+                        .where((node) => !node.isLogic)
+                        .toList(),
+                    onSelectNode: (node) => _select(node, focusCanvas: false),
                   ),
                 ),
             ],
@@ -2091,6 +2264,7 @@ class _WorkspaceNodeView extends StatelessWidget {
     required this.onInteraction,
     required this.onOpen,
     required this.onDetach,
+    required this.onHide,
     required this.onMenu,
     required this.onAddPort,
     required this.onPort,
@@ -2111,6 +2285,7 @@ class _WorkspaceNodeView extends StatelessWidget {
   final ValueChanged<bool> onInteraction;
   final VoidCallback onOpen;
   final VoidCallback onDetach;
+  final VoidCallback onHide;
   final ValueChanged<Offset> onMenu;
   final ValueChanged<bool> onAddPort;
   final ValueChanged<_PortRef> onPort;
@@ -2264,6 +2439,17 @@ class _WorkspaceNodeView extends StatelessWidget {
                                             Icons.visibility_off_outlined,
                                             size: 15,
                                             color: context.palette.mutedText,
+                                          ),
+                                        if (!hidden && !node.isLogic)
+                                          DesktopIconButton(
+                                            key: ValueKey(
+                                              'workspace hide ${node.id}',
+                                            ),
+                                            icon: Icons.visibility_off_outlined,
+                                            tooltip: context.l10n.textHide231,
+                                            onPressed: onHide,
+                                            size: 24,
+                                            iconSize: 15,
                                           ),
                                         Icon(
                                           Icons.drag_indicator,
@@ -2828,6 +3014,8 @@ class _WorkspaceInspector extends StatefulWidget {
     required this.onOpen,
     required this.onDetach,
     required this.onFullscreen,
+    required this.activeNodes,
+    required this.onSelectNode,
   });
   final WorkspaceNode? node;
   final VoidCallback onClose;
@@ -2840,6 +3028,8 @@ class _WorkspaceInspector extends StatefulWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onDetach;
   final VoidCallback? onFullscreen;
+  final List<WorkspaceNode> activeNodes;
+  final ValueChanged<WorkspaceNode> onSelectNode;
 
   @override
   State<_WorkspaceInspector> createState() => _WorkspaceInspectorState();
@@ -2877,37 +3067,111 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
     child: DesktopPane(
       child: Column(
         children: [
-          DesktopPane(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: DesktopPane(
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.l10n.textMODULESETTINGS310,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    DesktopIconButton(
+                      icon: Icons.close,
+                      tooltip: context.l10n.textCloseModuleSettings311,
+                      onPressed: widget.onClose,
+                      size: 24,
+                      iconSize: 14,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: DesktopPane(
+              borderRadius: BorderRadius.circular(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                     child: Text(
-                      context.l10n.textMODULESETTINGS310,
-                      style: TextStyle(
-                        fontSize: 14,
+                      context.hostLabel('Active modules'),
+                      style: const TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  DesktopIconButton(
-                    icon: Icons.close,
-                    tooltip: context.l10n.textCloseModuleSettings311,
-                    onPressed: widget.onClose,
-                    size: 24,
-                    iconSize: 14,
-                  ),
+                  if (widget.activeNodes.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                      child: Text(
+                        context.hostLabel('No active modules'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.palette.mutedText,
+                        ),
+                      ),
+                    )
+                  else
+                    for (final activeNode in widget.activeNodes)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: DesktopHoverTile(
+                          selected: activeNode.id == node?.id,
+                          onTap: () => widget.onSelectNode(activeNode),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 7,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.extension_outlined,
+                                  size: 15,
+                                  color: context.palette.mutedText,
+                                ),
+                                const SizedBox(width: 7),
+                                Expanded(
+                                  child: Text(
+                                    activeNode.module.displayName(context),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  const SizedBox(height: 6),
                 ],
               ),
             ),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
               children: [
                 if (node == null)
                   DesktopPane(
+                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
@@ -2921,6 +3185,7 @@ class _WorkspaceInspectorState extends State<_WorkspaceInspector> {
                   )
                 else ...[
                   DesktopPane(
+                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(10, 4, 10, 12),
                       child: Column(

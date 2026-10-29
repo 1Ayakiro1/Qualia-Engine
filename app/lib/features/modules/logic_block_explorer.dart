@@ -39,6 +39,12 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           child: TextButton.icon(
             style: TextButton.styleFrom(
+              backgroundColor: context.palette.hover,
+              foregroundColor: context.palette.text,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               textStyle: const TextStyle(fontSize: 12),
             ),
             icon: Icon(

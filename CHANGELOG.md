@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.2-dev.3] — 2026-10-29 (development snapshot, not a 0.5.2 release)
+
+- Add native-style hover switching for shared horizontal desktop menus, including
+  Workspace toolbar menus.
+- Add Workspace magnetic placement with optional grid and module-edge snapping,
+  collision avoidance, rounded selection and Logic Blocks controls.
+- Add canvas module hiding, Explorer selection synchronization, a compact active
+  modules list above settings, and Workspace Explorer visibility control.
+- Keep the canvas in a finite 10,000 × 10,000 scene with stable clamped movement
+  instead of wrapping coordinates and breaking saved graph geometry.
+
 ## [0.5.2-dev.2] — 2026-10-29 (development snapshot, not a 0.5.2 release)
 
 - Add explicit workspace checkpoints (Ctrl+S / File → Save), separate crash-recovery

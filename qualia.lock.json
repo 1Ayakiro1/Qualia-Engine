@@ -4,8 +4,8 @@
   "generatedBy": "scripts/generate_version_lock.py",
   "engine": {
     "name": "Qualia Engine",
-    "version": "0.5.2-dev.2",
-    "coreVersion": "0.5.2-dev.2",
+    "version": "0.5.2-dev.3",
+    "coreVersion": "0.5.2-dev.3",
     "coreAbi": 3,
     "apiVersion": "1.1.0"
   },

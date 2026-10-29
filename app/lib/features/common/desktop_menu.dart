@@ -564,7 +564,7 @@ class _MenuPageState<T> extends State<_MenuPage<T>> {
   );
 }
 
-class DesktopMenuButton<T> extends StatelessWidget {
+class DesktopMenuButton<T> extends StatefulWidget {
   const DesktopMenuButton({
     super.key,
     required this.tooltip,
@@ -581,22 +581,88 @@ class DesktopMenuButton<T> extends StatelessWidget {
   final double width;
   final double itemHeight;
   @override
+  State<DesktopMenuButton<T>> createState() => _DesktopMenuButtonState<T>();
+}
+
+/// Desktop menus behave like a native menu bar: once one menu is open,
+/// moving to a neighbouring menu trigger switches the open menu without
+/// requiring another click. The registry is deliberately local to this
+/// shared control so every horizontal menu row gets the same behaviour.
+class _DesktopMenuButtonState<T> extends State<DesktopMenuButton<T>> {
+  static Object? _activeToken;
+  static VoidCallback? _activeCloser;
+  Object? _token;
+
+  @override
+  void dispose() {
+    if (identical(_activeToken, _token)) {
+      _activeToken = null;
+      _activeCloser = null;
+    }
+    super.dispose();
+  }
+
+  Future<void> _openMenu() async {
+    final previousCloser = _activeCloser;
+    if (_activeToken != null) {
+      // Close the previous popup while its token is still current. Clearing
+      // the registry first would make the closer refuse to pop its own route.
+      previousCloser?.call();
+      _activeToken = null;
+      _activeCloser = null;
+    }
+    final navigator = Navigator.of(context);
+    final box = context.findRenderObject() as RenderBox;
+    final menuFuture = showDesktopMenu<T>(
+      context: context,
+      position: box.localToGlobal(Offset(0, box.size.height)),
+      entries: widget.entries,
+      width: widget.width,
+      itemHeight: widget.itemHeight,
+    );
+    final token = Object();
+    _token = token;
+    _activeToken = token;
+    _activeCloser = () {
+      if (!identical(_activeToken, token)) return;
+      _activeToken = null;
+      _activeCloser = null;
+      if (navigator.canPop()) navigator.pop();
+    };
+    final value = await menuFuture;
+    if (identical(_activeToken, token)) {
+      _activeToken = null;
+      _activeCloser = null;
+      _token = null;
+    }
+    if (value != null && mounted) widget.onSelected(value);
+  }
+
+  void _closeMenu() {
+    if (_token == null || !identical(_activeToken, _token)) return;
+    _activeCloser?.call();
+  }
+
+  @override
   Widget build(BuildContext context) => DesktopTooltip(
-    message: tooltip,
-    child: DesktopHoverTile(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () async {
-        final box = context.findRenderObject() as RenderBox;
-        final value = await showDesktopMenu<T>(
-          context: context,
-          position: box.localToGlobal(Offset(0, box.size.height)),
-          entries: entries,
-          width: width,
-          itemHeight: itemHeight,
-        );
-        if (value != null && context.mounted) onSelected(value);
+    message: widget.tooltip,
+    child: MouseRegion(
+      onEnter: (_) {
+        if (_activeToken != null && !identical(_activeToken, _token)) {
+          _openMenu();
+        }
       },
-      child: child,
+      child: DesktopHoverTile(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () {
+          if (_token != null && identical(_activeToken, _token)) {
+            _closeMenu();
+          } else {
+            _openMenu();
+          }
+        },
+        child: widget.child,
+      ),
     ),
   );
 }

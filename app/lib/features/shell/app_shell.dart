@@ -1415,6 +1415,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                                         inspectorOpen: active.id == SectionId.modules ? _moduleInspectorOpen : _extensionInspectorOpen,
                                                                                         selectedExtensionId: _selectedExtensionId,
                                                                                         extensionInspectorOpen: _extensionInspectorOpen,
+                                                                                        explorerVisible: _explorerVisible,
+                                                                                        onToggleExplorer: () => setState(() => _explorerVisible = !_explorerVisible),
                                                                                         onToggleInspector: () => setState(() {
                                                                                           if (active.id == SectionId.modules) {
                                                                                             _moduleInspectorOpen = !_moduleInspectorOpen;
@@ -1422,6 +1424,7 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                                             _extensionInspectorOpen = !_extensionInspectorOpen;
                                                                                           }
                                                                                         }),
+                                                                                        onSelectedModule: (module) => setState(() => _selectedModule = module),
                                                                                         onSelectExtension: (extension) => setState(() => _selectedExtensionId = extension.id),
                                                                                         selectedEntity: _selectedEntity,
                                                                                         onAddEntity: _showEntityEditor,
@@ -4722,7 +4725,10 @@ class _SectionBody extends ConsumerWidget {
     required this.inspectorOpen,
     required this.selectedExtensionId,
     required this.extensionInspectorOpen,
+    required this.explorerVisible,
+    required this.onToggleExplorer,
     required this.onToggleInspector,
+    required this.onSelectedModule,
     required this.onSelectExtension,
   });
   final SectionId section;
@@ -4741,7 +4747,10 @@ class _SectionBody extends ConsumerWidget {
   final bool inspectorOpen;
   final String? selectedExtensionId;
   final bool extensionInspectorOpen;
+  final bool explorerVisible;
+  final VoidCallback onToggleExplorer;
   final VoidCallback onToggleInspector;
+  final ValueChanged<SystemModule?> onSelectedModule;
   final ValueChanged<UserExtension> onSelectExtension;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -4765,6 +4774,9 @@ class _SectionBody extends ConsumerWidget {
           selectedModule: selectedModule,
           inspectorOpen: inspectorOpen,
           onToggleInspector: onToggleInspector,
+          explorerVisible: explorerVisible,
+          onToggleExplorer: onToggleExplorer,
+          onSelectedModule: onSelectedModule,
           onMarketplace: onOpenMarketplace,
         );
       case SectionId.entity:
