@@ -1,4 +1,7 @@
 import 'dart:io';
+
+import 'package:bci_engine/core/theme/app_icons.dart';
+
 import 'dart:ui' as ui;
 
 import 'package:bci_engine/core/modules/module_registry.dart';
@@ -118,7 +121,7 @@ void main() {
       node.resize(const Size(450, 360));
       expect(node.width, 450);
       expect(node.height, 360);
-      expect(node.portPosition('output', true).dx, node.position.dx + 444);
+      expect(node.portPosition('output', true).dx, node.position.dx + 450);
       final restored = WorkspaceNode.fromJson(node.toJson());
       expect(restored.headerColor, WorkspaceNodeColor.blue);
       expect(restored.width, 450);
@@ -457,7 +460,7 @@ void main() {
         expect(node.height - sizeBefore.height, closeTo(40 + 24 / scale, 1));
         expect(node.position, positionBefore);
         final output = find.descendant(
-          of: find.byKey(ValueKey('workspace node ${node.id}')),
+          of: find.byKey(ValueKey('workspace selection ${node.id}')),
           matching: find.text('output'),
         );
         final port = node.portPosition('output', true);
@@ -473,7 +476,7 @@ void main() {
               port,
             );
         expect(outputRect.center.dy, closeTo(renderedPort.dy, .1));
-        expect(outputRect.right + 11 * scale, closeTo(renderedPort.dx, .1));
+        expect(outputRect.right + 17 * scale, closeTo(renderedPort.dx, .1));
         final beforeMove = node.position;
         final title = find.descendant(
           of: find.byKey(ValueKey('workspace node ${node.id}')),
@@ -543,6 +546,61 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+
+  testWidgets('magnetic drag keeps the grab offset and moves by grid steps', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          builder: (_, child) =>
+              AppThemeScope(palette: AppPalette.dark, child: child!),
+          home: Scaffold(
+            body: ModulesScreen(
+              modules: const [_module],
+              onAdd: () {},
+              onEdit: (_) {},
+              onRemove: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final controller = container.read(workspaceProvider.notifier);
+    final node = controller.addNode(_module, const Offset(137, 163));
+    await tester.pumpAndSettle();
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(160 - node.position.dx, 140 - node.position.dy, 0, 1);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('workspace toggle snap')));
+    await tester.pump();
+
+    final header = find.byKey(ValueKey('workspace header ${node.id}'));
+    final before = Offset(node.position.dx, node.position.dy);
+    await tester.drag(header, const Offset(5, 7));
+    await tester.pumpAndSettle();
+    expect(node.position, before);
+
+    await tester.drag(header, const Offset(24, 24));
+    await tester.pumpAndSettle();
+    expect(node.position, before + const Offset(24, 24));
+    await tester.pump(const Duration(milliseconds: 350));
+  });
+
   testWidgets(
     'area selection and modifier panning stay independent at every scale',
     (tester) async {
@@ -657,10 +715,7 @@ void main() {
         await cancelled.cancel();
         await tester.pumpAndSettle();
         expect(isSelected(node), isTrue);
-        for (final modifier in [
-          LogicalKeyboardKey.space,
-          LogicalKeyboardKey.altLeft,
-        ]) {
+        for (final modifier in [LogicalKeyboardKey.space]) {
           await tester.sendKeyDownEvent(modifier);
           await tester.pump();
           final position = node.position;
@@ -949,7 +1004,7 @@ void main() {
         await tester.pumpAndSettle();
         final tile = find.byKey(ValueKey('workspace node ${node.id}'));
         final portTarget = find.descendant(
-          of: tile,
+          of: find.byKey(ValueKey('workspace selection ${node.id}')),
           matching: find.text('input'),
         );
         for (final target in [
@@ -1143,7 +1198,7 @@ void main() {
       );
       await pointer.up();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Module color'));
+      await tester.tap(find.text('Module color').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Purple'));
       await tester.pumpAndSettle();
@@ -1320,7 +1375,7 @@ void main() {
     );
     expect(CatalogEntry.fromModule(_module).license, 'Unspecified');
   });
-  testWidgets('Workspace previews drag from Explorer to canvas', (
+  testWidgets('Workspace canvas add menu opens the module picker', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1500, 900);
@@ -1341,32 +1396,23 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
-    final source = find.text('Signal Source · Preview');
-    await tester.ensureVisible(source);
+    await tester.tap(find.byKey(const ValueKey('workspace add menu')));
     await tester.pumpAndSettle();
-    final target = find.byKey(const ValueKey('workspace canvas drop target'));
-    final destination = tester.getCenter(target);
-    final sourcePosition = tester.getCenter(source);
-    final gesture = await tester.startGesture(sourcePosition);
-    await gesture.moveBy(const Offset(30, 0));
-    await tester.pump();
-    await gesture.moveTo(destination);
-    await tester.pump();
-    final hint = find.byKey(const ValueKey('workspace module drop hint'));
-    expect(hint, findsNothing);
-    final canvasRect = tester.getRect(target);
-    final shellScale = canvasRect.width / tester.getSize(target).width;
-    expect(find.byKey(const ValueKey('workspace drop blur')), findsNothing);
-    expect(find.text('Add module to canvas'), findsNothing);
-    await gesture.moveTo(sourcePosition);
-    await tester.pump();
-    expect(hint, findsNothing);
-    await gesture.moveTo(destination);
-    await tester.pump();
-    await gesture.up();
+    await tester.tap(find.text('Add module'));
     await tester.pumpAndSettle();
-    expect(hint, findsNothing);
+    expect(find.byKey(const ValueKey('desktop menu search')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('desktop menu search')),
+      'Signal Source',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Signal Source · Preview'), findsOneWidget);
+    await tester.tap(find.text('Signal Source · Preview'));
+    await tester.pumpAndSettle();
     final graph = container.read(workspaceProvider);
+    final target = find.byKey(const ValueKey('workspace canvas drop target'));
+    final shellScale =
+        tester.getRect(target).width / tester.getSize(target).width;
     expect(find.byTooltip('Create new tab'), findsNothing);
     expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
     expect(find.byKey(const ValueKey('workspace select menu')), findsOneWidget);
@@ -1374,7 +1420,11 @@ void main() {
     expect(graph.nodes.length, 1);
     expect(graph.nodes.single.module.id, previewWorkspaceModules.first.id);
     expect(graph.nodes.single.inputs, isEmpty);
-    expect(find.text('MODULE SETTINGS'), findsOneWidget);
+    expect(find.text('MODULE SETTINGS'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('workspace inspector actions')),
+      findsOneWidget,
+    );
     final toggle = find.byKey(const ValueKey('workspace toggle inspector'));
     expect(
       tester.getRect(toggle).center.dy,
@@ -1392,7 +1442,11 @@ void main() {
     );
     await tester.tap(toggle);
     await tester.pumpAndSettle();
-    expect(find.text('MODULE SETTINGS'), findsOneWidget);
+    expect(find.text('MODULE SETTINGS'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('workspace inspector actions')),
+      findsOneWidget,
+    );
     await tester.ensureVisible(
       find.byKey(const ValueKey('workspace view menu')),
     );
@@ -1563,7 +1617,7 @@ void main() {
       expect(tester.widget<TextField>(search).controller!.text, '');
       await tester.tap(find.byTooltip('Like Test Filter'));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.favorite), findsOneWidget);
+      expect(find.byIcon(AppIcons.heartFilled), findsOneWidget);
       await tester.tap(find.text('Test Filter'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add to Workspace'));

@@ -63,6 +63,31 @@ class SpectroModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Appends rows produced by the native core. Keeping this adapter at the
+  /// model boundary lets offline/demo mode retain the existing Dart STFT.
+  void pushNative(List<List<double>> nativeRows) {
+    if (paused) return;
+    for (final source in nativeRows) {
+      final Float64List row = Float64List(bins);
+      final stride = source.length / bins;
+      for (var b = 0; b < bins; b++) {
+        var peak = 0.0;
+        final start = (b * stride).floor();
+        final end = ((b + 1) * stride).ceil().clamp(start + 1, source.length);
+        for (var k = start; k < end; k++) {
+          if (source[k] > peak) peak = source[k];
+        }
+        row[b] = ((math.log(peak * _gain + 1e-5) / math.ln10 + 4.0) / 3.5)
+            .clamp(0.0, 1.0);
+      }
+      rows.add(row);
+      while (rows.length > maxColumns) {
+        rows.removeAt(0);
+      }
+    }
+    if (nativeRows.isNotEmpty) notifyListeners();
+  }
+
   void _emitRow() {
     final Float64List framed = Float64List(windowSize);
     for (int i = 0; i < windowSize; i++) {

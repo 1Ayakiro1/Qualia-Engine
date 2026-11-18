@@ -10,14 +10,89 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get workspaceCanvasHints => 'Подсказки на канвасе';
+
+  @override
+  String get sceneCreateGroup => 'Создать группу';
+
+  @override
+  String get sceneEditGroup => 'Изменить группу';
+
+  @override
+  String get sceneGroupName => 'Название группы';
+
+  @override
+  String get sceneMoveToGroup => 'Переместить в группу';
+
+  @override
+  String get sceneRemoveFromGroup => 'Убрать из группы';
+
+  @override
+  String get sceneDissolveGroup => 'Расформировать группу';
+
+  @override
+  String get workspaceObjectVisible => 'Видимость на канвасе';
+
+  @override
+  String get workspaceObjectGeometry => 'Положение и размер';
+
+  @override
+  String get canvasEraser => 'Ластик';
+
+  @override
+  String get canvasBrush => 'Кисть';
+
+  @override
+  String get canvasBrushColor => 'Цвет кисти';
+
+  @override
+  String get canvasColorWhite => 'Белый';
+
+  @override
+  String get canvasColorBlack => 'Чёрный';
+
+  @override
+  String get canvasDiameter => 'Диаметр';
+
+  @override
   String get workspaceSave => 'Сохранить воркспейс';
 
   @override
   String get workspaceSaved => 'Воркспейс сохранён';
 
   @override
+  String get sceneSelection => 'ОБЪЕКТЫ СЦЕНЫ';
+
+  @override
+  String get sceneCollapse => 'Свернуть выбор сцены';
+
+  @override
+  String get sceneExpand => 'Развернуть выбор сцены';
+
+  @override
+  String get sceneNoObjects => 'Объекты не найдены';
+
+  @override
+  String get sceneSelectObject => 'Выберите объект';
+
+  @override
   String get workspaceSaveFailed =>
       'Не удалось сохранить воркспейс. Черновик по-прежнему доступен.';
+
+  @override
+  String get canvasFullscreen => 'Полноэкранный канвас';
+
+  @override
+  String get canvasExitFullscreen => 'Выйти из полноэкранного канваса';
+
+  @override
+  String get canvasScreenshot => 'Сохранить снимок канваса';
+
+  @override
+  String get canvasScreenshotSaved => 'Снимок канваса сохранён';
+
+  @override
+  String get canvasScreenshotFailed => 'Не удалось сохранить снимок канваса.';
 
   @override
   String get workspaceUnsavedTitle => 'Сохранить изменения воркспейса?';
@@ -393,7 +468,23 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get workspaceSelectHint =>
-      'Shift + клик для выделения нескольких модулей';
+      'Shift / Alt + клик — выделить несколько; Space + перетаскивание — переместить канвас';
+
+  @override
+  String get workspaceCopy => 'Копировать';
+
+  @override
+  String get workspaceCut => 'Вырезать';
+
+  @override
+  String get workspacePaste => 'Вставить';
+
+  @override
+  String get workspaceMoveJunction => 'Переместить точку';
+
+  @override
+  String get workspaceClipboardFailed =>
+      'Не удалось скопировать или вставить ноды. Проверьте доступность модулей и размер сцены.';
 
   @override
   String get textSupabaseAuthIsUnavailable0 => 'Supabase Auth недоступен.';
@@ -1462,7 +1553,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Перетащите модуль из проводника или нажмите ПКМ → Добавить';
 
   @override
-  String get textReturnToModules304 => 'Вернуться к модулям';
+  String get textReturnToModules304 => 'Вернуться к началу';
 
   @override
   String get textMMBDragToPanWheelToZoom305 =>

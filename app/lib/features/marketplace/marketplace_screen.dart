@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 import '../common/desktop_menu.dart';
 import '../../l10n/module_strings.dart';
@@ -21,6 +22,7 @@ import '../common/desktop_scroll.dart';
 import 'catalog_entry.dart';
 import 'catalog_cover.dart';
 import '../../core/workspace/workspace_repository.dart';
+import '../../core/workspace/workspace_archive.dart';
 import '../modules/workspace_manager.dart';
 
 typedef CatalogPageLoader = Future<List<SystemModule>> Function(
@@ -347,7 +349,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       );
       if (install != true || !mounted) return;
       try {
-        await installWorkspace(context, ref, project);
+        await installWorkspace(
+          context,
+          ref,
+          WorkspaceArchiveContents(project: project),
+        );
       } catch (error) {
         if (!mounted) return;
         await showDialog<void>(
@@ -471,7 +477,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 .textArg0IsAvailableInExplorerPackageExecution452(
                   entry.displayName(context),
                 ),
-            icon: Icons.extension_outlined,
+            icon: AppIcons.puzzle,
           );
     }
   }
@@ -606,7 +612,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                               children: [
                                 if (compact) ...[
                                   DesktopIconButton(
-                                    icon: Icons.tune,
+                                    icon: AppIcons.sliders,
                                     tooltip: context.l10n.textFilters453,
                                     onPressed: () => showDialog<void>(
                                       context: context,
@@ -644,7 +650,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                             .toLowerCase(),
                                       ),
                                       prefixIcon: const Icon(
-                                        Icons.search,
+                                        AppIcons.search,
                                         size: 19,
                                       ),
                                       fillColor: context.palette.panel,
@@ -659,7 +665,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                                 _filterChanged(() {});
                                               },
                                               icon: const Icon(
-                                                Icons.close,
+                                                AppIcons.close,
                                                 size: 17,
                                               ),
                                             ),
@@ -685,7 +691,10 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                   TextButton.icon(
                                     onPressed: () =>
                                         setState(() => _filters = true),
-                                    icon: const Icon(Icons.tune, size: 15),
+                                    icon: const Icon(
+                                      AppIcons.sliders,
+                                      size: 15,
+                                    ),
                                     label: Text(context.l10n.textFilters453),
                                   ),
                                 _catalogSelector(
@@ -862,7 +871,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Icon(
-                                                  Icons.storefront_outlined,
+                                                  AppIcons.store,
                                                   size: 38,
                                                   color:
                                                       context.palette.mutedText,
@@ -949,7 +958,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             style: const TextStyle(fontSize: 14),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.expand_more, size: 16),
+          const Icon(AppIcons.caretDown, size: 16),
         ],
       ),
     ),
@@ -999,7 +1008,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     ),
                   ),
                   DesktopIconButton(
-                    icon: Icons.restart_alt,
+                    icon: AppIcons.reset,
                     tooltip: context.l10n.textResetFilters463,
                     size: 32,
                     iconSize: 18,
@@ -1015,7 +1024,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   ),
                   if (onUpdate == null)
                     DesktopIconButton(
-                      icon: Icons.chevron_left,
+                      icon: AppIcons.caretLeft,
                       tooltip: context.l10n.textToggleFilters464,
                       size: 32,
                       iconSize: 18,
@@ -1149,7 +1158,7 @@ class _FilterOption extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              selected ? Icons.check : Icons.circle_outlined,
+              selected ? AppIcons.check : AppIcons.circle,
               size: 14,
               color: selected
                   ? context.palette.text
@@ -1232,7 +1241,7 @@ class _CatalogCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Icon(
-                        Icons.check,
+                        AppIcons.check,
                         size: 15,
                         color: Colors.white,
                       ),
@@ -1342,7 +1351,7 @@ class _CatalogCard extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Icon(
-                        Icons.download_outlined,
+                        AppIcons.download,
                         size: 14,
                         color: context.palette.mutedText,
                       ),
@@ -1356,7 +1365,7 @@ class _CatalogCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 7),
                       DesktopIconButton(
-                        icon: liked ? Icons.favorite : Icons.favorite_border,
+                        icon: liked ? AppIcons.heartFilled : AppIcons.heart,
                         tooltip: context.l10n.textLikeArg0470(
                           entry.displayName(context),
                         ),

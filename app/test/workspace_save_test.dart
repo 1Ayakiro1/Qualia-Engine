@@ -76,6 +76,10 @@ void main() {
       await tester.pump();
       expect(scope.read(workspaceProvider.notifier).hasUnsavedChanges, isFalse);
       expect(scope.read(workspaceProvider).activeProject.name, 'My workspace');
+      expect(
+        scope.read(workspaceProvider.notifier).needsProjectName('default'),
+        isFalse,
+      );
     },
   );
 
@@ -113,45 +117,16 @@ void main() {
   }
 
   testWidgets(
-    'Ctrl+S names an untitled workspace, cancel keeps draft; history notice lasts five seconds',
+    'Ctrl+S checkpoints an untitled workspace without opening the new-workspace dialog',
     (tester) async {
       final scope = await shell(tester);
       final c = scope.read(workspaceProvider.notifier);
       c.addNode(module, const Offset(4900, 4900));
       await tester.pumpAndSettle();
       await shortcut(tester, LogicalKeyboardKey.keyS);
-      expect(find.byType(AlertDialog), findsOneWidget);
-      expect(
-        tester
-            .widget<TextField>(
-              find
-                  .descendant(
-                    of: find.byType(AlertDialog),
-                    matching: find.byType(TextField),
-                  )
-                  .first,
-            )
-            .controller!
-            .text,
-        isEmpty,
-      );
-      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      expect(c.hasUnsavedChanges, isTrue);
-      await shortcut(tester, LogicalKeyboardKey.keyS);
-      await tester.enterText(
-        find
-            .descendant(
-              of: find.byType(AlertDialog),
-              matching: find.byType(TextField),
-            )
-            .first,
-        'Signal lab',
-      );
-      await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-      await tester.pumpAndSettle();
-      expect(scope.read(workspaceProvider).activeProject.name, 'Signal lab');
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(scope.read(workspaceProvider).activeProject.name, 'Workspace');
       expect(c.hasUnsavedChanges, isFalse);
       expect(find.text('Workspace saved'), findsOneWidget);
       await shortcut(tester, LogicalKeyboardKey.keyZ);
@@ -167,50 +142,50 @@ void main() {
     },
   );
 
-  testWidgets(
-    'native close guard: cancel, save-name cancellation, discard and clean close',
-    (tester) async {
-      final calls = <String>[];
-      final scope = await shell(tester, nativeCalls: calls);
-      final c = scope.read(workspaceProvider.notifier);
-      expect(calls, contains('setPreventClose'));
-      c.addNode(module, const Offset(4900, 4900));
+  testWidgets('native close guard: cancel, save, discard and clean close', (
+    tester,
+  ) async {
+    final calls = <String>[];
+    final scope = await shell(tester, nativeCalls: calls);
+    final c = scope.read(workspaceProvider.notifier);
+    expect(calls, contains('setPreventClose'));
+    c.addNode(module, const Offset(4900, 4900));
+    await tester.pumpAndSettle();
+    Future<void> close() async {
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        'window_manager',
+        const StandardMethodCodec().encodeMethodCall(
+          const MethodCall('onEvent', {'eventName': 'close'}),
+        ),
+        (_) {},
+      );
       await tester.pumpAndSettle();
-      Future<void> close() async {
-        await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
-          'window_manager',
-          const StandardMethodCodec().encodeMethodCall(
-            const MethodCall('onEvent', {'eventName': 'close'}),
-          ),
-          (_) {},
-        );
-        await tester.pumpAndSettle();
-      }
+    }
 
-      await close();
-      expect(find.text('Save workspace changes?'), findsOneWidget);
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(calls, isNot(contains('destroy')));
-      await close();
-      await tester.tap(find.widgetWithText(TextButton, 'Save workspace'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-      expect(calls, isNot(contains('destroy')));
-      expect(c.hasUnsavedChanges, isTrue);
-      await close();
-      await tester.tap(find.text("Don't save"));
-      await tester.pumpAndSettle();
-      expect(calls.where((method) => method == 'destroy'), hasLength(1));
-      expect(scope.read(workspaceProvider).nodes, isEmpty);
-      expect(c.hasUnsavedChanges, isFalse);
-      await close();
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(calls.where((method) => method == 'destroy'), hasLength(2));
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
+    await close();
+    expect(find.text('Save workspace changes?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(calls, isNot(contains('destroy')));
+    await close();
+    await tester.tap(find.widgetWithText(TextButton, 'Save workspace'));
+    await tester.pumpAndSettle();
+    expect(calls.where((method) => method == 'destroy'), hasLength(1));
+    expect(c.hasUnsavedChanges, isFalse);
+    c.addNode(module, const Offset(4900, 4900));
+    await tester.pumpAndSettle();
+    await close();
+    await tester.tap(find.text("Don't save"));
+    await tester.pumpAndSettle();
+    expect(calls.where((method) => method == 'destroy'), hasLength(2));
+    // The first save was committed; discard only rolls back the second edit.
+    expect(scope.read(workspaceProvider).nodes, hasLength(1));
+    expect(c.hasUnsavedChanges, isFalse);
+    await close();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(calls.where((method) => method == 'destroy'), hasLength(3));
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('top menus switch on hover only during an open menu session', (
     tester,

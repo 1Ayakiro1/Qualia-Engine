@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -35,7 +36,7 @@ const List<UserExtension> kUserExtensions = <UserExtension>[
     category: 'Signal',
     downloaded: true,
     active: true,
-    icon: Icons.graphic_eq,
+    icon: AppIcons.waveform,
   ),
   UserExtension(
     id: 'session-notes',
@@ -44,7 +45,7 @@ const List<UserExtension> kUserExtensions = <UserExtension>[
     category: 'Workflow',
     downloaded: true,
     active: false,
-    icon: Icons.sticky_note_2_outlined,
+    icon: AppIcons.note,
   ),
   UserExtension(
     id: 'neuro-dashboard',
@@ -53,7 +54,7 @@ const List<UserExtension> kUserExtensions = <UserExtension>[
     category: 'Visualization',
     downloaded: false,
     active: false,
-    icon: Icons.dashboard_customize_outlined,
+    icon: AppIcons.gridEdit,
   ),
   UserExtension(
     id: 'export-kit',
@@ -62,7 +63,7 @@ const List<UserExtension> kUserExtensions = <UserExtension>[
     category: 'Data',
     downloaded: false,
     active: false,
-    icon: Icons.file_download_outlined,
+    icon: AppIcons.download,
   ),
 ];
 
@@ -119,7 +120,7 @@ class _ExtensionsScreenState extends State<ExtensionsScreen> {
                               active.name,
                               action,
                             ),
-                            Icons.auto_awesome_mosaic_outlined,
+                            AppIcons.grid,
                           ),
                         ),
                 ),
@@ -234,10 +235,7 @@ class _ExtensionDetails extends StatelessWidget {
                 ),
               ),
               if (extension.downloaded)
-                Icon(
-                  Icons.download_done_outlined,
-                  color: context.palette.mutedText,
-                ),
+                Icon(AppIcons.downloaded, color: context.palette.mutedText),
             ],
           ),
           const SizedBox(height: 12),
@@ -254,13 +252,13 @@ class _ExtensionDetails extends StatelessWidget {
                 label: extension.active
                     ? context.l10n.textDisable412
                     : context.l10n.textEnable413,
-                icon: extension.active ? Icons.pause : Icons.play_arrow,
+                icon: extension.active ? AppIcons.pause : AppIcons.play,
                 onPressed: () =>
                     onAction(extension.active ? 'Disable' : 'Enable'),
               ),
               _ExtensionAction(
                 label: context.l10n.textSettings414,
-                icon: Icons.settings_outlined,
+                icon: AppIcons.settings,
                 onPressed: () => onAction('Settings'),
               ),
             ],
@@ -322,7 +320,7 @@ class _EmptyExtensions extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.extension_outlined,
+                AppIcons.puzzle,
                 size: compactHeight ? 30 : 40,
                 color: context.palette.mutedText,
               ),

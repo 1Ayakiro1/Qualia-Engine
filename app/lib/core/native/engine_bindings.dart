@@ -170,6 +170,32 @@ class CoreBindings {
         Pointer<Utf8> Function(Pointer<Void>)
       >('bci_engine_last_error');
 
+  late final int Function(
+    Pointer<Float>,
+    int,
+    Pointer<NativeStftConfig>,
+    Pointer<Float>,
+    int,
+    int,
+  ) _stft = _lib.lookupFunction<
+    Int32 Function(
+      Pointer<Float>,
+      Uint32,
+      Pointer<NativeStftConfig>,
+      Pointer<Float>,
+      Uint32,
+      Uint32,
+    ),
+    int Function(
+      Pointer<Float>,
+      int,
+      Pointer<NativeStftConfig>,
+      Pointer<Float>,
+      int,
+      int,
+    )
+  >('bci_stft_compute');
+
   // ---- friendly wrappers -------------------------------------------------
 
   int get abiVersion => _abiVersion();
@@ -245,4 +271,57 @@ class CoreBindings {
       _moduleJson(engine, index).toDartString();
 
   String lastError(Pointer<Void> engine) => _lastError(engine).toDartString();
+
+  /// Computes native Hann/STFT rows for a mono buffer. Returns empty when the
+  /// optional additive symbol is unavailable in an older core.
+  List<List<double>> stft(
+    Pointer<Float> samples,
+    int sampleCount, {
+    int windowSize = 256,
+    int hopSize = 32,
+    double sampleRate = 256,
+    int maxRows = 64,
+  }) {
+    final config = calloc<NativeStftConfig>();
+    final bins = windowSize ~/ 2 + 1;
+    final output = calloc<Float>(maxRows * bins);
+    try {
+      config.ref
+        ..windowSize = windowSize
+        ..hopSize = hopSize
+        ..sampleRate = sampleRate;
+      final int rows;
+      try {
+        rows = _stft(
+          samples,
+          sampleCount,
+          config,
+          output,
+          maxRows,
+          maxRows * bins,
+        );
+      } on ArgumentError {
+        return const <List<double>>[];
+      }
+      if (rows <= 0) return const <List<double>>[];
+      return <List<double>>[
+        for (var row = 0; row < rows; row++)
+          <double>[
+            for (var bin = 0; bin < bins; bin++) output[row * bins + bin],
+          ],
+      ];
+    } finally {
+      calloc.free(config);
+      calloc.free(output);
+    }
+  }
+}
+
+final class NativeStftConfig extends Struct {
+  @Uint32()
+  external int windowSize;
+  @Uint32()
+  external int hopSize;
+  @Double()
+  external double sampleRate;
 }

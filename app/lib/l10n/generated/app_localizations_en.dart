@@ -10,14 +10,89 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get workspaceCanvasHints => 'Canvas hints';
+
+  @override
+  String get sceneCreateGroup => 'Create group';
+
+  @override
+  String get sceneEditGroup => 'Edit group';
+
+  @override
+  String get sceneGroupName => 'Group name';
+
+  @override
+  String get sceneMoveToGroup => 'Move to group';
+
+  @override
+  String get sceneRemoveFromGroup => 'Remove from group';
+
+  @override
+  String get sceneDissolveGroup => 'Dissolve group';
+
+  @override
+  String get workspaceObjectVisible => 'Visible on canvas';
+
+  @override
+  String get workspaceObjectGeometry => 'Position and size';
+
+  @override
+  String get canvasEraser => 'Eraser';
+
+  @override
+  String get canvasBrush => 'Brush';
+
+  @override
+  String get canvasBrushColor => 'Brush color';
+
+  @override
+  String get canvasColorWhite => 'White';
+
+  @override
+  String get canvasColorBlack => 'Black';
+
+  @override
+  String get canvasDiameter => 'Diameter';
+
+  @override
   String get workspaceSave => 'Save workspace';
 
   @override
   String get workspaceSaved => 'Workspace saved';
 
   @override
+  String get sceneSelection => 'SCENE OBJECTS';
+
+  @override
+  String get sceneCollapse => 'Collapse scene selection';
+
+  @override
+  String get sceneExpand => 'Expand scene selection';
+
+  @override
+  String get sceneNoObjects => 'No objects found';
+
+  @override
+  String get sceneSelectObject => 'Select an object';
+
+  @override
   String get workspaceSaveFailed =>
       'Could not save the workspace. Your draft is still available.';
+
+  @override
+  String get canvasFullscreen => 'Fullscreen canvas';
+
+  @override
+  String get canvasExitFullscreen => 'Exit canvas fullscreen';
+
+  @override
+  String get canvasScreenshot => 'Save canvas screenshot';
+
+  @override
+  String get canvasScreenshotSaved => 'Canvas screenshot saved';
+
+  @override
+  String get canvasScreenshotFailed => 'Could not save the canvas screenshot.';
 
   @override
   String get workspaceUnsavedTitle => 'Save workspace changes?';
@@ -392,7 +467,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceResizeNode => 'Drag to resize module';
 
   @override
-  String get workspaceSelectHint => 'Shift + click to select multiple modules';
+  String get workspaceSelectHint =>
+      'Shift / Alt + click — select multiple; Space + drag — pan canvas';
+
+  @override
+  String get workspaceCopy => 'Copy';
+
+  @override
+  String get workspaceCut => 'Cut';
+
+  @override
+  String get workspacePaste => 'Paste';
+
+  @override
+  String get workspaceMoveJunction => 'Move point';
+
+  @override
+  String get workspaceClipboardFailed =>
+      'Could not copy or paste nodes. Check module availability and scene size.';
 
   @override
   String get textSupabaseAuthIsUnavailable0 => 'Supabase Auth is unavailable.';
@@ -1455,7 +1547,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Drag a module from Explorer or right-click → Add';
 
   @override
-  String get textReturnToModules304 => 'Return to modules';
+  String get textReturnToModules304 => 'Return to start';
 
   @override
   String get textMMBDragToPanWheelToZoom305 =>

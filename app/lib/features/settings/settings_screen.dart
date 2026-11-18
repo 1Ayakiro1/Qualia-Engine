@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 import '../common/desktop_menu.dart';
 
@@ -127,15 +128,15 @@ class _PreferencesSidebar extends StatelessWidget {
   final VoidCallback? onBack;
 
   static const _personal = [
-    ('General', Icons.settings_outlined),
-    ('Import', Icons.download_outlined),
-    ('Appearance', Icons.wb_sunny_outlined),
-    ('Language', Icons.language),
-    ('Voice', Icons.mic_none_outlined),
-    ('Configuration', Icons.verified_user_outlined),
-    ('Personalization', Icons.history_outlined),
-    ('Navigation', Icons.navigation_outlined),
-    ('Account', Icons.account_circle_outlined),
+    ('General', AppIcons.settings),
+    ('Import', AppIcons.download),
+    ('Appearance', AppIcons.sun),
+    ('Language', AppIcons.globe),
+    ('Voice', AppIcons.microphone),
+    ('Configuration', AppIcons.shieldCheck),
+    ('Personalization', AppIcons.history),
+    ('Navigation', AppIcons.cursor),
+    ('Account', AppIcons.userCircle),
   ];
 
   @override
@@ -157,7 +158,7 @@ class _PreferencesSidebar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search, size: 18),
+                const Icon(AppIcons.search, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -194,7 +195,7 @@ class _SidebarBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _PreferenceNavButton(
     label: context.l10n.textBackToApp370,
-    icon: Icons.arrow_back,
+    icon: AppIcons.arrowBack,
     onTap: onPressed,
   );
 }
@@ -229,7 +230,7 @@ class _SidebarGroup extends StatelessWidget {
             selected: selected == item.$1,
             trailing: item.$1 == 'Account'
                 ? Icon(
-                    Icons.north_east,
+                    AppIcons.arrowUpRight,
                     size: 15,
                     color: context.palette.mutedText,
                   )
@@ -296,11 +297,11 @@ class _PreferencesContent extends ConsumerWidget {
                         padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
-                            const Icon(Icons.language, size: 18),
+                            const Icon(AppIcons.globe, size: 18),
                             const SizedBox(width: 12),
                             Expanded(child: Text(item.$2)),
                             if (language == item.$1)
-                              const Icon(Icons.check, size: 18),
+                              const Icon(AppIcons.check, size: 18),
                           ],
                         ),
                       ),
@@ -528,7 +529,11 @@ class _PreferenceNavButtonState extends State<_PreferenceNavButton> {
           ),
           child: Row(
             children: [
-              Icon(widget.icon, size: 18, color: context.palette.text),
+              Icon(
+                AppIcons.resolve(widget.icon, active: widget.selected),
+                size: 18,
+                color: context.palette.text,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -622,7 +627,7 @@ class _DropButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton.icon(
     onPressed: () {},
-    icon: const Icon(Icons.unfold_more, size: 17),
+    icon: const Icon(AppIcons.caretsUpDown, size: 17),
     label: Text(label),
   );
 }

@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_palette.dart';
@@ -152,7 +154,7 @@ class _ModuleControl extends StatelessWidget {
       case 'button':
         return DesktopIconButton(
           onPressed: () => onChanged(id, true),
-          icon: Icons.play_arrow_outlined,
+          icon: AppIcons.play,
           label: label,
           tooltip: label,
           size: 34,

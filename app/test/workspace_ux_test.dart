@@ -1,4 +1,5 @@
 import 'package:bci_engine/app.dart';
+import 'package:bci_engine/core/theme/app_icons.dart';
 import 'package:bci_engine/core/modules/module_registry.dart';
 import 'package:bci_engine/core/theme/app_palette.dart';
 import 'package:bci_engine/core/theme/app_theme.dart';
@@ -7,7 +8,6 @@ import 'package:bci_engine/core/logic/logic_blocks.dart';
 import 'package:bci_engine/features/common/desktop_menu.dart';
 import 'package:bci_engine/features/common/desktop_focus.dart';
 import 'package:bci_engine/features/common/navigation_bindings.dart';
-import 'package:bci_engine/features/common/widgets.dart';
 import 'package:bci_engine/features/modules/modules_screen.dart';
 import 'package:bci_engine/state/workspace_state.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'workspace_manager_test.dart' show capture;
+import 'workspace_manager_test.dart' show capture, themed;
 
 const module = SystemModule(
   id: 'ux.module',
@@ -153,6 +153,189 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
   });
 
+  testWidgets(
+    'junction insertion preserves the original route through two edges',
+    (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(workspaceProvider);
+      await tester.pump();
+      final controller = container.read(workspaceProvider.notifier);
+      final source = controller.addNode(sourceOnly, const Offset(80, 120));
+      final target = controller.addNode(module, const Offset(520, 120));
+      final link = WorkspaceLink(
+        source: source.id,
+        output: 'out',
+        target: target.id,
+        input: 'input',
+      );
+      controller.connect(link);
+      controller.beginHistoryGroup();
+      final junction = controller.insertJunction(link, const Offset(300, 120));
+      controller.endHistoryGroup();
+
+      expect(junction, isNotNull);
+      expect(junction!.isJunction, isTrue);
+      expect(junction.position, const Offset(300, 120));
+      expect(
+        junction.portPosition('input', false),
+        junction.portPosition('output', true),
+      );
+      expect(
+        junction.portPosition('output', true),
+        junction.position + Offset(junction.width / 2, junction.height / 2),
+      );
+      final graph = container.read(workspaceProvider);
+      expect(graph.links, hasLength(2));
+      bool hasLink({
+        required String sourceId,
+        required String output,
+        required String targetId,
+        required String input,
+      }) => graph.links.any(
+        (item) =>
+            item.source == sourceId &&
+            item.output == output &&
+            item.target == targetId &&
+            item.input == input,
+      );
+      expect(
+        hasLink(
+          sourceId: source.id,
+          output: 'out',
+          targetId: junction.id,
+          input: 'input',
+        ),
+        isTrue,
+      );
+      expect(
+        hasLink(
+          sourceId: junction.id,
+          output: 'output',
+          targetId: target.id,
+          input: 'input',
+        ),
+        isTrue,
+      );
+      expect(
+        LogicBlocks.run(LogicBlockType.junction, const {}, 42).single.value,
+        42,
+      );
+      controller.undo();
+      expect(
+        container
+            .read(workspaceProvider)
+            .links
+            .any(
+              (item) =>
+                  item.source == link.source &&
+                  item.output == link.output &&
+                  item.target == link.target &&
+                  item.input == link.input,
+            ),
+        isTrue,
+      );
+      expect(
+        container.read(workspaceProvider).nodes.any((node) => node.isJunction),
+        isFalse,
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+    },
+  );
+
+  testWidgets(
+    'branch route renders one port-sized dot at the shared wire anchor',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 850);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final image = GlobalKey();
+      await tester.pumpWidget(
+        themed(
+          container,
+          ModulesScreen(
+            modules: const [module],
+            onAdd: () {},
+            onEdit: (_) {},
+            onRemove: (_) {},
+          ),
+          captureKey: image,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final source = controller.addNode(module, const Offset(4900, 4900));
+      final target = controller.addNode(module, const Offset(5400, 4900));
+      controller.connect(
+        WorkspaceLink(
+          source: source.id,
+          output: 'output',
+          target: target.id,
+          input: 'input',
+        ),
+      );
+      await tester.pumpAndSettle();
+      final sourceRect = tester.getRect(
+        find.byKey(ValueKey('workspace node ${source.id}')),
+      );
+      final middle = sourceRect.topLeft + const Offset(400, 69);
+      await tester.tap(
+        find.byKey(const ValueKey('workspace canvas tool branch')),
+      );
+      await tester.pumpAndSettle();
+      final stroke = await tester.startGesture(middle - const Offset(0, 35));
+      for (var i = 1; i <= 10; i++) {
+        await stroke.moveTo(middle + Offset(0, -35 + i * 7));
+        await tester.pump();
+      }
+      await stroke.up();
+      await tester.pumpAndSettle();
+      final graph = container.read(workspaceProvider);
+      final junction = graph.nodes.singleWhere((node) => node.isJunction);
+      expect(graph.links, hasLength(2));
+      final dot = find.byKey(ValueKey('workspace junction dot ${junction.id}'));
+      expect(dot, findsOneWidget);
+      expect(tester.getSize(dot), const Size(10, 10));
+      expect(tester.getCenter(dot), middle);
+      final junctionView = find.byKey(
+        ValueKey('workspace node ${junction.id}'),
+      );
+      expect(
+        find.descendant(of: junctionView, matching: find.byIcon(AppIcons.add)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: junctionView, matching: find.byType(Container)),
+        findsOneWidget,
+      );
+      await capture(tester, image, 'canvas-branch-dot');
+
+      // The left/right hit areas remain input/output without extra visible dots.
+      await tester.tap(
+        find.byKey(const ValueKey('workspace canvas tool select')),
+      );
+      await tester.pumpAndSettle();
+      final third = controller.addNode(module, const Offset(5400, 5200));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(ValueKey('workspace port ${junction.id} true output')),
+      );
+      await tester.tap(
+        find.byKey(ValueKey('workspace port ${third.id} false input')),
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(workspaceProvider).links, hasLength(3));
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   for (final output in [true, false]) {
     testWidgets(
       'wire from ${output ? 'output' : 'input'} opens context picker and connects new module',
@@ -202,9 +385,7 @@ void main() {
         // through keyboard focus. Moving back to the mouse must not erase it.
         final card = find.byKey(ValueKey('workspace node ${node.id}'));
         Border border() =>
-            (tester.widget<Container>(card).foregroundDecoration
-                        as BoxDecoration)
-                    .border!
+            (tester.widget<Container>(card).decoration as BoxDecoration).border!
                 as Border;
         expect(border().top.color, AppPalette.dark.hover);
         await tester.tap(find.byKey(ValueKey('workspace header ${node.id}')));
@@ -317,7 +498,7 @@ void main() {
   }
 
   testWidgets(
-    'shell dots follow canvas; hidden eye reveals; explorer deletion has Ctrl+Z',
+    'scene collection hides and restores nodes; canvas add menu remains available',
     (tester) async {
       tester.view.physicalSize = const Size(1920, 1080);
       tester.view.devicePixelRatio = 1;
@@ -335,49 +516,29 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('module status dot')), findsNothing);
+      expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
       final c = container.read(workspaceProvider.notifier);
       c.addToLibrary(module);
       c.addNode(module, const Offset(4900, 4900));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('module status dot')), findsNWidgets(2));
-      await capture(tester, captureKey, 'workspace-start-explorer');
-      await tester.tap(find.byTooltip('Add module').first);
-      await tester.pumpAndSettle();
-      expect(find.byType(SimpleDialog), findsNothing);
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Add module'), findsNothing);
-      expect(
-        tester.getRect(find.byType(DesktopMenuSurface<String>)).width,
-        inInclusiveRange(280 * 1.2, 340 * 1.2),
+      final node = container.read(workspaceProvider).nodes.single;
+      final row = find.byKey(ValueKey('scene collection node ${node.id}'));
+      expect(row, findsOneWidget);
+      final eye = find.byKey(
+        ValueKey('scene collection visibility ${node.id}'),
       );
-      await capture(tester, captureKey, 'explorer-module-actions');
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      c.setModuleHidden(module.id, true);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('show module ${module.id}')).first);
+      await tester.tap(eye);
       await tester.pumpAndSettle();
       expect(
-        container.read(workspaceProvider).hiddenModuleIds,
-        isNot(contains(module.id)),
+        container.read(workspaceProvider).hiddenNodeIds,
+        contains(node.id),
       );
-      await tester.tap(find.text('UX Module').first);
+      await tester.tap(eye);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Remove module').first);
-      await tester.pumpAndSettle();
-      expect(container.read(workspaceProvider).nodes, isEmpty);
-      await shortcut(tester, LogicalKeyboardKey.keyZ);
       expect(
-        container.read(workspaceProvider).nodes.single.module.id,
-        module.id,
+        container.read(workspaceProvider).hiddenNodeIds,
+        isNot(contains(node.id)),
       );
-      expect(find.text('UX Module'), findsWidgets);
-      await shortcut(tester, LogicalKeyboardKey.keyY);
-      expect(container.read(workspaceProvider).nodes, isEmpty);
-      // Shared section padding separates the last item and the next header.
-      final section = find.byType(ExplorerDisclosureSection).first;
-      expect(tester.getSize(section).height, greaterThan(40));
       expect(
         AppPalette.dark.searchField.computeLuminance(),
         lessThan(AppPalette.dark.background.computeLuminance()),

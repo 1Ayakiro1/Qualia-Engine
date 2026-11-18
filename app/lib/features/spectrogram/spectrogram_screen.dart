@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -54,17 +55,17 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
               onPressed: () => setState(() {
                 _model.setPaused(!_model.paused);
               }),
-              icon: Icon(_model.paused ? Icons.play_arrow : Icons.pause),
+              icon: Icon(_model.paused ? AppIcons.play : AppIcons.pause),
             ),
             IconButton(
               tooltip: context.l10n.textAddMarker330,
               onPressed: () => setState(_model.addMarker),
-              icon: const Icon(Icons.flag_outlined),
+              icon: const Icon(AppIcons.flag),
             ),
             IconButton(
               tooltip: context.l10n.textClear331,
               onPressed: () => setState(_model.clear),
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.trash),
             ),
             const SizedBox(width: 8),
           ],
@@ -137,7 +138,7 @@ class _SidePanel extends StatelessWidget {
       children: [
         InfoCard(
           title: context.l10n.textMarkers334,
-          headerIcon: Icons.flag_outlined,
+          headerIcon: AppIcons.flag,
           children: [
             if (model.markers.isEmpty)
               Text(
@@ -159,7 +160,7 @@ class _SidePanel extends StatelessWidget {
         const SizedBox(height: 8),
         InfoCard(
           title: context.l10n.textParameters336,
-          headerIcon: Icons.tune,
+          headerIcon: AppIcons.sliders,
           children: [
             Text(
               context.l10n.textSensitivityArg0337(
@@ -180,7 +181,7 @@ class _SidePanel extends StatelessWidget {
         Expanded(
           child: InfoCard(
             title: context.l10n.textAboutVersions338,
-            headerIcon: Icons.info_outline,
+            headerIcon: AppIcons.info,
             children: [
               Text(
                 context.l10n.spectrogramVersionNotice,

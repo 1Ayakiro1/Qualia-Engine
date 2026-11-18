@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:bci_engine/core/modules/module_registry.dart';
 import 'package:bci_engine/core/modules/module_preview_data.dart';
 import 'package:bci_engine/core/workspace/workspace_model.dart';
+import 'package:bci_engine/core/workspace/workspace_archive.dart';
 import 'package:bci_engine/core/workspace/workspace_project.dart';
 import 'package:bci_engine/core/workspace/workspace_repository.dart';
 import 'package:bci_engine/state/workspace_state.dart';
@@ -203,5 +205,111 @@ void main() {
       () => WorkspaceProject.fromPackage({'format': 'other', 'version': 1}),
       throwsFormatException,
     );
+  });
+
+  test(
+    'portable workspace archive keeps graph entities and instance variables',
+    () async {
+      final node = WorkspaceNode(
+        id: 'entity-1',
+        module: module,
+        settings: {'gain': .75, 'enabled': true},
+      );
+      final source = WorkspaceProject(
+        id: 'portable',
+        name: 'Portable workspace',
+        nodes: [node],
+      );
+      final bytes = WorkspaceArchive.encode(
+        source,
+        hiddenNodeIds: {'entity-1'},
+        hiddenModuleIds: {'test'},
+        moduleActiveOverrides: {'test': false},
+        removedModuleIds: {'removed'},
+        showLogicBlocks: false,
+        showModuleBlocks: false,
+      );
+      expect(WorkspaceArchive.looksLikeArchive(bytes), isTrue);
+      final restored = WorkspaceArchive.decodeContents(bytes);
+      expect(restored.project.id, source.id);
+      expect(restored.project.nodes.single.id, node.id);
+      expect(restored.project.nodes.single.settings, {
+        'gain': .75,
+        'enabled': true,
+      });
+      expect(restored.hiddenNodeIds, {'entity-1'});
+      expect(restored.hiddenModuleIds, {'test'});
+      expect(restored.moduleActiveOverrides, {'test': false});
+      expect(restored.removedModuleIds, {'removed'});
+      expect(restored.showLogicBlocks, isFalse);
+      expect(restored.showModuleBlocks, isFalse);
+      final root = await Directory.systemTemp.createTemp('qualia-workspace-');
+      addTearDown(() => root.delete(recursive: true));
+      final folder = Directory('${root.path}/Portable.qualia-workspace');
+      await WorkspaceArchive.writeDirectory(
+        folder,
+        source,
+        hiddenNodeIds: {'entity-1'},
+        showLogicBlocks: false,
+      );
+      final fromFolder = await WorkspaceArchive.decodeDirectoryContents(folder);
+      expect(fromFolder.project.nodes.single.settings['gain'], .75);
+      expect(fromFolder.hiddenNodeIds, {'entity-1'});
+      expect(fromFolder.showLogicBlocks, isFalse);
+    },
+  );
+
+  test(
+    'portable visibility state follows rekeyed imported instances',
+    () async {
+      final source = WorkspaceProject(
+        id: 'portable-state',
+        name: 'Portable state',
+        nodes: [WorkspaceNode(id: 'source-node', module: module)],
+      );
+      final contents = WorkspaceArchive.decodeContents(
+        WorkspaceArchive.encode(
+          source,
+          hiddenNodeIds: {'source-node'},
+          moduleActiveOverrides: {'test': false},
+          showModuleBlocks: false,
+        ),
+      );
+      final scope = await container();
+      addTearDown(scope.dispose);
+      final controller = scope.read(workspaceProvider.notifier);
+      controller.importProject(
+        contents.project,
+        [module],
+        hiddenNodeIds: contents.hiddenNodeIds,
+        moduleActiveOverrides: contents.moduleActiveOverrides,
+        showModuleBlocks: contents.showModuleBlocks,
+      );
+      final state = scope.read(workspaceProvider);
+      expect(state.hiddenNodeIds, {state.nodes.single.id});
+      expect(state.moduleActiveOverrides, {'test': false});
+      expect(state.showModuleBlocks, isFalse);
+    },
+  );
+
+  test('workspace folder is restored as the next startup document', () async {
+    final root = await Directory.systemTemp.createTemp('qualia-workspace-');
+    addTearDown(() => root.delete(recursive: true));
+    final folder = Directory('${root.path}/Saved.qualia-workspace');
+    final scope = await container();
+    final controller = scope.read(workspaceProvider.notifier);
+    final node = controller.addNode(module, const Offset(18, 24));
+    controller.setParameter(node.id, 'gain', .42);
+    await controller.saveWorkspaceDirectory(folder.path);
+    expect(controller.workspaceDirectoryPath, folder.path);
+    scope.dispose();
+
+    final restored = await container();
+    addTearDown(restored.dispose);
+    expect(
+      restored.read(workspaceProvider).activeProject.nodes.single.position,
+      const Offset(18, 24),
+    );
+    expect(restored.read(workspaceProvider).nodes.single.settings['gain'], .42);
   });
 }

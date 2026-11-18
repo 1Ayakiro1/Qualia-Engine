@@ -1,4 +1,5 @@
 import 'package:bci_engine/app.dart';
+import 'package:bci_engine/core/theme/app_icons.dart';
 import 'package:bci_engine/core/logging/app_logger.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -54,8 +55,8 @@ void main() {
     expect(find.text('Исследователь'), findsNothing);
     expect(find.byTooltip('Workspace'), findsOneWidget);
     expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
-    expect(find.text('ACTIVE MODULES'), findsWidgets);
-    expect(find.text('MODULE CATALOG'), findsWidgets);
+    expect(find.text('SCENE OBJECTS'), findsOneWidget);
+    expect(find.text('MODULE LIBRARY'), findsNothing);
   });
 
   testWidgets('Entity section supports adding and installing neural networks', (
@@ -91,22 +92,13 @@ void main() {
     });
   });
 
-  testWidgets('Explorer separates offline and online module actions', (
-    tester,
-  ) async {
+  testWidgets('Canvas exposes the module add workflow', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.byTooltip('Workspace'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Add module').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Create locally'), findsOneWidget);
-    expect(find.text('Create online'), findsOneWidget);
-    expect(find.text('Add locally (.qmod)'), findsOneWidget);
-    expect(find.text('Add online'), findsOneWidget);
-    await tester.tap(find.text('Add online'));
-    await tester.pumpAndSettle();
-    expect(find.text('EXPLORER'), findsNothing);
+    expect(find.byKey(const ValueKey('workspace add menu')), findsOneWidget);
+    expect(find.byTooltip('Workspace'), findsOneWidget);
   });
 
   testWidgets('interface scale starts at 100% with a denser 120% visual base', (
@@ -252,7 +244,7 @@ void main() {
     );
   });
 
-  testWidgets('explorer resize handle adapts the sidebar width', (
+  testWidgets('Workspace right bar resize handle adapts the sidebar width', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 800);
@@ -268,9 +260,19 @@ void main() {
     final handle = find.byKey(const ValueKey<String>('explorer resize handle'));
     expect(handle, findsOneWidget);
     final before = tester.getTopLeft(handle).dx;
-    await tester.drag(handle, const Offset(100, 0));
+    final pane = find.byKey(const ValueKey('workspace scene collection pane'));
+    final widthBefore = tester.getSize(pane).width;
+    await tester.drag(handle, const Offset(-100, 0));
     await tester.pump();
-    expect(tester.getTopLeft(handle).dx, greaterThan(before));
+    // The divider is positioned at the left edge of the right-hand pane.
+    expect(tester.getTopLeft(handle).dx, lessThan(before));
+    expect(tester.getSize(pane).width, greaterThan(widthBefore));
+    final expanded = tester.getSize(pane).width;
+    final left = tester.getTopLeft(handle).dx;
+    await tester.drag(handle, const Offset(60, 0));
+    await tester.pump();
+    expect(tester.getSize(pane).width, lessThan(expanded));
+    expect(tester.getTopLeft(handle).dx, greaterThan(left));
   });
 
   testWidgets('top menus and global search expose contextual actions', (
@@ -366,7 +368,7 @@ void main() {
 
     final button = find.byKey(const ValueKey<String>('notifications button'));
     expect(button, findsOneWidget);
-    expect(find.byIcon(Icons.notifications_none_outlined), findsOneWidget);
+    expect(find.byIcon(AppIcons.bell), findsOneWidget);
 
     await tester.tap(button);
     await tester.pumpAndSettle();
@@ -446,7 +448,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Исследователь'), findsNothing);
-    expect(find.text('MODULE CATALOG'), findsOneWidget);
+    expect(find.text('SCENE OBJECTS'), findsOneWidget);
     expect(find.byTooltip('Workspace'), findsOneWidget);
   });
 
@@ -572,7 +574,7 @@ void main() {
     });
   });
 
-  testWidgets('module explorer groups collapse vertically', (
+  testWidgets('scene collection collapses and expands vertically', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -581,25 +583,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey<String>('active module search')),
+      find.byKey(const ValueKey<String>('scene collection search')),
       findsOneWidget,
     );
-    await tester.tap(find.text('ACTIVE MODULES'));
+    await tester.tap(find.byKey(const ValueKey('scene collection toggle')));
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey<String>('active module search')),
+      find.byKey(const ValueKey<String>('scene collection search')),
       findsNothing,
     );
+    await tester.tap(find.byKey(const ValueKey('scene collection toggle')));
+    await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey<String>('catalog module search')),
+      find.byKey(const ValueKey<String>('scene collection search')),
       findsOneWidget,
-    );
-
-    await tester.tap(find.text('MODULE CATALOG'));
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('catalog module search')),
-      findsNothing,
     );
   });
 
@@ -774,7 +771,7 @@ void main() {
     expect(find.text('Debug terminal'), findsNothing);
   });
 
-  testWidgets('active and catalog module searches are separate', (
+  testWidgets('Scene Collection search filters scene objects', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: BciApp()));
@@ -783,19 +780,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.widgetWithText(TextField, 'Search active modules...'),
+      find.byKey(const ValueKey('scene collection search')),
       findsOneWidget,
     );
-    expect(find.widgetWithText(TextField, 'Search modules...'), findsOneWidget);
-
     await tester.enterText(
-      find.widgetWithText(TextField, 'Search active modules...'),
+      find.byKey(const ValueKey('scene collection search')),
       'does-not-exist',
     );
     await tester.pump();
-    expect(find.text('No active modules found'), findsOneWidget);
-    expect(find.text('No modules found'), findsNothing);
-    expect(find.text('Signal Source · Preview'), findsOneWidget);
+    expect(find.text('No objects found'), findsOneWidget);
   });
 
   testWidgets('editor tabs can be created, selected, and closed', (

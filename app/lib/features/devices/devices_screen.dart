@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -83,9 +84,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
                     : context.hostLabel(entry.description)}',
               ),
               leading: Icon(switch (entry.kind) {
-                'virtual' => Icons.memory,
-                'serial' => Icons.usb,
-                _ => Icons.sensors,
+                'virtual' => AppIcons.cpu,
+                'serial' => AppIcons.usb,
+                _ => AppIcons.signal,
               }),
             ),
           ),

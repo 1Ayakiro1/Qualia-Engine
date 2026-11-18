@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -118,7 +119,7 @@ class EntityWorkspace extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.hub_outlined, size: 27),
+                const Icon(AppIcons.network, size: 27),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -130,12 +131,12 @@ class EntityWorkspace extends StatelessWidget {
                   ),
                 ),
                 DesktopIconButton(
-                  icon: Icons.edit_outlined,
+                  icon: AppIcons.pencil,
                   tooltip: context.l10n.textEditEntity163,
                   onPressed: () => onEdit(selected),
                 ),
                 DesktopIconButton(
-                  icon: Icons.delete_outline,
+                  icon: AppIcons.trash,
                   tooltip: context.l10n.textRemoveEntity162,
                   onPressed: () => onRemove(selected),
                 ),
@@ -166,9 +167,7 @@ class EntityWorkspace extends StatelessWidget {
             FilledButton.icon(
               onPressed: () => onToggleInstalled(selected),
               icon: Icon(
-                selected.installed
-                    ? Icons.delete_outline
-                    : Icons.download_outlined,
+                selected.installed ? AppIcons.trash : AppIcons.download,
               ),
               label: Text(
                 selected.installed
@@ -231,7 +230,7 @@ class _EntityScreenState extends State<EntityScreen> {
                             ),
                           ),
                           DesktopIconButton(
-                            icon: Icons.add,
+                            icon: AppIcons.add,
                             tooltip: context.l10n.textAddEntity161,
                             onPressed: widget.onAdd,
                           ),
@@ -310,7 +309,7 @@ class _EntityScreenState extends State<EntityScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.hub_outlined, size: 27),
+                                  const Icon(AppIcons.network, size: 27),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
@@ -322,12 +321,12 @@ class _EntityScreenState extends State<EntityScreen> {
                                     ),
                                   ),
                                   DesktopIconButton(
-                                    icon: Icons.edit_outlined,
+                                    icon: AppIcons.pencil,
                                     tooltip: context.l10n.textEditEntity163,
                                     onPressed: () => widget.onEdit(entity),
                                   ),
                                   DesktopIconButton(
-                                    icon: Icons.delete_outline,
+                                    icon: AppIcons.trash,
                                     tooltip: context.l10n.textRemoveEntity162,
                                     onPressed: () => widget.onRemove(entity),
                                   ),
@@ -367,8 +366,8 @@ class _EntityScreenState extends State<EntityScreen> {
                                     widget.onToggleInstalled(entity),
                                 icon: Icon(
                                   entity.installed
-                                      ? Icons.delete_outline
-                                      : Icons.download_outlined,
+                                      ? AppIcons.trash
+                                      : AppIcons.download,
                                 ),
                                 label: Text(
                                   entity.installed
@@ -410,7 +409,10 @@ class _EntityItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         child: Row(
           children: [
-            const Icon(Icons.hub_outlined, size: 17),
+            Icon(
+              AppIcons.resolve(AppIcons.network, active: selected),
+              size: 17,
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(

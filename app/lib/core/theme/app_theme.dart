@@ -1,3 +1,5 @@
+import 'app_icons.dart';
+
 import 'package:flutter/material.dart';
 
 import 'app_palette.dart';
@@ -19,6 +21,12 @@ class AppTheme {
   /// hover highlight over the same short interval, so nothing snaps in.
   static const Duration hoverDuration = Duration(milliseconds: 140);
   static const Curve hoverCurve = Curves.easeOut;
+
+  /// Action controls share the desktop toolbar's radius, never M3 pills/circles.
+  static const controlBorderRadius = BorderRadius.all(Radius.circular(6));
+  static const controlShape = RoundedRectangleBorder(
+    borderRadius: controlBorderRadius,
+  );
 
   static final ThemeData _darkTheme = _build(AppPalette.dark);
   static final ThemeData _lightTheme = _build(AppPalette.light);
@@ -56,6 +64,21 @@ class AppTheme {
       scaffoldBackgroundColor: palette.background,
       canvasColor: palette.background,
       dividerColor: palette.hover,
+      textButtonTheme: const TextButtonThemeData(
+        style: ButtonStyle(shape: WidgetStatePropertyAll(controlShape)),
+      ),
+      filledButtonTheme: const FilledButtonThemeData(
+        style: ButtonStyle(shape: WidgetStatePropertyAll(controlShape)),
+      ),
+      elevatedButtonTheme: const ElevatedButtonThemeData(
+        style: ButtonStyle(shape: WidgetStatePropertyAll(controlShape)),
+      ),
+      outlinedButtonTheme: const OutlinedButtonThemeData(
+        style: ButtonStyle(shape: WidgetStatePropertyAll(controlShape)),
+      ),
+      iconButtonTheme: const IconButtonThemeData(
+        style: ButtonStyle(shape: WidgetStatePropertyAll(controlShape)),
+      ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
@@ -68,7 +91,9 @@ class AppTheme {
               : const Color(0xFF454545),
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
-        thumbIcon: const WidgetStatePropertyAll(Icon(Icons.circle, size: 0)),
+        thumbIcon: const WidgetStatePropertyAll(
+          Icon(AppIcons.circleFilled, size: 0),
+        ),
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         padding: EdgeInsets.zero,

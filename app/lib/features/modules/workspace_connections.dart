@@ -64,6 +64,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
     this.pendingOutput = false,
     this.wireEnd,
     this.dimmedModuleIds = const {},
+    this.dimmedNodeIds = const {},
   });
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
@@ -73,6 +74,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
   final bool pendingOutput;
   final Offset? wireEnd;
   final Set<String> dimmedModuleIds;
+  final Set<String> dimmedNodeIds;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -82,6 +84,8 @@ class WorkspaceConnectionsPainter extends CustomPainter {
       final target = byId[link.target];
       if (source == null || target == null) continue;
       final dimmed =
+          dimmedNodeIds.contains(source.id) ||
+          dimmedNodeIds.contains(target.id) ||
           dimmedModuleIds.contains(source.module.id) ||
           dimmedModuleIds.contains(target.module.id);
       paintWorkspaceConnection(
@@ -111,5 +115,14 @@ class WorkspaceConnectionsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WorkspaceConnectionsPainter oldDelegate) => true;
+  bool shouldRepaint(covariant WorkspaceConnectionsPainter oldDelegate) =>
+      oldDelegate.nodes != nodes ||
+      oldDelegate.links != links ||
+      oldDelegate.neutral != neutral ||
+      oldDelegate.pendingNode != pendingNode ||
+      oldDelegate.pendingPort != pendingPort ||
+      oldDelegate.pendingOutput != pendingOutput ||
+      oldDelegate.wireEnd != wireEnd ||
+      oldDelegate.dimmedModuleIds != dimmedModuleIds ||
+      oldDelegate.dimmedNodeIds != dimmedNodeIds;
 }

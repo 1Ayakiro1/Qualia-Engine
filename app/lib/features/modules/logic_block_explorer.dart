@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,7 +33,7 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
             onChanged: (text) => setState(() => _query = text),
             decoration: InputDecoration(
               hintText: context.l10n.logicBlocks,
-              prefixIcon: const Icon(Icons.search, size: 17),
+              prefixIcon: const Icon(AppIcons.search, size: 17),
             ),
           ),
         ),
@@ -41,16 +43,11 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
             style: TextButton.styleFrom(
               backgroundColor: context.palette.hover,
               foregroundColor: context.palette.text,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               textStyle: const TextStyle(fontSize: 12),
             ),
             icon: Icon(
-              graph.showLogicBlocks
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
+              graph.showLogicBlocks ? AppIcons.eye : AppIcons.eyeOff,
               size: 16,
             ),
             onPressed: () =>
@@ -87,7 +84,7 @@ class _LogicBlockExplorerState extends ConsumerState<LogicBlockExplorer> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.account_tree_outlined,
+                          AppIcons.workflow,
                           size: 16,
                           color: context.palette.mutedText,
                         ),

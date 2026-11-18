@@ -145,6 +145,19 @@ BCI_API void bci_engine_set_log_callback(bci_log_callback callback);
 // Last human-readable error for this engine ("" when none).
 BCI_API const char* bci_engine_last_error(void* engine);
 
+// Native STFT helper. Computes up to max_rows Hann-windowed magnitude rows for
+// a mono float32 input. Output is row-major with window_size/2 + 1 bins per
+// row. Returns the number of rows, or a negative status code on invalid input.
+typedef struct bci_stft_config {
+  uint32_t window_size;
+  uint32_t hop_size;
+  double sample_rate;
+} bci_stft_config;
+
+BCI_API int bci_stft_compute(const float* samples, uint32_t sample_count,
+                             const bci_stft_config* config, float* output,
+                             uint32_t max_rows, uint32_t output_values);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

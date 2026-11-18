@@ -2,11 +2,13 @@
 #include "bci_engine/c_api.h"
 
 #include <atomic>
+#include <algorithm>
 #include <mutex>
 #include <new>
 #include <string>
 
 #include "bci_engine/core.hpp"
+#include "bci_engine/stft.hpp"
 #include "log_hook.hpp"
 #include "modules.hpp"
 
@@ -270,6 +272,32 @@ BCI_API const char* bci_engine_last_error(void* engine) {
   std::lock_guard<std::mutex> lock(error_mutex);
   error = as_engine(engine)->last_error();
   return error.c_str();
+}
+
+BCI_API int bci_stft_compute(const float* samples, uint32_t sample_count,
+                             const bci_stft_config* config, float* output,
+                             uint32_t max_rows, uint32_t output_values) {
+  if (!samples || !config || !output || sample_count == 0 || max_rows == 0 ||
+      output_values == 0) {
+    return BCI_NULL_ARGUMENT;
+  }
+  try {
+    bci::Stft stft({config->window_size, config->hop_size,
+                    config->sample_rate});
+    if (!stft.valid()) return BCI_INVALID_ARGUMENT;
+    const size_t bins = config->window_size / 2 + 1;
+    const size_t rows_capacity =
+        std::min<size_t>(max_rows, output_values / bins);
+    if (rows_capacity == 0) return BCI_INVALID_ARGUMENT;
+    auto rows = stft.push(samples, sample_count);
+    const size_t count = std::min(rows_capacity, rows.size());
+    for (size_t row = 0; row < count; ++row) {
+      std::copy(rows[row].begin(), rows[row].end(), output + row * bins);
+    }
+    return static_cast<int>(count);
+  } catch (...) {
+    return BCI_INTERNAL_ERROR;
+  }
 }
 
 BCI_API void bci_engine_set_log_callback(bci_log_callback callback) {

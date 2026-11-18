@@ -18,6 +18,8 @@ set(BCI_CORE_SOURCES
   src/modules.cpp
   src/fft.cpp
   src/signal_v2.cpp
+  src/stft.cpp
+  src/lsl_hal.cpp
   src/c_api.cpp
 )
 
@@ -31,6 +33,7 @@ target_include_directories(bci_engine_core
 )
 
 target_compile_definitions(bci_engine_core PRIVATE BCI_BUILD_CORE_DLL=1)
+target_link_libraries(bci_engine_core PRIVATE ${CMAKE_DL_LIBS})
 
 # Strict warnings for our own code.
 if(MSVC)
@@ -83,7 +86,7 @@ if(BCI_BUILD_TESTS)
   endif()
   get_filename_component(CATCH2_INCLUDE "${BCI_CATCH2_HEADER}" DIRECTORY)
   enable_testing()
-  add_executable(bci_core_tests tests/test_core.cpp tests/test_blocks.cpp)
+  add_executable(bci_core_tests tests/test_core.cpp tests/test_blocks.cpp tests/test_stft.cpp)
   target_include_directories(bci_core_tests PRIVATE "${CATCH2_INCLUDE}" "${CMAKE_CURRENT_SOURCE_DIR}/src")
   target_link_libraries(bci_core_tests PRIVATE bci_engine_core)
   if(MSVC)

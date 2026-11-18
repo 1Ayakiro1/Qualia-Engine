@@ -10,6 +10,7 @@ import 'package:bci_engine/features/common/desktop_menu.dart';
 import 'package:bci_engine/features/modules/modules_screen.dart';
 import 'package:bci_engine/features/modules/workspace_colors.dart';
 import 'package:bci_engine/features/modules/workspace_connections.dart';
+import 'package:bci_engine/features/modules/workspace_canvas_controller.dart';
 import 'package:bci_engine/state/workspace_state.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'workspace_manager_test.dart' show themed;
 
 const _module = SystemModule(
   id: 'test.ports',
@@ -28,6 +31,116 @@ const _module = SystemModule(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'canvas tools stay inside the ruler and ports accept their outer halves at every zoom',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 850);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        themed(
+          container,
+          ModulesScreen(
+            modules: const [_module],
+            canvasController: WorkspaceCanvasController(),
+            onAdd: () {},
+            onEdit: (_) {},
+            onRemove: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final controller = container.read(workspaceProvider.notifier);
+      final source = controller.addNode(_module, const Offset(4900, 4900));
+      final target = controller.addNode(_module, const Offset(5300, 4900));
+      await tester.pumpAndSettle();
+      final viewport = find.byType(InteractiveViewer);
+      final transform = tester
+          .widget<InteractiveViewer>(viewport)
+          .transformationController!;
+      Offset anchor(WorkspaceNode node, bool output) =>
+          tester.getTopLeft(viewport) +
+          MatrixUtils.transformPoint(
+            transform.value,
+            node.portPosition(output ? 'output' : 'input', output),
+          );
+      for (final scale in [.5, 1.0, 1.5]) {
+        transform.value = Matrix4.identity()
+          ..translateByDouble(100 - 4900 * scale, 150 - 4900 * scale, 0, 1)
+          ..scaleByDouble(scale, scale, 1, 1);
+        await tester.pumpAndSettle();
+        final canvas = tester.getRect(viewport);
+        final tools = tester.getRect(
+          find.byKey(const ValueKey('workspace canvas tool rail')),
+        );
+        expect(tools.left - canvas.left, closeTo(34, .01));
+        expect(tools.top, greaterThan(canvas.top + 22));
+        expect(canvas.contains(tools.bottomRight), isTrue);
+        final toolButtons = [
+          for (final tool in ['select', 'pencil', 'eraser', 'cut', 'branch'])
+            tester.getRect(find.byKey(ValueKey('workspace canvas tool $tool'))),
+          tester.getRect(
+            find.byKey(const ValueKey('workspace clear annotations')),
+          ),
+        ];
+        for (var index = 1; index < toolButtons.length; index++) {
+          expect(
+            toolButtons[index].top - toolButtons[index - 1].bottom,
+            closeTo(4, .01),
+          );
+          expect(toolButtons[index].size, const Size(36, 36));
+        }
+        for (final output in [false, true]) {
+          final center = anchor(source, output);
+          for (final offset in [
+            Offset(output ? 5 : -5, 0),
+            Offset(output ? -5 : 5, 0),
+            const Offset(0, -5),
+            const Offset(0, 5),
+          ]) {
+            await tester.tapAt(center + offset * scale);
+            await tester.pumpAndSettle();
+            final painters = tester
+                .widgetList<CustomPaint>(find.byType(CustomPaint))
+                .map((widget) => widget.painter)
+                .whereType<WorkspaceConnectionsPainter>();
+            expect(painters.single.pendingNode, source.id);
+            expect(painters.single.pendingOutput, output);
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            await tester.pumpAndSettle();
+          }
+          // Both drag initiation and drop use the part outside the node border.
+          final start = center + Offset(output ? 5 : -5, 0) * scale;
+          final end =
+              anchor(target, !output) + Offset(output ? -5 : 5, 0) * scale;
+          final drag = await tester.startGesture(
+            start,
+            kind: PointerDeviceKind.mouse,
+          );
+          await drag.moveBy(const Offset(0, 24));
+          await tester.pump();
+          await drag.moveTo(end);
+          await tester.pump();
+          await drag.up();
+          await tester.pumpAndSettle();
+          final link = container.read(workspaceProvider).links.single;
+          expect(link.source, output ? source.id : target.id);
+          expect(link.target, output ? target.id : source.id);
+          controller.disconnect(link);
+          await tester.pumpAndSettle();
+        }
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   test(
     'port annotations round-trip without changing IDs or author settings',
@@ -164,12 +277,18 @@ void main() {
           target: 'target',
           input: 'input',
         );
-        Future<Color> sample(int x) async {
+        Future<Color> sample(
+          int x, {
+          Set<String> dimmedNodes = const {},
+          Set<String> dimmedModules = const {},
+        }) async {
           final recorder = ui.PictureRecorder();
           WorkspaceConnectionsPainter(
             nodes: [source, target],
             links: [link],
             neutral: neutral,
+            dimmedNodeIds: dimmedNodes,
+            dimmedModuleIds: dimmedModules,
           ).paint(Canvas(recorder), const Size(720, 200));
           final picture = recorder.endRecording();
           final image = await picture.toImage(720, 200);
@@ -197,10 +316,17 @@ void main() {
         }
 
         near(await sample(350), neutral);
+        final dimmed = await sample(350, dimmedNodes: {source.id});
+        expect(dimmed.a, closeTo(70 / 255, .01));
+        // rawRgba stores premultiplied channels for translucent strokes.
+        expect(dimmed.r / dimmed.a, closeTo(neutral.r, .04));
+        final moduleDimmed = await sample(350, dimmedModules: {_module.id});
+        expect(moduleDimmed.a, closeTo(dimmed.a, .01));
+        near(await sample(350), neutral);
         source.outputColors['output'] = WorkspaceNodeColor.orange;
         target.inputColors['input'] = WorkspaceNodeColor.yellow;
-        near(await sample(295), WorkspaceNodeColor.orange.tint!);
-        near(await sample(405), WorkspaceNodeColor.yellow.tint!);
+        near(await sample(301), WorkspaceNodeColor.orange.tint!);
+        near(await sample(399), WorkspaceNodeColor.yellow.tint!);
         near(
           await sample(350),
           Color.lerp(
@@ -212,7 +338,7 @@ void main() {
         target.inputColors['input'] = WorkspaceNodeColor.orange;
         near(await sample(350), WorkspaceNodeColor.orange.tint!);
         target.inputColors.clear();
-        near(await sample(405), neutral);
+        near(await sample(399), neutral);
         expect(
           workspaceConnectionPaint(
             const Offset(10, 10),

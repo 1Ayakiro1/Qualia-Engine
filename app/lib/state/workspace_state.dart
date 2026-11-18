@@ -1,18 +1,25 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/modules/module_registry.dart';
 import '../core/modules/module_runtime.dart';
 import '../core/workspace/workspace_model.dart';
+import '../core/workspace/workspace_archive.dart';
 import '../core/workspace/workspace_project.dart';
 import '../core/workspace/workspace_id.dart';
+import '../core/workspace/workspace_fragment.dart';
+import '../core/workspace/workspace_document_schema.dart';
+import '../core/workspace/workspace_document_store.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/log_entry.dart';
 import '../core/logic/logic_blocks.dart';
+import 'workspace_reducer.dart';
 
 class WorkspaceState {
   const WorkspaceState({
@@ -24,6 +31,7 @@ class WorkspaceState {
     this.presetModuleIds,
     this.moduleActiveOverrides = const {},
     this.hiddenModuleIds = const {},
+    this.hiddenNodeIds = const {},
     this.removedModuleIds = const {},
     this.showLogicBlocks = true,
     this.showModuleBlocks = true,
@@ -48,6 +56,9 @@ class WorkspaceState {
   /// Host-owned module state. A missing entry follows the catalog's default.
   final Map<String, bool> moduleActiveOverrides;
   final Set<String> hiddenModuleIds;
+
+  /// Per-instance visibility used by the Workspace Scene Collection.
+  final Set<String> hiddenNodeIds;
   final Set<String> removedModuleIds;
   final bool showLogicBlocks, showModuleBlocks;
   WorkspaceProject get activeProject =>
@@ -79,6 +90,7 @@ class WorkspaceState {
     double? canvasHeight,
     Map<String, bool>? moduleActiveOverrides,
     Set<String>? hiddenModuleIds,
+    Set<String>? hiddenNodeIds,
     Set<String>? removedModuleIds,
     bool? showLogicBlocks,
     bool? showModuleBlocks,
@@ -99,6 +111,7 @@ class WorkspaceState {
     canvasHeight: canvasHeight ?? this.canvasHeight,
     moduleActiveOverrides: moduleActiveOverrides ?? this.moduleActiveOverrides,
     hiddenModuleIds: hiddenModuleIds ?? this.hiddenModuleIds,
+    hiddenNodeIds: hiddenNodeIds ?? this.hiddenNodeIds,
     removedModuleIds: removedModuleIds ?? this.removedModuleIds,
     showLogicBlocks: showLogicBlocks ?? this.showLogicBlocks,
     showModuleBlocks: showModuleBlocks ?? this.showModuleBlocks,
@@ -112,13 +125,30 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   static const storageKey = 'qualia.workspace.v1';
   final List<String> _undo = [];
   final List<String> _redo = [];
+  final mutationJournal = WorkspaceMutationJournal();
   String? _lastDocument;
   String? _savedDocument;
   final Set<String> _namedProjects = {};
   int historyNotice = 0;
   bool lastHistoryWasRedo = false;
   static const savedStorageKey = 'qualia.workspace.saved.v1';
+  static const workspaceDirectoryStorageKey = 'qualia.workspace.directory.v1';
+  static const documentStoreEnabledKey = 'qualia.workspace.document-store.v1';
   Future<void> _persistence = Future.value();
+  String? _workspaceDirectoryPath;
+  WorkspaceDocumentStore? _documentStore;
+
+  String? get workspaceDirectoryPath => _workspaceDirectoryPath;
+
+  bool get _isTestBinding {
+    try {
+      return WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    } catch (_) {
+      // Pure Dart tests do not initialize a Flutter binding. Treat them as
+      // recovery-only environments just like widget tests.
+      return true;
+    }
+  }
 
   Future<void> _persist(Future<void> Function() write) {
     final next = _persistence.then((_) => write());
@@ -141,16 +171,51 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _savedDocument != null &&
       _progress(_lastDocument!) != _progress(_savedDocument!);
 
-  bool needsProjectName(String id) => !_namedProjects.contains(id);
+  /// A workspace is named when its persisted project record has a real name.
+  /// The auxiliary `namedProjects` set is kept for backwards compatibility,
+  /// but must not make an already named project ask for a name again when an
+  /// older document omitted or lost that set.
+  bool needsProjectName(String id) {
+    final project = state.projects.where((item) => item.id == id).firstOrNull;
+    if (project == null) return true;
+    if (project.name.trim().isEmpty) return true;
+    // Keep the legacy default project's placeholder behavior, while honoring
+    // an explicit rename back to "Workspace" recorded in namedProjects.
+    return id == 'default' &&
+        project.name.trim() == 'Workspace' &&
+        !_namedProjects.contains(id);
+  }
 
   Future<void> saveProgress() async {
     _saveTimer?.cancel();
     final document = _document();
     await _persist(() async {
       final prefs = await SharedPreferences.getInstance();
-      if (!await prefs.setString(storageKey, document) ||
-          !await prefs.setString(savedStorageKey, document)) {
-        throw StateError('Workspace could not be saved.');
+       if (!await prefs.setString(storageKey, document) ||
+           !await prefs.setString(savedStorageKey, document)) {
+         throw StateError('Workspace could not be saved.');
+       }
+       // Recovery autosaves update the file cache, but do not make it the
+       // authoritative reopen source. That switch is changed only by the
+        // explicit Save action below.
+       final storedOnDisk = _isTestBinding
+           ? false
+           : await _saveDocumentsToFileStore(openIfNeeded: true);
+       if (storedOnDisk) {
+         await prefs.setBool(documentStoreEnabledKey, true);
+       }
+        final directoryPath = _workspaceDirectoryPath;
+      if (directoryPath != null) {
+        await WorkspaceArchive.writeDirectory(
+          Directory(directoryPath),
+          state.activeProject,
+          hiddenNodeIds: state.hiddenNodeIds,
+          hiddenModuleIds: state.hiddenModuleIds,
+          moduleActiveOverrides: state.moduleActiveOverrides,
+          removedModuleIds: state.removedModuleIds,
+          showLogicBlocks: state.showLogicBlocks,
+          showModuleBlocks: state.showModuleBlocks,
+        );
       }
       _savedDocument = document;
     });
@@ -272,6 +337,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _disposed = true;
       _saveTimer?.cancel();
       _runtime.dispose();
+      _documentStore?.dispose();
     });
     unawaited(_load());
     return const WorkspaceState();
@@ -280,6 +346,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Flutter tests intentionally isolate persistence through the mocked
+      // preferences backend. Do not let a real desktop SQLite cache leak
+      // between test isolates or override that recovery fixture.
+      if (!_isTestBinding &&
+          prefs.getBool(documentStoreEnabledKey) == true) {
+        try {
+          _documentStore = await WorkspaceDocumentStore.open();
+        } catch (error) {
+          logW(LogSource.modules, 'Workspace file store unavailable: $error');
+        }
+      }
+      _workspaceDirectoryPath = prefs.getString(workspaceDirectoryStorageKey);
       final raw = prefs.getString(storageKey);
       if (_disposed) return;
       if (raw == null) {
@@ -290,13 +368,36 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         _syncRuntime();
         _lastDocument = _document();
         _savedDocument = _lastDocument;
-        return;
+      } else {
+        final json = WorkspaceDocumentSchema.decode(raw);
+        _restoreDocument(json);
+        _syncRuntime();
+        _lastDocument = _document();
+        _savedDocument = prefs.getString(savedStorageKey) ?? _lastDocument;
       }
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      _restoreDocument(json);
-      _syncRuntime();
-      _lastDocument = _document();
-      _savedDocument = prefs.getString(savedStorageKey) ?? _lastDocument;
+      // Keep the legacy recovery load's scheduling unchanged when the file
+      // store is unavailable (notably in widget tests). Opening the optional
+      // index must not add an extra async turn before `loaded` is observable.
+      if (_documentStore != null) await _restoreFileProjects(prefs);
+      final directoryPath = _workspaceDirectoryPath;
+      if (directoryPath != null) {
+        try {
+          final contents = await WorkspaceArchive.decodeDirectoryContents(
+            Directory(directoryPath),
+          );
+          _restoreDirectoryProject(contents);
+          _syncRuntime();
+          _lastDocument = _document();
+          _savedDocument = _lastDocument;
+        } catch (error) {
+          _workspaceDirectoryPath = null;
+          await prefs.remove(workspaceDirectoryStorageKey);
+          logW(
+            LogSource.modules,
+            'Workspace folder could not be restored; using recovery copy: $error',
+          );
+        }
+      }
     } catch (error) {
       if (!_disposed) {
         state = state.copyWith(loaded: true);
@@ -305,6 +406,75 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       }
       logW(LogSource.modules, 'Workspace could not be restored: $error');
     }
+  }
+
+  Future<void> _restoreFileProjects(SharedPreferences prefs) async {
+    final store = _documentStore;
+    if (store == null) return;
+    final projects = <WorkspaceProject>[];
+    for (final id in await store.ids()) {
+      try {
+        final project = await store.load(id);
+        if (project != null) projects.add(project);
+      } catch (error) {
+        logW(LogSource.modules, 'Workspace document $id was skipped: $error');
+      }
+    }
+    if (projects.isEmpty || _disposed) return;
+    final activeId = state.activeProjectId;
+    final active = projects.where((p) => p.id == activeId).firstOrNull ?? projects.first;
+    state = state.copyWith(
+      projects: projects,
+      activeProjectId: active.id,
+      nodes: active.nodes,
+      links: active.links,
+      annotations: active.annotations,
+      canvasWidth: active.canvasWidth,
+      canvasHeight: active.canvasHeight,
+      presetModuleIds: active.presetModuleIds,
+      clearPreset: active.presetModuleIds == null,
+      loaded: true,
+    );
+    _namedProjects
+      ..clear()
+      ..addAll(projects.where((p) => p.id != 'default' || p.name != 'Workspace').map((p) => p.id));
+    // File documents are authoritative once the store has been enabled.
+    _lastDocument = _document();
+    _savedDocument = _lastDocument;
+    await prefs.setString(savedStorageKey, _lastDocument!);
+  }
+
+  void _restoreDirectoryProject(WorkspaceArchiveContents contents) {
+    final project = contents.project;
+    final modules = <String, SystemModule>{
+      for (final module in state.library)
+        '${module.id}@${module.version}:${module.localPackage ?? module.releaseId ?? ''}':
+            module,
+      for (final node in project.nodes)
+        if (!node.isLogic)
+          '${node.module.id}@${node.module.version}:${node.module.localPackage ?? node.module.releaseId ?? ''}':
+              node.module,
+    };
+    _namedProjects.add(project.id);
+    state = state.copyWith(
+      projects: [project],
+      activeProjectId: project.id,
+      nodes: project.nodes,
+      links: project.links,
+      annotations: project.annotations,
+      canvasWidth: project.canvasWidth,
+      canvasHeight: project.canvasHeight,
+      presetModuleIds: project.presetModuleIds,
+      clearPreset: project.presetModuleIds == null,
+      library: modules.values.toList(),
+      hiddenNodeIds: contents.hiddenNodeIds,
+      hiddenModuleIds: contents.hiddenModuleIds,
+      moduleActiveOverrides: contents.moduleActiveOverrides,
+      removedModuleIds: contents.removedModuleIds,
+      showLogicBlocks: contents.showLogicBlocks,
+      showModuleBlocks: contents.showModuleBlocks,
+      loaded: true,
+    );
   }
 
   /// JSON snapshots deliberately omit volatile runtime values and processes.
@@ -361,6 +531,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
             entry.key as String: entry.value as bool,
       },
       hiddenModuleIds: (json['hiddenModuleIds'] as List? ?? [])
+          .whereType<String>()
+          .toSet(),
+      hiddenNodeIds: (json['hiddenNodeIds'] as List? ?? [])
           .whereType<String>()
           .toSet(),
       removedModuleIds: (json['removedModuleIds'] as List? ?? [])
@@ -433,6 +606,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _redo.clear();
     }
     _lastDocument = document;
+    mutationJournal.record(document);
     _syncRuntime();
     _saveTimer?.cancel();
     _saveTimer = Timer(
@@ -476,7 +650,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
-  String _document() => jsonEncode({
+  String _document() => jsonEncode(WorkspaceDocumentSchema.encode({
     'nodes': state.nodes.map((node) => node.toJson()).toList(),
     'links': state.links.map((link) => link.toJson()).toList(),
     'annotations': state.annotations
@@ -492,11 +666,29 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     'activeProjectId': state.activeProjectId,
     'moduleActiveOverrides': state.moduleActiveOverrides,
     'hiddenModuleIds': state.hiddenModuleIds.toList(),
+    'hiddenNodeIds': state.hiddenNodeIds.toList(),
     'removedModuleIds': state.removedModuleIds.toList(),
     'showLogicBlocks': state.showLogicBlocks,
     'showModuleBlocks': state.showModuleBlocks,
     'namedProjects': _namedProjects.toList(),
-  });
+  }));
+
+  Future<bool> _saveDocumentsToFileStore({bool openIfNeeded = false}) async {
+    if (!openIfNeeded && _documentStore == null) return false;
+    try {
+      final store = _documentStore ??= await WorkspaceDocumentStore.open()
+          .timeout(const Duration(seconds: 2));
+      for (final project in state.projects) {
+        await store.save(project);
+      }
+      return true;
+    } catch (error) {
+      // SharedPreferences remains the recovery/checkpoint fallback. A
+      // platform-specific file-store failure must never lose a document.
+      logW(LogSource.modules, 'Workspace file store write skipped: $error');
+      return false;
+    }
+  }
 
   Future<void> _save({bool reportFailure = false}) async {
     final json = _document();
@@ -511,11 +703,43 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         if (!await prefs.setString(storageKey, json)) {
           throw StateError('Workspace could not be saved.');
         }
+        await _saveDocumentsToFileStore();
       });
     } catch (error) {
       logW(LogSource.modules, 'Workspace could not be saved: $error');
       if (reportFailure) rethrow;
     }
+  }
+
+  /// Makes a portable workspace folder the explicit save target. Recovery and
+  /// preferences remain available as a local safety net, but the folder is the
+  /// user-owned document that can be copied to another machine.
+  Future<void> saveWorkspaceDirectory(String path) async {
+    final cleaned = path.trim();
+    if (cleaned.isEmpty) throw const FormatException('Invalid workspace path.');
+    final document = _document();
+    await _persist(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await WorkspaceArchive.writeDirectory(
+        Directory(cleaned),
+        state.activeProject,
+        hiddenNodeIds: state.hiddenNodeIds,
+        hiddenModuleIds: state.hiddenModuleIds,
+        moduleActiveOverrides: state.moduleActiveOverrides,
+        removedModuleIds: state.removedModuleIds,
+        showLogicBlocks: state.showLogicBlocks,
+        showModuleBlocks: state.showModuleBlocks,
+      );
+       if (!await prefs.setString(workspaceDirectoryStorageKey, cleaned) ||
+           !await prefs.setString(storageKey, document) ||
+           !await prefs.setString(savedStorageKey, document)) {
+        throw StateError('Workspace could not be saved.');
+       }
+       await prefs.setBool(documentStoreEnabledKey, true);
+      _workspaceDirectoryPath = cleaned;
+      _savedDocument = document;
+    });
+    if (!_disposed) state = state.copyWith();
   }
 
   String createProject(String name, {String description = ''}) {
@@ -584,6 +808,86 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _changed();
   }
 
+  String createSceneGroup(String name, {Set<String> nodeIds = const {}}) {
+    final id = WorkspaceId.create('group');
+    final cleaned = name.trim();
+    if (cleaned.isEmpty ||
+        cleaned.length > 80 ||
+        state.activeProject.groups.length >= 500) {
+      throw const FormatException('Invalid scene group name.');
+    }
+    _setSceneGroups([
+      for (final group in state.activeProject.groups)
+        WorkspaceSceneGroup(
+          id: group.id,
+          name: group.name,
+          nodeIds: group.nodeIds.where((id) => !nodeIds.contains(id)).toList(),
+        ),
+      WorkspaceSceneGroup(
+        id: id,
+        name: cleaned,
+        nodeIds: state.nodes
+            .where((node) => nodeIds.contains(node.id))
+            .map((node) => node.id)
+            .toList(),
+      ),
+    ]);
+    return id;
+  }
+
+  void renameSceneGroup(String id, String name) {
+    final cleaned = name.trim();
+    if (cleaned.isEmpty || cleaned.length > 80) {
+      throw const FormatException('Invalid scene group name.');
+    }
+    _setSceneGroups([
+      for (final group in state.activeProject.groups)
+        WorkspaceSceneGroup(
+          id: group.id,
+          name: group.id == id ? cleaned : group.name,
+          nodeIds: group.nodeIds,
+        ),
+    ]);
+  }
+
+  void removeSceneGroup(String id) => _setSceneGroups(
+    state.activeProject.groups.where((group) => group.id != id).toList(),
+  );
+
+  void moveToSceneGroup(Set<String> nodeIds, String? groupId) {
+    if (groupId != null &&
+        !state.activeProject.groups.any((group) => group.id == groupId)) {
+      return;
+    }
+    final valid = state.nodes
+        .where((node) => nodeIds.contains(node.id))
+        .map((node) => node.id)
+        .toSet();
+    _setSceneGroups([
+      for (final group in state.activeProject.groups)
+        WorkspaceSceneGroup(
+          id: group.id,
+          name: group.name,
+          nodeIds: {
+            ...group.nodeIds.where((id) => !valid.contains(id)),
+            if (group.id == groupId) ...valid,
+          }.toList(),
+        ),
+    ]);
+  }
+
+  void _setSceneGroups(List<WorkspaceSceneGroup> groups) {
+    state = state.copyWith(
+      projects: [
+        for (final project in state.projects)
+          project.id == state.activeProjectId
+              ? project.copyWith(groups: groups)
+              : project,
+      ],
+    );
+    _changed();
+  }
+
   void deleteProject(String id) {
     final remaining = state.projects.where((p) => p.id != id).toList();
     if (remaining.length == state.projects.length) return;
@@ -612,7 +916,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _changed();
   }
 
-  String importProject(WorkspaceProject source, List<SystemModule> resolved) {
+  String importProject(
+    WorkspaceProject source,
+    List<SystemModule> resolved, {
+    Set<String> hiddenNodeIds = const {},
+    Set<String> hiddenModuleIds = const {},
+    Map<String, bool> moduleActiveOverrides = const {},
+    Set<String> removedModuleIds = const {},
+    bool showLogicBlocks = true,
+    bool showModuleBlocks = true,
+  }) {
     final id = WorkspaceId.create('workspace');
     final ids = {
       for (var index = 0; index < source.nodes.length; index++)
@@ -630,6 +943,14 @@ class WorkspaceController extends Notifier<WorkspaceState> {
             ...link.toJson(),
             'source': ids[link.source],
             'target': ids[link.target],
+          },
+      ],
+      'groups': [
+        for (final group in source.groups)
+          {
+            'id': group.id,
+            'name': group.name,
+            'nodeIds': [for (final nodeId in group.nodeIds) ids[nodeId]],
           },
       ],
       'annotations': source.annotations
@@ -665,6 +986,15 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(
       projects: [...state.projects, project],
       library: dependencies.values.toList(),
+      hiddenNodeIds: {
+        for (final nodeId in hiddenNodeIds)
+          if (ids[nodeId] != null) ids[nodeId]!,
+      },
+      hiddenModuleIds: hiddenModuleIds,
+      moduleActiveOverrides: moduleActiveOverrides,
+      removedModuleIds: removedModuleIds,
+      showLogicBlocks: showLogicBlocks,
+      showModuleBlocks: showModuleBlocks,
     );
     switchProject(id);
     return id;
@@ -698,6 +1028,77 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     state = state.copyWith(nodes: [...state.nodes, node]);
     _changed();
     return node;
+  }
+
+  /// A paste is a single history operation, with fresh instance IDs and deep
+  /// copies of parameters, appearance, geometry and internal connections.
+  List<WorkspaceNode> pasteFragment(
+    WorkspaceFragment fragment,
+    Offset position, {
+    List<SystemModule> availableModules = const [],
+  }) {
+    final source = fragment.project;
+    if (state.nodes.length + source.nodes.length > 500 ||
+        state.links.length + source.links.length > 8000 ||
+        !position.dx.isFinite ||
+        !position.dy.isFinite) {
+      throw const FormatException('Workspace graph is too large.');
+    }
+    final ids = {
+      for (final node in source.nodes) node.id: WorkspaceId.create('node'),
+    };
+    final copied = WorkspaceProject.fromJson(
+      jsonDecode(
+        jsonEncode({
+          ...source.toJson(),
+          'nodes': [
+            for (final node in source.nodes)
+              {...node.toJson(), 'id': ids[node.id]},
+          ],
+          'links': [
+            for (final link in source.links)
+              {
+                ...link.toJson(),
+                'source': ids[link.source],
+                'target': ids[link.target],
+              },
+          ],
+        }),
+      ) as Map<String, dynamic>,
+    );
+    final delta = position - fragment.origin;
+    for (final node in copied.nodes) {
+      node.position += delta;
+      // Reuse the host's installed package descriptor, never executable data
+      // supplied by arbitrary clipboard text.
+      if (!node.isLogic) {
+        final installed =
+            [
+                  ...availableModules,
+                  ...state.library,
+                  ...state.nodes.map((n) => n.module),
+                  ...state.projects.expand((p) => p.nodes).map((n) => n.module),
+                ]
+                .where(
+                  (module) =>
+                      module.id == node.module.id &&
+                      module.version == node.module.version &&
+                      module.localPackage == node.module.localPackage &&
+                      module.releaseId == node.module.releaseId,
+                )
+                .firstOrNull;
+        if (installed == null) {
+          throw const FormatException('Unavailable clipboard module.');
+        }
+        node.module = installed;
+      }
+    }
+    state = state.copyWith(
+      nodes: [...state.nodes, ...copied.nodes],
+      links: [...state.links, ...copied.links],
+    );
+    _changed();
+    return copied.nodes;
   }
 
   WorkspaceNode addLogicBlock(LogicBlockType type, Offset position) {
@@ -857,8 +1258,57 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _changed();
   }
 
+  /// Replace one edge with a pass-through junction while preserving the
+  /// original source and target ports. The caller may wrap several calls in a
+  /// history group so a single gesture remains one undo step.
+  WorkspaceNode? insertJunction(WorkspaceLink link, Offset position) {
+    if (!state.links.contains(link)) return null;
+    final source = state.nodes
+        .where((node) => node.id == link.source)
+        .firstOrNull;
+    final target = state.nodes
+        .where((node) => node.id == link.target)
+        .firstOrNull;
+    if (source == null || target == null) return null;
+    final junction = WorkspaceNode(
+      id: WorkspaceId.create('junction'),
+      module: LogicBlocks.module(LogicBlockType.junction),
+      kind: WorkspaceNodeKind.logic,
+      logicType: LogicBlockType.junction,
+      position: position,
+      width: 28,
+      inputs: const ['input'],
+      outputs: const ['output'],
+    );
+    final incoming = WorkspaceLink(
+      source: link.source,
+      output: link.output,
+      target: junction.id,
+      input: 'input',
+    );
+    final outgoing = WorkspaceLink(
+      source: junction.id,
+      output: 'output',
+      target: link.target,
+      input: link.input,
+    );
+    final nodes = [...state.nodes, junction];
+    final links = state.links.where((item) => item != link).toList();
+    if (validateWorkspaceLink(nodes, links, incoming) != null ||
+        validateWorkspaceLink([...nodes], [...links, incoming], outgoing) !=
+            null) {
+      return null;
+    }
+    state = state.copyWith(
+      nodes: [...state.nodes, junction],
+      links: [...state.links.where((item) => item != link), incoming, outgoing],
+    );
+    _changed();
+    return junction;
+  }
+
   void addAnnotation(WorkspaceAnnotation annotation) {
-    if (annotation.points.length < 2 || state.annotations.length >= 200) return;
+    if (annotation.points.isEmpty || state.annotations.length >= 200) return;
     state = state.copyWith(annotations: [...state.annotations, annotation]);
     _changed();
   }
@@ -869,6 +1319,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         .toList();
     if (next.length == state.annotations.length) return;
     state = state.copyWith(annotations: next);
+    _changed();
+  }
+
+  /// Apply one completed eraser gesture atomically, preserving undo/redo.
+  void replaceAnnotations(List<WorkspaceAnnotation> annotations) {
+    if (listEquals(annotations, state.annotations)) return;
+    state = state.copyWith(annotations: annotations);
     _changed();
   }
 
@@ -990,6 +1447,53 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     }
     state = state.copyWith(hiddenModuleIds: ids);
     _changed();
+  }
+
+  void setNodeHidden(String id, bool hidden) => setNodesHidden({id}, hidden);
+
+  /// Publish one visibility change and undo checkpoint for the whole array.
+  void setNodesHidden(Set<String> nodeIds, bool hidden) {
+    final nodes = state.nodes
+        .where((node) => nodeIds.contains(node.id))
+        .toList();
+    if (nodes.isEmpty) return;
+    final ids = {...state.hiddenNodeIds};
+    final modules = {...state.hiddenModuleIds};
+    if (hidden) {
+      ids.addAll(nodes.map((node) => node.id));
+    } else {
+      // Materialize the package-wide preference as instance visibility before
+      // revealing objects. Siblings, including other projects, stay hidden.
+      final packages = nodes
+          .map((node) => node.module.id)
+          .where(modules.contains)
+          .toSet();
+      for (final package in packages) {
+        modules.remove(package);
+        for (final project in state.projects) {
+          ids.addAll(
+            project.nodes
+                .where((item) => item.module.id == package)
+                .map((item) => item.id),
+          );
+        }
+        ids.addAll(
+          state.nodes
+              .where((item) => item.module.id == package)
+              .map((item) => item.id),
+        );
+      }
+      ids.removeAll(nodes.map((node) => node.id));
+    }
+    state = state.copyWith(hiddenNodeIds: ids, hiddenModuleIds: modules);
+    _changed();
+  }
+
+  void setSceneGroupHidden(String groupId, bool hidden) {
+    final group = state.activeProject.groups
+        .where((g) => g.id == groupId)
+        .firstOrNull;
+    if (group != null) setNodesHidden(group.nodeIds.toSet(), hidden);
   }
 
   void moveNodesToProject(Set<String> nodeIds, String projectId) {

@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -45,7 +47,7 @@ class KeyboardShortcutsPanel extends StatelessWidget {
               if (onClose != null)
                 DesktopIconButton(
                   onPressed: onClose,
-                  icon: Icons.close,
+                  icon: AppIcons.close,
                   tooltip: context.l10n.textClose110,
                 ),
             ],
@@ -110,7 +112,7 @@ class KeyboardShortcutsPanel extends StatelessWidget {
                                     key: ValueKey(
                                       'edit navigation ${shortcut.id}',
                                     ),
-                                    icon: Icons.edit_outlined,
+                                    icon: AppIcons.pencil,
                                     label: shortcut.keys(context.l10n),
                                     tooltip: context.l10n.textEditShortcuts359,
                                     onPressed: () => _edit(context, shortcut),
@@ -139,7 +141,7 @@ class KeyboardShortcutsPanel extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: DesktopIconButton(
             key: const ValueKey('navigation reset'),
-            icon: Icons.restore,
+            icon: AppIcons.reset,
             label: context.l10n.navigationReset,
             tooltip: context.l10n.navigationReset,
             onPressed: () => NavigationBindings.instance.reset(),

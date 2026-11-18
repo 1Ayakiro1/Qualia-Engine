@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class ModelsScreen extends StatelessWidget {
             padding: EdgeInsets.all(24),
             child: Column(
               children: [
-                Icon(Icons.psychology_outlined, size: 48),
+                Icon(AppIcons.brain, size: 48),
                 SizedBox(height: 12),
                 Text(context.l10n.textTheModelRegistryIsEmpty396),
                 SizedBox(height: 8),

@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/bci_core_tests.dir/link.d CMakeFiles/bci_core_tests.dir/tests/test_core.cpp.o -o bci_core_tests  -Wl,-rpath,"/home/ayakiro/Documents/Проекты/BCI/Qualia Engine/core/build" libbci_engine_core.so.0.1.0

@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -323,7 +324,7 @@ class _RailCustomizerState extends ConsumerState<RailCustomizer> {
                         children: [
                           const SizedBox(height: 8),
                           DesktopIconButton(
-                            icon: Icons.check,
+                            icon: AppIcons.check,
                             tooltip: context.l10n.textDone229,
                             size: 36,
                             iconSize: 19,
@@ -353,7 +354,7 @@ class _RailCustomizerState extends ConsumerState<RailCustomizer> {
                                 vertical: 6,
                               ),
                               child: Icon(
-                                Icons.vertical_align_bottom,
+                                AppIcons.toBottom,
                                 size: 16,
                                 color: context.palette.mutedText,
                               ),
@@ -426,7 +427,7 @@ class _RailCustomizerState extends ConsumerState<RailCustomizer> {
                                     ),
                                   ),
                                   DesktopIconButton(
-                                    icon: Icons.close,
+                                    icon: AppIcons.close,
                                     tooltip:
                                         context.l10n.textCloseRailSettings221,
                                     onPressed: onClose,
@@ -529,8 +530,8 @@ class _RailCustomizerState extends ConsumerState<RailCustomizer> {
                                     children: [
                                       Icon(
                                         config.visible
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
+                                            ? AppIcons.eye
+                                            : AppIcons.eyeOff,
                                         size: 18,
                                       ),
                                       const SizedBox(width: 10),
@@ -542,8 +543,8 @@ class _RailCustomizerState extends ConsumerState<RailCustomizer> {
                                       ),
                                       Icon(
                                         config.visible
-                                            ? Icons.check
-                                            : Icons.add,
+                                            ? AppIcons.check
+                                            : AppIcons.add,
                                         size: 18,
                                       ),
                                     ],
@@ -627,7 +628,7 @@ List<RailEntry> railEntries(BuildContext context, List<SystemModule> library) =>
       RailEntry(
         sectionRailKey(SectionId.profile),
         context.l10n.textProfile75,
-        Icons.account_circle_outlined,
+        AppIcons.userCircle,
         section: SectionId.profile,
       ),
       for (final section in kNavSections)
@@ -839,9 +840,7 @@ class _RailDragItem extends StatelessWidget {
                     ),
                     if (onPin != null)
                       DesktopIconButton(
-                        icon: atBottom
-                            ? Icons.vertical_align_top
-                            : Icons.vertical_align_bottom,
+                        icon: atBottom ? AppIcons.toTop : AppIcons.toBottom,
                         tooltip: atBottom
                             ? context.l10n.railPinTop
                             : context.l10n.railPinBottom,
@@ -850,7 +849,7 @@ class _RailDragItem extends StatelessWidget {
                         iconSize: 16,
                       ),
                     Icon(
-                      enabled ? Icons.check : Icons.add,
+                      enabled ? AppIcons.check : AppIcons.add,
                       size: 18,
                       color: context.palette.mutedText,
                     ),
@@ -955,12 +954,12 @@ class _RailDragFeedbackState extends State<_RailDragFeedback>
 IconData extensionRailIcon(SystemModule module) {
   final rail = module.manifest['rail'] as Map?;
   return switch (rail?['icon']) {
-    'chart' => Icons.multiline_chart,
-    'notes' => Icons.sticky_note_2_outlined,
-    'signal' => Icons.graphic_eq,
-    'folder' => Icons.folder_open_outlined,
-    'brain' => Icons.psychology_outlined,
-    _ => Icons.widgets_outlined,
+    'chart' => AppIcons.chart,
+    'notes' => AppIcons.note,
+    'signal' => AppIcons.waveform,
+    'folder' => AppIcons.folderOpen,
+    'brain' => AppIcons.brain,
+    _ => AppIcons.grid,
   };
 }
 
@@ -987,7 +986,7 @@ class _ExtensionRailPageState extends State<ExtensionRailPage> {
         Row(
           children: [
             DesktopIconButton(
-              icon: Icons.arrow_back,
+              icon: AppIcons.arrowBack,
               tooltip: context.l10n.textBack233,
               onPressed: widget.onBack,
             ),

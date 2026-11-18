@@ -50,6 +50,18 @@ class WorkspaceRevision {
 }
 
 /// Independent graph document. Catalog/library preferences remain host-global.
+class WorkspaceSceneGroup {
+  const WorkspaceSceneGroup({
+    required this.id,
+    required this.name,
+    this.nodeIds = const [],
+  });
+  final String id, name;
+  final List<String> nodeIds;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'nodeIds': nodeIds};
+}
+
 class WorkspaceProject {
   static const defaultCanvasWidth = 10000.0;
   static const defaultCanvasHeight = 10000.0;
@@ -63,6 +75,7 @@ class WorkspaceProject {
     this.nodes = const [],
     this.links = const [],
     this.annotations = const [],
+    this.groups = const [],
     this.presetModuleIds,
     this.revision,
     this.canvasWidth = defaultCanvasWidth,
@@ -72,6 +85,7 @@ class WorkspaceProject {
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
   final List<WorkspaceAnnotation> annotations;
+  final List<WorkspaceSceneGroup> groups;
   final List<String>? presetModuleIds;
   final WorkspaceRevision? revision;
   final double canvasWidth, canvasHeight;
@@ -81,6 +95,7 @@ class WorkspaceProject {
     List<WorkspaceNode>? nodes,
     List<WorkspaceLink>? links,
     List<WorkspaceAnnotation>? annotations,
+    List<WorkspaceSceneGroup>? groups,
     List<String>? presetModuleIds,
     bool clearPreset = false,
     WorkspaceRevision? revision,
@@ -94,6 +109,16 @@ class WorkspaceProject {
     nodes: nodes ?? this.nodes,
     links: links ?? this.links,
     annotations: annotations ?? this.annotations,
+    groups: [
+      for (final group in groups ?? this.groups)
+        WorkspaceSceneGroup(
+          id: group.id,
+          name: group.name,
+          nodeIds: group.nodeIds
+              .where((id) => (nodes ?? this.nodes).any((node) => node.id == id))
+              .toList(),
+        ),
+    ],
     presetModuleIds: clearPreset
         ? null
         : presetModuleIds ?? this.presetModuleIds,
@@ -108,6 +133,7 @@ class WorkspaceProject {
     'nodes': nodes.map((n) => n.toJson()).toList(),
     'links': links.map((l) => l.toJson()).toList(),
     'annotations': annotations.map((a) => a.toJson()).toList(),
+    if (groups.isNotEmpty) 'groups': groups.map((g) => g.toJson()).toList(),
     'presetModuleIds': presetModuleIds,
     if (canvasWidth != defaultCanvasWidth) 'canvasWidth': canvasWidth,
     if (canvasHeight != defaultCanvasHeight) 'canvasHeight': canvasHeight,
@@ -125,6 +151,43 @@ class WorkspaceProject {
     final nodes = rawNodes
         .map((n) => WorkspaceNode.fromJson(Map<String, dynamic>.from(n as Map)))
         .toList();
+    final rawGroups = json['groups'] as List? ?? [];
+    if (rawGroups.length > 500) {
+      throw const FormatException('Too many scene groups.');
+    }
+    final groupIds = <String>{};
+    final members = <String>{};
+    final nodeIds = nodes.map((n) => n.id).toSet();
+    final groups = <WorkspaceSceneGroup>[];
+    for (final raw in rawGroups) {
+      if (raw is! Map ||
+          raw['id'] is! String ||
+          raw['name'] is! String ||
+          raw['nodeIds'] is! List) {
+        throw const FormatException('Invalid scene group.');
+      }
+      final id = raw['id'] as String;
+      final name = (raw['name'] as String).trim();
+      final ids = raw['nodeIds'] as List;
+      if (id.isEmpty ||
+          id.length > 160 ||
+          !groupIds.add(id) ||
+          name.isEmpty ||
+          name.length > 80 ||
+          ids.length > 500) {
+        throw const FormatException('Invalid scene group.');
+      }
+      for (final member in ids) {
+        if (member is! String ||
+            !nodeIds.contains(member) ||
+            !members.add(member)) {
+          throw const FormatException('Invalid scene group member.');
+        }
+      }
+      groups.add(
+        WorkspaceSceneGroup(id: id, name: name, nodeIds: ids.cast<String>()),
+      );
+    }
     if (nodes.map((n) => n.id).toSet().length != nodes.length ||
         nodes.any(
           (n) =>
@@ -174,6 +237,7 @@ class WorkspaceProject {
       nodes: nodes,
       links: links,
       annotations: annotations,
+      groups: groups,
       presetModuleIds: (json['presetModuleIds'] as List?)?.cast<String>(),
       canvasWidth: canvasWidth,
       canvasHeight: canvasHeight,

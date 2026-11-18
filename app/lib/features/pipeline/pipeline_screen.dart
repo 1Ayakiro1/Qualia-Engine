@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -26,7 +27,7 @@ class PipelineScreen extends ConsumerWidget {
         ),
         InfoCard(
           title: context.l10n.textActiveCorePipeline290,
-          headerIcon: Icons.linear_scale,
+          headerIcon: AppIcons.workflow,
           trailing: StatusChip(
             label: coreJsons.isEmpty
                 ? context.l10n.textUnavailable291

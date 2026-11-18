@@ -98,6 +98,96 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @workspaceCanvasHints.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas hints'**
+  String get workspaceCanvasHints;
+
+  /// No description provided for @sceneCreateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create group'**
+  String get sceneCreateGroup;
+
+  /// No description provided for @sceneEditGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit group'**
+  String get sceneEditGroup;
+
+  /// No description provided for @sceneGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get sceneGroupName;
+
+  /// No description provided for @sceneMoveToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to group'**
+  String get sceneMoveToGroup;
+
+  /// No description provided for @sceneRemoveFromGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from group'**
+  String get sceneRemoveFromGroup;
+
+  /// No description provided for @sceneDissolveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Dissolve group'**
+  String get sceneDissolveGroup;
+
+  /// No description provided for @workspaceObjectVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible on canvas'**
+  String get workspaceObjectVisible;
+
+  /// No description provided for @workspaceObjectGeometry.
+  ///
+  /// In en, this message translates to:
+  /// **'Position and size'**
+  String get workspaceObjectGeometry;
+
+  /// No description provided for @canvasEraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Eraser'**
+  String get canvasEraser;
+
+  /// No description provided for @canvasBrush.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush'**
+  String get canvasBrush;
+
+  /// No description provided for @canvasBrushColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush color'**
+  String get canvasBrushColor;
+
+  /// No description provided for @canvasColorWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get canvasColorWhite;
+
+  /// No description provided for @canvasColorBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get canvasColorBlack;
+
+  /// No description provided for @canvasDiameter.
+  ///
+  /// In en, this message translates to:
+  /// **'Diameter'**
+  String get canvasDiameter;
+
   /// No description provided for @workspaceSave.
   ///
   /// In en, this message translates to:
@@ -110,11 +200,71 @@ abstract class AppLocalizations {
   /// **'Workspace saved'**
   String get workspaceSaved;
 
+  /// No description provided for @sceneSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'SCENE OBJECTS'**
+  String get sceneSelection;
+
+  /// No description provided for @sceneCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse scene selection'**
+  String get sceneCollapse;
+
+  /// No description provided for @sceneExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand scene selection'**
+  String get sceneExpand;
+
+  /// No description provided for @sceneNoObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'No objects found'**
+  String get sceneNoObjects;
+
+  /// No description provided for @sceneSelectObject.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an object'**
+  String get sceneSelectObject;
+
   /// No description provided for @workspaceSaveFailed.
   ///
   /// In en, this message translates to:
   /// **'Could not save the workspace. Your draft is still available.'**
   String get workspaceSaveFailed;
+
+  /// No description provided for @canvasFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen canvas'**
+  String get canvasFullscreen;
+
+  /// No description provided for @canvasExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit canvas fullscreen'**
+  String get canvasExitFullscreen;
+
+  /// No description provided for @canvasScreenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Save canvas screenshot'**
+  String get canvasScreenshot;
+
+  /// No description provided for @canvasScreenshotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas screenshot saved'**
+  String get canvasScreenshotSaved;
+
+  /// No description provided for @canvasScreenshotFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the canvas screenshot.'**
+  String get canvasScreenshotFailed;
 
   /// No description provided for @workspaceUnsavedTitle.
   ///
@@ -815,8 +965,38 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceSelectHint.
   ///
   /// In en, this message translates to:
-  /// **'Shift + click to select multiple modules'**
+  /// **'Shift / Alt + click — select multiple; Space + drag — pan canvas'**
   String get workspaceSelectHint;
+
+  /// No description provided for @workspaceCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get workspaceCopy;
+
+  /// No description provided for @workspaceCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get workspaceCut;
+
+  /// No description provided for @workspacePaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get workspacePaste;
+
+  /// No description provided for @workspaceMoveJunction.
+  ///
+  /// In en, this message translates to:
+  /// **'Move point'**
+  String get workspaceMoveJunction;
+
+  /// No description provided for @workspaceClipboardFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy or paste nodes. Check module availability and scene size.'**
+  String get workspaceClipboardFailed;
 
   /// Host UI: Supabase Auth is unavailable.
   ///
@@ -2749,7 +2929,7 @@ abstract class AppLocalizations {
   /// Host UI: Return to modules
   ///
   /// In en, this message translates to:
-  /// **'Return to modules'**
+  /// **'Return to start'**
   String get textReturnToModules304;
 
   /// Host UI: MMB / drag to pan · wheel to zoom · F to frame

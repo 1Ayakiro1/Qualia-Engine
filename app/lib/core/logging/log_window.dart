@@ -1,3 +1,4 @@
+import '../theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -241,7 +242,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                 controller: _search,
                 decoration: InputDecoration(
                   hintText: context.l10n.textSearchSourceAndText8,
-                  prefixIcon: Icon(Icons.search, size: 20),
+                  prefixIcon: Icon(AppIcons.search, size: 20),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
@@ -286,7 +287,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.hourglass_empty, size: 42),
+                          const Icon(AppIcons.hourglass, size: 42),
                           const SizedBox(height: 12),
                           Text(context.l10n.textTheLatestLogFileHasNotBeen10),
                           const SizedBox(height: 4),
@@ -294,7 +295,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: _openTail,
-                            icon: const Icon(Icons.refresh),
+                            icon: const Icon(AppIcons.refresh),
                             label: Text(context.l10n.textRetry12),
                           ),
                         ],
@@ -411,7 +412,7 @@ class _LogHeader extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.terminal,
+                          AppIcons.terminal,
                           size: 19,
                           color: context.palette.text,
                         ),
@@ -432,30 +433,28 @@ class _LogHeader extends StatelessWidget {
                   tooltip: paused
                       ? context.l10n.textResume14
                       : context.l10n.textPause15,
-                  icon: paused ? Icons.play_arrow : Icons.pause,
+                  icon: paused ? AppIcons.play : AppIcons.pause,
                   onPressed: onPause,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textAutoScroll16,
-                  icon: autoScroll
-                      ? Icons.vertical_align_bottom
-                      : Icons.vertical_align_top,
+                  icon: autoScroll ? AppIcons.toBottom : AppIcons.toTop,
                   active: autoScroll,
                   onPressed: onAutoScroll,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textSaveVisibleEntries17,
-                  icon: Icons.save_outlined,
+                  icon: AppIcons.save,
                   onPressed: onSave,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textClearView18,
-                  icon: Icons.delete_sweep_outlined,
+                  icon: AppIcons.trash,
                   onPressed: onClear,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textCloseWindow19,
-                  icon: Icons.close,
+                  icon: AppIcons.close,
                   onPressed: onClose,
                 ),
                 const SizedBox(width: 6),

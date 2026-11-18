@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -230,7 +231,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           title: _running
               ? context.l10n.textSessionRunning275
               : context.l10n.textTestSession276,
-          headerIcon: Icons.monitor_heart_outlined,
+          headerIcon: AppIcons.heartbeat,
           trailing: StatusChip(
             label: viaCore
                 ? context.l10n.textThroughCore277
@@ -238,7 +239,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             color: viaCore
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
-            icon: viaCore ? Icons.memory : Icons.timer,
+            icon: viaCore ? AppIcons.cpu : AppIcons.timer,
           ),
           children: [
             Wrap(
@@ -267,13 +268,13 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 if (!_running)
                   FilledButton.icon(
                     onPressed: _start,
-                    icon: const Icon(Icons.play_arrow),
+                    icon: const Icon(AppIcons.play),
                     label: Text(context.l10n.textStart283),
                   )
                 else
                   FilledButton.icon(
                     onPressed: _stop,
-                    icon: const Icon(Icons.stop),
+                    icon: const Icon(AppIcons.stop),
                     label: Text(context.l10n.textStop284),
                   ),
                 const SizedBox(width: 12),
@@ -291,7 +292,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         ),
         InfoCard(
           title: context.l10n.textSessionHistoryInMemoryV01286,
-          headerIcon: Icons.history,
+          headerIcon: AppIcons.history,
           children: [
             if (_history.isEmpty)
               Text(

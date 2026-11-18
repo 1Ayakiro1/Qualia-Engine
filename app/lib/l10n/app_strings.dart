@@ -9,6 +9,7 @@ extension AppStrings on BuildContext {
     'select' => l10n.logicSelectFields,
     'validate' => l10n.logicValidate,
     'script' => l10n.logicScript,
+    'junction' => 'Junction',
     _ => l10n.logicBlocks,
   };
   AppLocalizations get l10n =>

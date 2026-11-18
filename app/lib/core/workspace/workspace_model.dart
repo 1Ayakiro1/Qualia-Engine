@@ -64,7 +64,18 @@ class WorkspaceNode {
        inputTypes = inputTypes ?? {},
        outputTypes = outputTypes ?? {},
        settings = settings ?? {},
-       width = width.isFinite ? width.clamp(minWidth, maxSize) : defaultWidth,
+       width = width.isFinite
+           ? width.clamp(
+               kind == WorkspaceNodeKind.logic &&
+                       logicType == LogicBlockType.junction
+                   ? 28
+                   : minWidth,
+               maxSize,
+             )
+           : (kind == WorkspaceNodeKind.logic &&
+                     logicType == LogicBlockType.junction
+                 ? 28
+                 : defaultWidth),
        preferredHeight = height != null && height.isFinite
            ? height.clamp(0, maxSize)
            : 0;
@@ -72,6 +83,7 @@ class WorkspaceNode {
   final WorkspaceNodeKind kind;
   final LogicBlockType logicType;
   bool get isLogic => kind == WorkspaceNodeKind.logic;
+  bool get isJunction => isLogic && logicType == LogicBlockType.junction;
   SystemModule module;
   Offset position;
   WorkspaceNodeColor headerColor;
@@ -106,25 +118,27 @@ class WorkspaceNode {
   final Map<String, List<double>> runtimeHistory = {};
   String? runtimeStatus;
   // Minimum size follows the port count; manual height never clips new ports.
-  double get minHeight =>
-      144 + math.max(inputs.length, outputs.length) * portRowHeight;
+  double get minHeight => isJunction
+      ? 28
+      : 144 + math.max(inputs.length, outputs.length) * portRowHeight;
   double get height => math.max(minHeight, preferredHeight);
   void resize(Size size) {
     if (!size.width.isFinite || !size.height.isFinite) return;
-    width = size.width.clamp(minWidth, maxSize);
+    width = size.width.clamp(isJunction ? 28 : minWidth, maxSize);
     preferredHeight = size.height.clamp(minHeight, maxSize);
   }
 
-  Offset portPosition(String port, bool output) =>
-      position +
-      Offset(
-        output ? width - 6 : 6,
-        1 +
-            headerHeight +
-            portsTopPadding +
-            portRowHeight / 2 +
-            (output ? outputs : inputs).indexOf(port) * portRowHeight,
-      );
+  Offset portPosition(String port, bool output) => isJunction
+      ? position + Offset(width / 2, height / 2)
+      : position +
+            Offset(
+              output ? width : 0,
+              1 +
+                  headerHeight +
+                  portsTopPadding +
+                  portRowHeight / 2 +
+                  (output ? outputs : inputs).indexOf(port) * portRowHeight,
+            );
   Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'id': id,
     'kind': kind.name,

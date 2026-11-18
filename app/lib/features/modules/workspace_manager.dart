@@ -1,9 +1,15 @@
+import '../../core/theme/app_icons.dart';
+
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import '../../core/workspace/workspace_archive.dart';
 import '../../core/workspace/workspace_project.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/workspace/workspace_repository.dart';
@@ -15,17 +21,9 @@ import '../common/widgets.dart';
 /// A deliberate checkpoint, independent from automatic crash recovery.
 Future<bool> saveWorkspaceProgress(BuildContext context, WidgetRef ref) async {
   final controller = ref.read(workspaceProvider.notifier);
-  final graph = ref.read(workspaceProvider);
-  for (final project in graph.projects.where(
-    (p) =>
-        controller.needsProjectName(p.id) &&
-        (p.id == graph.activeProjectId || p.nodes.isNotEmpty),
-  )) {
-    await editWorkspace(context, ref, project: project, naming: true);
-    if (!context.mounted || controller.needsProjectName(project.id)) {
-      return false;
-    }
-  }
+  // Saving a draft/checkpoint must never create or rename a workspace. New
+  // workspaces are named explicitly through File -> New workspace; Ctrl+S and
+  // the close guard only persist the current document.
   try {
     await controller.saveProgress();
     return true;
@@ -189,14 +187,26 @@ Future<void> _message(BuildContext context, String title, String message) =>
 Future<void> installWorkspace(
   BuildContext context,
   WidgetRef ref,
-  WorkspaceProject project,
+  WorkspaceArchiveContents contents,
 ) async {
+  final project = contents.project;
   final resolved = await resolveWorkspaceModules(
     project,
     ref.read(workspaceProvider).library,
   );
   if (!context.mounted) return;
-  ref.read(workspaceProvider.notifier).importProject(project, resolved);
+  ref
+      .read(workspaceProvider.notifier)
+      .importProject(
+        project,
+        resolved,
+        hiddenNodeIds: contents.hiddenNodeIds,
+        hiddenModuleIds: contents.hiddenModuleIds,
+        moduleActiveOverrides: contents.moduleActiveOverrides,
+        removedModuleIds: contents.removedModuleIds,
+        showLogicBlocks: contents.showLogicBlocks,
+        showModuleBlocks: contents.showModuleBlocks,
+      );
 }
 
 class _WorkspaceManager extends ConsumerStatefulWidget {
@@ -237,7 +247,7 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
       acceptedTypeGroups: [
         const XTypeGroup(
           label: 'Qualia Workspace',
-          extensions: ['qualia-workspace', 'json'],
+          extensions: ['qualia-workspace', 'zip', 'json'],
         ),
       ],
     );
@@ -245,11 +255,29 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
     if (await file.length() > 2 * 1024 * 1024) {
       throw const FormatException('Workspace package exceeds 2 MiB.');
     }
-    final project = WorkspaceProject.fromPackage(
-      jsonDecode(await file.readAsString()) as Map<String, dynamic>,
+    final bytes = await file.readAsBytes();
+    WorkspaceArchiveContents contents;
+    if (WorkspaceArchive.looksLikeArchive(bytes)) {
+      contents = WorkspaceArchive.decodeContents(bytes);
+    } else {
+      // Keep old JSON packages importable for existing users.
+      contents = WorkspaceArchiveContents(
+        project: WorkspaceProject.fromPackage(
+          jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
+        ),
+      );
+    }
+    if (!mounted) return;
+    await installWorkspace(context, ref, contents);
+  });
+  Future<void> _importDirectory() => _operation(() async {
+    final path = await getDirectoryPath(confirmButtonText: 'Open workspace');
+    if (path == null) return;
+    final contents = await WorkspaceArchive.decodeDirectoryContents(
+      Directory(path),
     );
     if (!mounted) return;
-    await installWorkspace(context, ref, project);
+    await installWorkspace(context, ref, contents);
   });
   Future<void> _export(WorkspaceProject project) => _operation(() async {
     final confirmed = await _confirm(
@@ -262,14 +290,50 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
           '${project.name.replaceAll(RegExp(r'[^a-zA-Z0-9_а-яА-Я-]'), '_')}.qualia-workspace',
     );
     if (location == null) return;
-    final bytes = utf8.encode(
-      const JsonEncoder.withIndent('  ').convert(project.toPackage()),
+    final current = ref.read(workspaceProvider);
+    final bytes = WorkspaceArchive.encode(
+      project,
+      hiddenNodeIds: current.hiddenNodeIds,
+      hiddenModuleIds: current.hiddenModuleIds,
+      moduleActiveOverrides: current.moduleActiveOverrides,
+      removedModuleIds: current.removedModuleIds,
+      showLogicBlocks: current.showLogicBlocks,
+      showModuleBlocks: current.showModuleBlocks,
     );
     await XFile.fromData(
-      bytes,
-      mimeType: 'application/json',
+      Uint8List.fromList(bytes),
+      mimeType: 'application/zip',
     ).saveTo(location.path);
   });
+  Future<void> _exportDirectory(WorkspaceProject project) =>
+      _operation(() async {
+        final parent = await getDirectoryPath(
+          confirmButtonText: 'Save workspace',
+        );
+        if (parent == null) return;
+        final safeName = project.name.replaceAll(
+          RegExp(r'[^a-zA-Z0-9_а-яА-Я-]'),
+          '_',
+        );
+        final destination = p.join(parent, '$safeName.qualia-workspace');
+        final current = ref.read(workspaceProvider);
+        if (project.id == current.activeProjectId) {
+          await ref
+              .read(workspaceProvider.notifier)
+              .saveWorkspaceDirectory(destination);
+        } else {
+          await WorkspaceArchive.writeDirectory(
+            Directory(destination),
+            project,
+            hiddenNodeIds: current.hiddenNodeIds,
+            hiddenModuleIds: current.hiddenModuleIds,
+            moduleActiveOverrides: current.moduleActiveOverrides,
+            removedModuleIds: current.removedModuleIds,
+            showLogicBlocks: current.showLogicBlocks,
+            showModuleBlocks: current.showModuleBlocks,
+          );
+        }
+      });
   Future<bool> _confirm(String title, String message) async =>
       await showDialog<bool>(
         context: context,
@@ -314,21 +378,29 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
         height: 460,
         child: Column(
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 DesktopIconButton(
-                  icon: Icons.add,
+                  icon: AppIcons.add,
                   tooltip: context.l10n.workspaceCreate,
                   label: context.l10n.workspaceCreate,
                   onPressed: _busy ? null : () => editWorkspace(context, ref),
                   size: 34,
                 ),
-                const SizedBox(width: 8),
                 DesktopIconButton(
-                  icon: Icons.file_open_outlined,
+                  icon: AppIcons.fileOpen,
                   tooltip: context.l10n.workspaceImport,
                   label: context.l10n.workspaceImport,
                   onPressed: _busy ? null : _import,
+                  size: 34,
+                ),
+                DesktopIconButton(
+                  icon: AppIcons.folderOpen,
+                  tooltip: context.l10n.workspaceImport,
+                  label: context.l10n.workspaceImport,
+                  onPressed: _busy ? null : _importDirectory,
                   size: 34,
                 ),
               ],
@@ -379,8 +451,8 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
                               ),
                               DesktopIconButton(
                                 icon: state.activeProjectId == project.id
-                                    ? Icons.check
-                                    : Icons.folder_open,
+                                    ? AppIcons.check
+                                    : AppIcons.folderOpen,
                                 tooltip: context.l10n.textOpen309,
                                 onPressed: _busy
                                     ? null
@@ -406,6 +478,12 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
                                     enabled: !_busy,
                                   ),
                                   DesktopMenuEntry(
+                                    value: 'export_directory',
+                                    label:
+                                        '${context.l10n.workspaceExport} (folder)',
+                                    enabled: !_busy,
+                                  ),
+                                  DesktopMenuEntry(
                                     value: 'publish',
                                     label: context.l10n.workspaceSubmit,
                                     enabled: !_busy,
@@ -426,6 +504,8 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
                                     );
                                   } else if (action == 'export') {
                                     await _export(project);
+                                  } else if (action == 'export_directory') {
+                                    await _exportDirectory(project);
                                   } else if (action == 'publish') {
                                     await _submit(project);
                                   } else if (action == 'delete' &&
@@ -443,7 +523,7 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
                                 },
                                 child: const Padding(
                                   padding: EdgeInsets.all(8),
-                                  child: Icon(Icons.more_horiz, size: 18),
+                                  child: Icon(AppIcons.more, size: 18),
                                 ),
                               ),
                             ],

@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -194,9 +196,6 @@ class _MenuTile<T> extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               overlayColor: Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
               textStyle: const TextStyle(fontSize: 14),
             ),
             child: Row(
@@ -241,7 +240,7 @@ class _MenuTile<T> extends StatelessWidget {
                 ],
                 if (entry.submenu != null)
                   Icon(
-                    Icons.chevron_right,
+                    AppIcons.caretRight,
                     size: 16,
                     color: context.palette.mutedText,
                   ),
@@ -493,7 +492,7 @@ class _MenuPageState<T> extends State<_MenuPage<T>> {
                                       decoration: InputDecoration(
                                         hintText: widget.search!.hint,
                                         prefixIcon: const Icon(
-                                          Icons.search,
+                                          AppIcons.search,
                                           size: 18,
                                         ),
                                         filled: true,
@@ -701,7 +700,7 @@ class DesktopSelectField<T> extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Icon(Icons.expand_more, size: 16),
+          const Icon(AppIcons.caretDown, size: 16),
         ],
       ),
     ),
