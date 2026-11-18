@@ -16,6 +16,7 @@ import '../core/workspace/workspace_id.dart';
 import '../core/workspace/workspace_fragment.dart';
 import '../core/workspace/workspace_document_schema.dart';
 import '../core/workspace/workspace_document_store.dart';
+import '../core/workspace/workspace_isolate_codec.dart';
 import '../core/logging/app_logger.dart';
 import '../core/logging/log_entry.dart';
 import '../core/logic/logic_blocks.dart';
@@ -123,11 +124,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   bool _disposed = false;
   late final ModuleRuntime _runtime;
   static const storageKey = 'qualia.workspace.v1';
-  final List<String> _undo = [];
-  final List<String> _redo = [];
+  final List<Map<String, dynamic>> _undo = [];
+  final List<Map<String, dynamic>> _redo = [];
   final mutationJournal = WorkspaceMutationJournal();
-  String? _lastDocument;
-  String? _savedDocument;
+  Map<String, dynamic>? _lastDocument;
+  Map<String, dynamic>? _savedDocument;
   final Set<String> _namedProjects = {};
   int historyNotice = 0;
   bool lastHistoryWasRedo = false;
@@ -161,15 +162,31 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   // Recovery is automatic; an explicit save is a separate user checkpoint.
-  String _progress(String document) {
-    final json = jsonDecode(document) as Map<String, dynamic>;
-    return jsonEncode(json['projects']);
-  }
-
   bool get hasUnsavedChanges =>
       _lastDocument != null &&
       _savedDocument != null &&
-      _progress(_lastDocument!) != _progress(_savedDocument!);
+      !_jsonEqual(_lastDocument!['projects'], _savedDocument!['projects']);
+
+  // Undo uses detached JSON trees, not encoded strings. No full-document JSON
+  // parse/serialize is needed for synchronous pointer edits or undo/redo.
+  static bool _jsonEqual(dynamic a, dynamic b) {
+    if (identical(a, b)) return true;
+    if (a is List && b is List) {
+      return a.length == b.length &&
+          List.generate(a.length, (i) => i).every((i) => _jsonEqual(a[i], b[i]));
+    }
+    if (a is Map && b is Map) {
+      return a.length == b.length && a.keys.every(
+        (key) => b.containsKey(key) && _jsonEqual(a[key], b[key]),
+      );
+    }
+    return a == b;
+  }
+
+  Future<String> _encodeDocument(Map<String, dynamic> document) async =>
+      _isTestBinding
+      ? jsonEncode(document)
+      : await WorkspaceIsolateCodec.encode(document);
 
   /// A workspace is named when its persisted project record has a real name.
   /// The auxiliary `namedProjects` set is kept for backwards compatibility,
@@ -190,9 +207,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     _saveTimer?.cancel();
     final document = _document();
     await _persist(() async {
+      final encoded = await _encodeDocument(document);
       final prefs = await SharedPreferences.getInstance();
-       if (!await prefs.setString(storageKey, document) ||
-           !await prefs.setString(savedStorageKey, document)) {
+       if (!await prefs.setString(storageKey, encoded) ||
+           !await prefs.setString(savedStorageKey, encoded)) {
          throw StateError('Workspace could not be saved.');
        }
        // Recovery autosaves update the file cache, but do not make it the
@@ -227,8 +245,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (saved == null) return;
     _saveTimer?.cancel();
     final draft = _document();
-    final current = jsonDecode(draft) as Map<String, dynamic>;
-    final baseline = jsonDecode(saved) as Map<String, dynamic>;
+    final current = _copyJson(draft) as Map<String, dynamic>;
+    final baseline = saved;
     current['projects'] = baseline['projects'];
     current['activeProjectId'] = baseline['activeProjectId'];
     current['namedProjects'] = baseline['namedProjects'];
@@ -262,7 +280,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _undo.clear();
       _redo.clear();
     } catch (_) {
-      _restoreDocument(jsonDecode(draft) as Map<String, dynamic>);
+      _restoreDocument(draft);
       _lastDocument = draft;
       _syncRuntime();
       rethrow;
@@ -294,13 +312,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   void undo() => _restoreHistory(_undo, _redo);
   void redo() => _restoreHistory(_redo, _undo);
 
-  void _restoreHistory(List<String> source, List<String> destination) {
+  void _restoreHistory(
+    List<Map<String, dynamic>> source,
+    List<Map<String, dynamic>> destination,
+  ) {
     if (source.isEmpty || _lastDocument == null) return;
     lastHistoryWasRedo = identical(source, _redo);
     historyNotice++;
     endHistoryGroup();
     destination.add(_lastDocument!);
-    _restoreDocument(jsonDecode(source.removeLast()) as Map<String, dynamic>);
+    _restoreDocument(_copyJson(source.removeLast()) as Map<String, dynamic>);
     _changed(recordHistory: false);
   }
 
@@ -369,11 +390,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         _lastDocument = _document();
         _savedDocument = _lastDocument;
       } else {
-        final json = WorkspaceDocumentSchema.decode(raw);
+        final json = _isTestBinding
+            ? WorkspaceDocumentSchema.decode(raw)
+            : await WorkspaceIsolateCodec.decode(raw);
+        if (_disposed) return;
         _restoreDocument(json);
         _syncRuntime();
         _lastDocument = _document();
-        _savedDocument = prefs.getString(savedStorageKey) ?? _lastDocument;
+        final saved = prefs.getString(savedStorageKey);
+        _savedDocument = saved == null ? _lastDocument : (_isTestBinding
+            ? WorkspaceDocumentSchema.decode(saved)
+            : await WorkspaceIsolateCodec.decode(saved));
       }
       // Keep the legacy recovery load's scheduling unchanged when the file
       // store is unavailable (notably in widget tests). Opening the optional
@@ -384,6 +411,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         try {
           final contents = await WorkspaceArchive.decodeDirectoryContents(
             Directory(directoryPath),
+            parseOffMainIsolate: !_isTestBinding,
           );
           _restoreDirectoryProject(contents);
           _syncRuntime();
@@ -441,7 +469,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     // File documents are authoritative once the store has been enabled.
     _lastDocument = _document();
     _savedDocument = _lastDocument;
-    await prefs.setString(savedStorageKey, _lastDocument!);
+    await prefs.setString(savedStorageKey, await _encodeDocument(_lastDocument!));
   }
 
   void _restoreDirectoryProject(WorkspaceArchiveContents contents) {
@@ -597,7 +625,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           : [...state.projects, project],
     );
     final document = _document();
-    if (recordHistory && _lastDocument != null && document != _lastDocument) {
+    if (recordHistory && _lastDocument != null && !_jsonEqual(document, _lastDocument)) {
       if (!_historyGroup || !_groupRecorded) {
         _undo.add(_lastDocument!);
         if (_undo.length > 50) _undo.removeAt(0);
@@ -606,7 +634,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       _redo.clear();
     }
     _lastDocument = document;
-    mutationJournal.record(document);
+    mutationJournal.recordSnapshot(document);
     _syncRuntime();
     _saveTimer?.cancel();
     _saveTimer = Timer(
@@ -650,7 +678,17 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
   }
 
-  String _document() => jsonEncode(WorkspaceDocumentSchema.encode({
+  static dynamic _copyJson(dynamic value) {
+    if (value is Map) {
+      return <String, dynamic>{
+        for (final entry in value.entries) entry.key as String: _copyJson(entry.value),
+      };
+    }
+    if (value is List) return value.map(_copyJson).toList();
+    return value;
+  }
+
+  Map<String, dynamic> _document() => _copyJson(WorkspaceDocumentSchema.encode({
     'nodes': state.nodes.map((node) => node.toJson()).toList(),
     'links': state.links.map((link) => link.toJson()).toList(),
     'annotations': state.annotations
@@ -671,7 +709,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     'showLogicBlocks': state.showLogicBlocks,
     'showModuleBlocks': state.showModuleBlocks,
     'namedProjects': _namedProjects.toList(),
-  }));
+  })) as Map<String, dynamic>;
 
   Future<bool> _saveDocumentsToFileStore({bool openIfNeeded = false}) async {
     if (!openIfNeeded && _documentStore == null) return false;
@@ -691,12 +729,13 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   Future<void> _save({bool reportFailure = false}) async {
-    final json = _document();
+    final document = _document();
     try {
       await _persist(() async {
+        final json = await _encodeDocument(document);
         final prefs = await SharedPreferences.getInstance();
         if (_savedDocument != null && !prefs.containsKey(savedStorageKey)) {
-          if (!await prefs.setString(savedStorageKey, _savedDocument!)) {
+          if (!await prefs.setString(savedStorageKey, await _encodeDocument(_savedDocument!))) {
             throw StateError('Workspace checkpoint could not be saved.');
           }
         }
@@ -719,6 +758,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (cleaned.isEmpty) throw const FormatException('Invalid workspace path.');
     final document = _document();
     await _persist(() async {
+      final encoded = await _encodeDocument(document);
       final prefs = await SharedPreferences.getInstance();
       await WorkspaceArchive.writeDirectory(
         Directory(cleaned),
@@ -731,8 +771,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         showModuleBlocks: state.showModuleBlocks,
       );
        if (!await prefs.setString(workspaceDirectoryStorageKey, cleaned) ||
-           !await prefs.setString(storageKey, document) ||
-           !await prefs.setString(savedStorageKey, document)) {
+           !await prefs.setString(storageKey, encoded) ||
+           !await prefs.setString(savedStorageKey, encoded)) {
         throw StateError('Workspace could not be saved.');
        }
        await prefs.setBool(documentStoreEnabledKey, true);

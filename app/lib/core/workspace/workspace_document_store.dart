@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
-
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'workspace_document_schema.dart';
 import 'workspace_project.dart';
+import 'workspace_isolate_codec.dart';
 
 /// File-backed workspace documents plus a small SQLite metadata index.
 ///
@@ -63,7 +62,7 @@ class WorkspaceDocumentStore {
     );
     final payload = WorkspaceDocumentSchema.encode(project.toJson());
     await staging.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(payload),
+      await WorkspaceIsolateCodec.encode(payload),
       flush: true,
     );
     await staging.rename(target.path);
@@ -91,9 +90,9 @@ class WorkspaceDocumentStore {
     if (rows.isEmpty) return null;
     final file = File(p.join(root.path, rows.first['file_name'] as String));
     if (!await file.exists()) return null;
-    return WorkspaceProject.fromJson(
-      WorkspaceDocumentSchema.decode(await file.readAsString()),
-    );
+    final raw = await file.readAsString();
+    final document = await WorkspaceIsolateCodec.decode(raw);
+    return WorkspaceProject.fromJson(document);
   }
 
   Future<List<String>> ids() async => [

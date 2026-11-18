@@ -5,7 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../common/signal_gen.dart';
+import '../../core/runtime/runtime_events.dart';
 import '../common/widgets.dart';
 import 'spectro_model.dart';
 import 'spectro_painter.dart';
@@ -20,20 +20,31 @@ class SpectrogramScreen extends StatefulWidget {
 
 class _SpectrogramScreenState extends State<SpectrogramScreen> {
   final SpectroModel _model = SpectroModel();
-  final SyntheticSignal _signal = SyntheticSignal();
-  Timer? _timer;
+  StreamSubscription<RuntimeSignalBlock>? _signals;
+  StreamSubscription<RuntimeFrame>? _frames;
+  final List<List<double>> _pendingBlocks = <List<double>>[];
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      _model.push(_signal.take(16));
+    _signals = RuntimeEventHub.instance.signals.listen((block) {
+      if (mounted) _pendingBlocks.add(block.samples);
+    });
+    _frames = RuntimeEventHub.instance.frames.listen((_) {
+      if (!mounted || _pendingBlocks.isEmpty) return;
+      final blocks = List<List<double>>.of(_pendingBlocks);
+      _pendingBlocks.clear();
+      for (final block in blocks) {
+        _model.push(block);
+      }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _signals?.cancel();
+    _frames?.cancel();
+    _pendingBlocks.clear();
     _model.dispose();
     super.dispose();
   }

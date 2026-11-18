@@ -41,11 +41,13 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     debugLabel: 'debug log',
   );
   final TextEditingController _search = TextEditingController();
-  Timer? _poller;
+  StreamSubscription<FileSystemEvent>? _watcher;
   RandomAccessFile? _tail;
   bool _openingTail = false;
   int _fileOffset = 0;
   String _tailBuffer = '';
+  bool _reading = false;
+  bool _readAgain = false;
 
   bool _paused = false;
   bool _autoScroll = true;
@@ -59,8 +61,23 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     _search.addListener(
       () => setState(() => _query = _search.text.trim().toLowerCase()),
     );
-    _openTail();
-    _poller = Timer.periodic(const Duration(milliseconds: 400), (_) => _poll());
+    _watchLog();
+  }
+
+  Future<void> _watchLog() async {
+    try {
+      final directory = LogLocations.sessionLogDir();
+      await directory.create(recursive: true);
+      if (!mounted) return;
+      _watcher = directory.watch().listen((event) {
+        if (event.path.endsWith('latest.log')) unawaited(_poll());
+      }, onError: (Object error) {
+        // An unsupported filesystem watcher must not crash the console.
+      });
+      await _openTail();
+    } catch (_) {
+      if (mounted) setState(() => _fileMissing = true);
+    }
   }
 
   Future<void> _openTail() async {
@@ -85,6 +102,10 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
   }
 
   Future<void> _poll() async {
+    if (_reading) {
+      _readAgain = true;
+      return;
+    }
     if (!mounted || _paused) {
       return;
     }
@@ -92,6 +113,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       await _openTail();
       return;
     }
+    _reading = true;
     try {
       final int length = await _tail!.length();
       if (length < _fileOffset) {
@@ -140,6 +162,12 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       await _tail?.close();
       _tail = null;
       if (mounted) setState(() => _fileMissing = true);
+    } finally {
+      _reading = false;
+      if (_readAgain && mounted) {
+        _readAgain = false;
+        unawaited(_poll());
+      }
     }
   }
 
@@ -207,7 +235,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
 
   @override
   void dispose() {
-    _poller?.cancel();
+    _watcher?.cancel();
     _tail?.close();
     _scroll.dispose();
     _search.dispose();

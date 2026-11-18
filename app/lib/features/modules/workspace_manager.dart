@@ -247,7 +247,7 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
       acceptedTypeGroups: [
         const XTypeGroup(
           label: 'Qualia Workspace',
-          extensions: ['qualia-workspace', 'zip', 'json'],
+           extensions: ['qwork', 'qualia-workspace', 'zip', 'json'],
         ),
       ],
     );
@@ -258,7 +258,7 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
     final bytes = await file.readAsBytes();
     WorkspaceArchiveContents contents;
     if (WorkspaceArchive.looksLikeArchive(bytes)) {
-      contents = WorkspaceArchive.decodeContents(bytes);
+       contents = await WorkspaceArchive.decodeAsync(bytes);
     } else {
       // Keep old JSON packages importable for existing users.
       contents = WorkspaceArchiveContents(
@@ -286,12 +286,12 @@ class _WorkspaceManagerState extends ConsumerState<_WorkspaceManager> {
     );
     if (!confirmed || !mounted) return;
     final location = await getSaveLocation(
-      suggestedName:
-          '${project.name.replaceAll(RegExp(r'[^a-zA-Z0-9_а-яА-Я-]'), '_')}.qualia-workspace',
+       suggestedName:
+           '${project.name.replaceAll(RegExp(r'[^a-zA-Z0-9_а-яА-Я-]'), '_')}.qwork',
     );
     if (location == null) return;
     final current = ref.read(workspaceProvider);
-    final bytes = WorkspaceArchive.encode(
+     final bytes = await WorkspaceArchive.encodeAsync(
       project,
       hiddenNodeIds: current.hiddenNodeIds,
       hiddenModuleIds: current.hiddenModuleIds,

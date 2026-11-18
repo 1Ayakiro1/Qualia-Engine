@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
 import 'workspace_project.dart';
 import 'workspace_document_schema.dart';
+import 'workspace_isolate_codec.dart';
 
 class WorkspaceArchiveContents {
   const WorkspaceArchiveContents({
@@ -38,6 +40,40 @@ class WorkspaceArchive {
   static const format = 'qualia-workspace-folder';
   static const version = 1;
 
+  /// Public single-file representation (.qwork); identical to the directory
+  /// contract below. Encoding/validation runs off the main isolate.
+  static Future<List<int>> encodeAsync(
+    WorkspaceProject project, {
+    Set<String> hiddenNodeIds = const {},
+    Set<String> hiddenModuleIds = const {},
+    Map<String, bool> moduleActiveOverrides = const {},
+    Set<String> removedModuleIds = const {},
+    bool showLogicBlocks = true,
+    bool showModuleBlocks = true,
+  }) {
+    // Build only transfer-safe JSON on the UI isolate. ZIP compression and
+    // pretty-printing stay in the worker; rebuilding WorkspaceProject there
+    // would pull dart:ui geometry across an isolate boundary.
+    final files = _files(
+      project,
+      hiddenNodeIds: hiddenNodeIds,
+      hiddenModuleIds: hiddenModuleIds,
+      moduleActiveOverrides: moduleActiveOverrides,
+      removedModuleIds: removedModuleIds,
+      showLogicBlocks: showLogicBlocks,
+      showModuleBlocks: showModuleBlocks,
+    );
+    return Isolate.run(() => _encodeFiles(files));
+  }
+
+  static Future<WorkspaceArchiveContents> decodeAsync(List<int> bytes) async {
+    // ZIP decompression and JSON parsing happen away from the UI isolate;
+    // model validation stays here because WorkspaceProject owns Flutter
+    // geometry values and host module objects.
+    final files = await Isolate.run(() => _decodeFileMaps(bytes));
+    return _decodeFiles(files);
+  }
+
   static List<int> encode(
     WorkspaceProject project, {
     Set<String> hiddenNodeIds = const {},
@@ -47,8 +83,7 @@ class WorkspaceArchive {
     bool showLogicBlocks = true,
     bool showModuleBlocks = true,
   }) {
-    final archive = Archive();
-    for (final entry in _files(
+    return _encodeFiles(_files(
       project,
       hiddenNodeIds: hiddenNodeIds,
       hiddenModuleIds: hiddenModuleIds,
@@ -56,10 +91,33 @@ class WorkspaceArchive {
       removedModuleIds: removedModuleIds,
       showLogicBlocks: showLogicBlocks,
       showModuleBlocks: showModuleBlocks,
-    ).entries) {
+    ));
+  }
+
+  static List<int> _encodeFiles(Map<String, dynamic> files) {
+    final archive = Archive();
+    for (final entry in files.entries) {
       _addJson(archive, entry.key, entry.value);
     }
     return ZipEncoder().encode(archive)!;
+  }
+
+  /*
+   * Kept as a single helper so the synchronous compatibility API and the
+   * isolate-backed API use exactly the same archive contract.
+   */
+  static Map<String, dynamic> _decodeFileMaps(List<int> bytes) {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final files = <String, dynamic>{};
+    for (final path in _paths) {
+      final file = archive.findFile(path);
+      if (file == null) {
+        if (path == 'workspace/state.json') continue;
+        throw FormatException('Workspace archive lacks $path.');
+      }
+      files[path] = _readJson(archive, path);
+    }
+    return files;
   }
 
   /// Writes the same format as an ordinary directory using a staging folder,
@@ -108,7 +166,9 @@ class WorkspaceArchive {
       (await decodeDirectoryContents(directory)).project;
 
   static Future<WorkspaceArchiveContents> decodeDirectoryContents(
-    Directory directory,
+    Directory directory, {
+    bool parseOffMainIsolate = true,
+  }
   ) async {
     if (!await directory.exists()) {
       throw const FormatException('Workspace directory does not exist.');
@@ -117,7 +177,11 @@ class WorkspaceArchive {
     for (final path in _paths) {
       final file = File(p.join(directory.path, path));
       if (path == 'workspace/state.json' && !await file.exists()) continue;
-      files[path] = await _readJsonFile(file, path);
+      files[path] = await _readJsonFile(
+        file,
+        path,
+        parseOffMainIsolate: parseOffMainIsolate,
+      );
     }
     return _decodeFiles(files);
   }
@@ -133,17 +197,7 @@ class WorkspaceArchive {
       decodeContents(bytes).project;
 
   static WorkspaceArchiveContents decodeContents(List<int> bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
-    final files = <String, dynamic>{};
-    for (final path in _paths) {
-      final file = archive.findFile(path);
-      if (file == null) {
-        if (path == 'workspace/state.json') continue;
-        throw FormatException('Workspace archive lacks $path.');
-      }
-      files[path] = _readJson(archive, path);
-    }
-    return _decodeFiles(files);
+    return _decodeFiles(_decodeFileMaps(bytes));
   }
 
   static const _paths = [
@@ -253,17 +307,24 @@ class WorkspaceArchive {
   static Future<void> _writeJsonFile(File file, Object value) async {
     await file.parent.create(recursive: true);
     await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(value),
+      await WorkspaceIsolateCodec.encodeJson(value),
       flush: true,
     );
   }
 
-  static Future<dynamic> _readJsonFile(File file, String path) async {
+  static Future<dynamic> _readJsonFile(
+    File file,
+    String path, {
+    bool parseOffMainIsolate = true,
+  }) async {
     if (!await file.exists()) {
       throw FormatException('Workspace directory lacks $path.');
     }
     try {
-      return jsonDecode(await file.readAsString());
+      final source = await file.readAsString();
+      return parseOffMainIsolate
+          ? await WorkspaceIsolateCodec.decodeJson(source)
+          : jsonDecode(source);
     } catch (_) {
       throw FormatException('Invalid JSON in $path.');
     }

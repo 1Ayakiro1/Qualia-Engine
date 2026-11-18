@@ -243,6 +243,23 @@ void main() {
       expect(restored.removedModuleIds, {'removed'});
       expect(restored.showLogicBlocks, isFalse);
       expect(restored.showModuleBlocks, isFalse);
+      final asyncBytes = await WorkspaceArchive.encodeAsync(
+        source,
+        hiddenNodeIds: {'entity-1'},
+        hiddenModuleIds: {'test'},
+        moduleActiveOverrides: {'test': false},
+        removedModuleIds: {'removed'},
+        showLogicBlocks: false,
+        showModuleBlocks: false,
+      );
+      final asyncRestored = await WorkspaceArchive.decodeAsync(asyncBytes);
+      expect(asyncRestored.project.toJson(), restored.project.toJson());
+      expect(asyncRestored.hiddenNodeIds, restored.hiddenNodeIds);
+      expect(asyncRestored.hiddenModuleIds, restored.hiddenModuleIds);
+      expect(asyncRestored.moduleActiveOverrides, restored.moduleActiveOverrides);
+      expect(asyncRestored.removedModuleIds, restored.removedModuleIds);
+      expect(asyncRestored.showLogicBlocks, restored.showLogicBlocks);
+      expect(asyncRestored.showModuleBlocks, restored.showModuleBlocks);
       final root = await Directory.systemTemp.createTemp('qualia-workspace-');
       addTearDown(() => root.delete(recursive: true));
       final folder = Directory('${root.path}/Portable.qualia-workspace');
