@@ -11,11 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_info.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/logging/log_entry.dart';
+import '../../core/privacy/privacy_preferences.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
 import 'keyboard_shortcuts_panel.dart';
 import '../../l10n/locale_controller.dart';
 import '../../state/engine_provider.dart';
+import '../../core/auth/auth_service.dart';
 import '../common/widgets.dart';
 
 /// Settings workspace styled as a dedicated, two-column preferences panel.
@@ -34,6 +36,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool fullAccess = true;
   bool keepAwake = false;
   bool bottomPanel = false;
+  bool crashReports = false;
+  bool metrics = false;
+  bool externalData = false;
+  bool _privacyLoaded = false;
   late String selectedItem = widget.initialItem;
 
   @override
@@ -41,6 +47,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialItem != widget.initialItem) {
       selectedItem = widget.initialItem;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrivacy();
+  }
+
+  Future<void> _loadPrivacy() async {
+    final privacy = PrivacyPreferences.instance;
+    try {
+      await privacy.load();
+    } catch (_) {
+      logW(LogSource.settings, 'не удалось загрузить настройки приватности');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      crashReports = privacy.crashReports;
+      metrics = privacy.metrics;
+      externalData = privacy.externalData;
+      _privacyLoaded = true;
+    });
+  }
+
+  Future<void> _savePrivacy(Future<void> Function() save) async {
+    if (!_privacyLoaded) return;
+    setState(() => _privacyLoaded = false);
+    try {
+      await save();
+    } catch (_) {
+      logW(LogSource.settings, 'не удалось сохранить настройки приватности');
+    } finally {
+      if (mounted) {
+        final privacy = PrivacyPreferences.instance;
+        setState(() {
+          crashReports = privacy.crashReports;
+          metrics = privacy.metrics;
+          externalData = privacy.externalData;
+          _privacyLoaded = true;
+        });
+      }
     }
   }
 
@@ -79,6 +128,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 fullAccess: fullAccess,
                 keepAwake: keepAwake,
                 bottomPanel: bottomPanel,
+                crashReports: crashReports,
+                metrics: metrics,
+                externalData: externalData,
+                privacyLoaded: _privacyLoaded,
                 onWorkspaceAccessChanged: (value) {
                   setState(() => workspaceAccess = value);
                   logI(
@@ -107,6 +160,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     'нижняя панель: ${value ? 'вкл' : 'выкл'}',
                   );
                 },
+                onCrashReportsChanged: (value) => _savePrivacy(
+                  () => PrivacyPreferences.instance.setCrashReports(value),
+                ),
+                onMetricsChanged: (value) => _savePrivacy(
+                  () => PrivacyPreferences.instance.setMetrics(value),
+                ),
+                onExternalDataChanged: (value) => _savePrivacy(() async {
+                  await PrivacyPreferences.instance.setExternalData(value);
+                  if (value) {
+                    try {
+                      await AuthService.instance.initialize();
+                      if (mounted) ref.invalidate(authUserProvider);
+                    } catch (_) {
+                      logW(
+                        LogSource.settings,
+                        'внешние интеграции не запущены',
+                      );
+                    }
+                  }
+                }),
               ),
             ),
           ],
@@ -134,6 +207,7 @@ class _PreferencesSidebar extends StatelessWidget {
     ('Language', AppIcons.globe),
     ('Voice', AppIcons.microphone),
     ('Configuration', AppIcons.shieldCheck),
+    ('Privacy', AppIcons.shieldCheck),
     ('Personalization', AppIcons.history),
     ('Navigation', AppIcons.cursor),
     ('Account', AppIcons.userCircle),
@@ -250,10 +324,17 @@ class _PreferencesContent extends ConsumerWidget {
     required this.fullAccess,
     required this.keepAwake,
     required this.bottomPanel,
+    required this.crashReports,
+    required this.metrics,
+    required this.externalData,
+    required this.privacyLoaded,
     required this.onWorkspaceAccessChanged,
     required this.onFullAccessChanged,
     required this.onKeepAwakeChanged,
     required this.onBottomPanelChanged,
+    required this.onCrashReportsChanged,
+    required this.onMetricsChanged,
+    required this.onExternalDataChanged,
   });
 
   final String version;
@@ -262,10 +343,17 @@ class _PreferencesContent extends ConsumerWidget {
   final bool fullAccess;
   final bool keepAwake;
   final bool bottomPanel;
+  final bool crashReports;
+  final bool metrics;
+  final bool externalData;
+  final bool privacyLoaded;
   final ValueChanged<bool> onWorkspaceAccessChanged;
   final ValueChanged<bool> onFullAccessChanged;
   final ValueChanged<bool> onKeepAwakeChanged;
   final ValueChanged<bool> onBottomPanelChanged;
+  final ValueChanged<bool> onCrashReportsChanged;
+  final ValueChanged<bool> onMetricsChanged;
+  final ValueChanged<bool> onExternalDataChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -320,6 +408,70 @@ class _PreferencesContent extends ConsumerWidget {
           constraints: const BoxConstraints(maxWidth: 1000),
           child: KeyboardShortcutsPanel(key: ValueKey(selectedItem)),
         ),
+      );
+    }
+    if (selectedItem == 'Privacy') {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(48, 42, 48, 80),
+        children: [
+          Text(
+            context.l10n.privacyDataTitle,
+            style: const TextStyle(fontSize: 30),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.privacyDataDescription,
+            style: TextStyle(color: context.palette.mutedText, fontSize: 14),
+          ),
+          const SizedBox(height: 28),
+          _SettingsCard(
+            children: [
+              _PreferenceRow(
+                title: context.l10n.privacyCrashReports,
+                description: context.l10n.privacyCrashReportsDescription,
+                control: DesktopToggle(
+                  value: privacyLoaded && crashReports,
+                  onChanged: privacyLoaded ? onCrashReportsChanged : null,
+                ),
+              ),
+              _PreferenceRow(
+                title: context.l10n.privacyMetrics,
+                description: context.l10n.privacyMetricsDescription,
+                control: DesktopToggle(
+                  value: privacyLoaded && metrics,
+                  onChanged: privacyLoaded ? onMetricsChanged : null,
+                ),
+              ),
+              _PreferenceRow(
+                title: context.l10n.privacyExternalData,
+                description: context.l10n.privacyExternalDataDescription,
+                control: DesktopToggle(
+                  value: privacyLoaded && externalData,
+                  onChanged: privacyLoaded ? onExternalDataChanged : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          DesktopPane(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(AppIcons.info, color: context.palette.mutedText),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      context.l10n.privacyOutboundLog,
+                      style: TextStyle(color: context.palette.mutedText),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     }
     if (selectedItem != 'General') {

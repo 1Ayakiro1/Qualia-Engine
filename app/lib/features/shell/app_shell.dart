@@ -170,6 +170,10 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   Future<void> _showModuleSettings(SystemModule module, Offset position) async {
     final graph = ref.read(workspaceProvider);
+    final moduleNodes = graph.projects
+        .expand((project) => project.nodes)
+        .where((node) => node.module.id == module.id)
+        .toList();
     final action = await showDesktopMenu<String>(
       context: context,
       position: position,
@@ -188,6 +192,14 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
           label: graph.hiddenModuleIds.contains(module.id)
               ? context.l10n.textShow232
               : context.l10n.textHide231,
+        ),
+        DesktopMenuEntry(
+          value: 'fullyHidden',
+          label:
+              moduleNodes.isNotEmpty &&
+                  moduleNodes.every((node) => node.fullyHidden)
+              ? context.l10n.workspaceShowFully
+              : context.l10n.workspaceHideFully,
         ),
         DesktopMenuEntry(
           value: 'edit',
@@ -236,6 +248,14 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
               module.id,
               !graph.hiddenModuleIds.contains(module.id),
             );
+      case 'fullyHidden':
+        ref
+            .read(workspaceProvider.notifier)
+            .setModuleFullyHidden(
+              module.id,
+              moduleNodes.isEmpty ||
+                  !moduleNodes.every((node) => node.fullyHidden),
+            );
       case 'edit':
         await _showModuleEditStub(module);
     }
@@ -245,7 +265,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
     final graph = ref.read(workspaceProvider);
     final hidden =
         graph.hiddenNodeIds.contains(node.id) ||
-        graph.hiddenModuleIds.contains(node.module.id);
+        graph.hiddenModuleIds.contains(node.module.id) ||
+        node.fullyHidden;
     final action = await showDesktopMenu<String>(
       context: context,
       position: position,
@@ -272,6 +293,11 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
           value: 'visibility',
           label: hidden ? context.l10n.textShow232 : context.l10n.textHide231,
         ),
+        if (!node.isLogic && !node.fullyHidden)
+          DesktopMenuEntry(
+            value: 'fullyHidden',
+            label: context.l10n.workspaceHideFully,
+          ),
         DesktopMenuEntry(
           value: 'group',
           label: context.l10n.sceneMoveToGroup,
@@ -329,7 +355,15 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
           _selectedModule = node.isLogic ? null : node.module;
         });
       case 'visibility':
-        ref.read(workspaceProvider.notifier).setNodeHidden(node.id, !hidden);
+        if (node.fullyHidden) {
+          ref
+              .read(workspaceProvider.notifier)
+              .setNodeFullyHidden(node.id, false);
+        } else {
+          ref.read(workspaceProvider.notifier).setNodeHidden(node.id, !hidden);
+        }
+      case 'fullyHidden':
+        ref.read(workspaceProvider.notifier).setNodeFullyHidden(node.id, true);
       case 'delete':
         ref.read(workspaceProvider.notifier).removeNode(node.id);
         if (_selectedNodeId == node.id) {
@@ -1642,6 +1676,9 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                             graph.hiddenModuleIds,
                                                                         hiddenNodeIds:
                                                                             graph.hiddenNodeIds,
+                                                                        onAddModule: (
+                                                                          position,
+                                                                        ) => _showModuleActions(position: position),
                                                                         selectedNodeId:
                                                                             _selectedNodeId,
                                                                         onWorkspaceNodeSelected: (node) {
@@ -1658,14 +1695,23 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                                                                           node,
                                                                           position,
                                                                         ) => _showSceneNodeMenu(node, position),
-                                                                        onShowNode: (node) => ref
-                                                                            .read(
-                                                                              workspaceProvider.notifier,
-                                                                            )
-                                                                            .setNodeHidden(
+                                                                        onShowNode: (node) {
+                                                                          final controller = ref.read(
+                                                                            workspaceProvider.notifier,
+                                                                          );
+                                                                          if (node
+                                                                              .fullyHidden) {
+                                                                            controller.setNodeFullyHidden(
                                                                               node.id,
                                                                               false,
-                                                                            ),
+                                                                            );
+                                                                          } else {
+                                                                            controller.setNodeHidden(
+                                                                              node.id,
+                                                                              false,
+                                                                            );
+                                                                          }
+                                                                        },
                                                                         onHideNode: (node) => ref
                                                                             .read(
                                                                               workspaceProvider.notifier,
@@ -3281,6 +3327,7 @@ class _WorkspaceScenePane extends ConsumerStatefulWidget {
     required this.onNodeMenu,
     required this.onShowNode,
     required this.onHideNode,
+    this.onAddModule,
     required this.canvasController,
   });
 
@@ -3293,6 +3340,7 @@ class _WorkspaceScenePane extends ConsumerStatefulWidget {
   final void Function(WorkspaceNode node, Offset position) onNodeMenu;
   final ValueChanged<WorkspaceNode> onShowNode;
   final ValueChanged<WorkspaceNode> onHideNode;
+  final ValueChanged<Offset>? onAddModule;
   final WorkspaceCanvasController canvasController;
 
   @override
@@ -3463,7 +3511,8 @@ class _WorkspaceScenePaneState extends ConsumerState<_WorkspaceScenePane> {
     final expanded = _expandedNodeIds.contains(node.id);
     final hidden =
         widget.hiddenNodeIds.contains(node.id) ||
-        widget.hiddenModuleIds.contains(node.module.id);
+        widget.hiddenModuleIds.contains(node.module.id) ||
+        node.fullyHidden;
     final title = node.isLogic
         ? context.logicBlockLabel(node.logicType.name)
         : node.module.displayName(context);
@@ -3621,13 +3670,6 @@ class _WorkspaceScenePaneState extends ConsumerState<_WorkspaceScenePane> {
                           padding: const EdgeInsets.fromLTRB(10, 9, 8, 7),
                           child: Row(
                             children: [
-                              Icon(
-                                _collectionExpanded
-                                    ? AppIcons.caretDown
-                                    : AppIcons.caretRight,
-                                size: 17,
-                              ),
-                              const SizedBox(width: 3),
                               const Icon(AppIcons.workflow, size: 16),
                               const SizedBox(width: 7),
                               Expanded(
@@ -3640,6 +3682,27 @@ class _WorkspaceScenePaneState extends ConsumerState<_WorkspaceScenePane> {
                                         letterSpacing: 1.15,
                                         fontWeight: FontWeight.bold,
                                       ),
+                                ),
+                              ),
+                              Builder(
+                                builder: (buttonContext) => DesktopIconButton(
+                                  key: const ValueKey('scene add module'),
+                                  icon: AppIcons.add,
+                                  tooltip: context.l10n.textAddModule158,
+                                  size: 26,
+                                  iconSize: 17,
+                                  onPressed: widget.onAddModule == null
+                                      ? null
+                                      : () {
+                                          final box =
+                                              buttonContext.findRenderObject()
+                                                  as RenderBox;
+                                          widget.onAddModule!(
+                                            box.localToGlobal(
+                                              Offset(0, box.size.height),
+                                            ),
+                                          );
+                                        },
                                 ),
                               ),
                               DesktopIconButton(
@@ -3763,13 +3826,23 @@ class _WorkspaceScenePaneState extends ConsumerState<_WorkspaceScenePane> {
                         (graph.hiddenNodeIds.contains(selectedNode.id) ||
                             graph.hiddenModuleIds.contains(
                               selectedNode.module.id,
-                            )),
+                            ) ||
+                            selectedNode.fullyHidden),
                     onVisibilityChanged: selectedNode == null
                         ? null
-                        : (visible) => controller.setNodeHidden(
-                            selectedNode.id,
-                            !visible,
-                          ),
+                        : (visible) {
+                            if (selectedNode.fullyHidden) {
+                              controller.setNodeFullyHidden(
+                                selectedNode.id,
+                                !visible,
+                              );
+                            } else {
+                              controller.setNodeHidden(
+                                selectedNode.id,
+                                !visible,
+                              );
+                            }
+                          },
                     onPositionChanged: selectedNode == null
                         ? null
                         : (position) =>
@@ -4167,8 +4240,6 @@ class _ExplorerState extends State<_Explorer> {
                                           module: module,
                                           onCanvas: widget.canvasModuleIds
                                               .contains(module.id),
-                                          onShow: () =>
-                                              widget.onShowModule(module),
                                           hidden: widget.hiddenModuleIds
                                               .contains(module.id),
                                           selected:
@@ -4253,8 +4324,6 @@ class _ExplorerState extends State<_Explorer> {
                                           module: module,
                                           onCanvas: widget.canvasModuleIds
                                               .contains(module.id),
-                                          onShow: () =>
-                                              widget.onShowModule(module),
                                           catalog: true,
                                           hidden: widget.hiddenModuleIds
                                               .contains(module.id),
@@ -4674,7 +4743,6 @@ class _ModuleItem extends StatefulWidget {
     required this.onTap,
     required this.onSettings,
     required this.onCanvas,
-    required this.onShow,
     this.hidden = false,
     this.catalog = false,
     this.selected = false,
@@ -4683,7 +4751,6 @@ class _ModuleItem extends StatefulWidget {
   final VoidCallback onTap;
   final ValueChanged<Offset> onSettings;
   final bool onCanvas;
-  final VoidCallback onShow;
   final bool hidden;
   final bool catalog;
   final bool selected;
@@ -4771,15 +4838,6 @@ class _ModuleItemState extends State<_ModuleItem> {
                             size: 27,
                             iconSize: 16,
                           )
-                        : widget.hidden
-                        ? DesktopIconButton(
-                            key: ValueKey('show module ${widget.module.id}'),
-                            icon: AppIcons.eyeOff,
-                            tooltip: context.l10n.textShow232,
-                            onPressed: widget.onShow,
-                            size: 27,
-                            iconSize: 15,
-                          )
                         : widget.onCanvas
                         ? Icon(
                             AppIcons.circleFilled,
@@ -4791,17 +4849,6 @@ class _ModuleItemState extends State<_ModuleItem> {
                           )
                         : const SizedBox(width: 6),
                   ),
-                  if (widget.hidden && _hovered) ...[
-                    const SizedBox(width: 6),
-                    DesktopIconButton(
-                      key: ValueKey('show module ${widget.module.id}'),
-                      icon: AppIcons.eyeOff,
-                      tooltip: context.l10n.textShow232,
-                      onPressed: widget.onShow,
-                      size: 27,
-                      iconSize: 15,
-                    ),
-                  ],
                 ],
               ),
             ),

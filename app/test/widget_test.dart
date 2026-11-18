@@ -316,7 +316,7 @@ void main() {
     }
     await tester.tap(find.text('About Us'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Version 0.5.2-dev.4'), findsOneWidget);
+    expect(find.textContaining('Version 0.5.2-dev.5'), findsOneWidget);
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
 

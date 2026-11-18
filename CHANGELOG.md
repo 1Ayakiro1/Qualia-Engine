@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.2-dev.5] — 2026-11-18 (development snapshot, not a 0.5.2 release)
+
+- Add local-only privacy defaults, persistent diagnostic opt-ins, consent-gated
+  Supabase/cover HTTP and a redacted outbound audit journal.
+- Document data privacy, clinical deployment checks and module trust limitations.
+- Add custom-module creation/import from the scene header and remove the leading
+  disclosure arrow and canvas-card hide button.
+- Add persistent complete hiding and double-click selection/restoration of
+  partially hidden module instances without stopping their processing.
+
 ## [0.5.2-dev.4] — 2026-10-29 (development snapshot, not a 0.5.2 release)
 
 - Add protruding circular input/output ports while preserving stable graph

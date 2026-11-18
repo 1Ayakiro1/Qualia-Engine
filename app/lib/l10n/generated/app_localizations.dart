@@ -296,6 +296,72 @@ abstract class AppLocalizations {
   /// **'Action redone'**
   String get workspaceRedoNotice;
 
+  /// No description provided for @privacyDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data privacy'**
+  String get privacyDataTitle;
+
+  /// No description provided for @privacyDataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Local processing is the default. Optional diagnostics are disabled until you explicitly enable them.'**
+  String get privacyDataDescription;
+
+  /// No description provided for @privacyCrashReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Crash reports'**
+  String get privacyCrashReports;
+
+  /// No description provided for @privacyCrashReportsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow anonymized crash diagnostics to be prepared for an external reporting service. No report is sent by this build.'**
+  String get privacyCrashReportsDescription;
+
+  /// No description provided for @privacyMetrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage metrics'**
+  String get privacyMetrics;
+
+  /// No description provided for @privacyMetricsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Consent to optional usage metrics. This build has no metrics upload service and sends no metrics.'**
+  String get privacyMetricsDescription;
+
+  /// No description provided for @privacyExternalData.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow data outside the app'**
+  String get privacyExternalData;
+
+  /// No description provided for @privacyExternalDataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Supabase sign-in, catalog, covers and explicit publishing. Off blocks new application HTTP requests. It does not sandbox installed modules or cancel requests already sent.'**
+  String get privacyExternalDataDescription;
+
+  /// No description provided for @privacyOutboundLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Outbound audit: logs/outbound.jsonl in the local app data directory. Records destination, field names, byte count and response/failure, never field values or tokens. Browser sign-in is recorded as a handoff, not a completed transfer. See docs/DATA_PRIVACY.md.'**
+  String get privacyOutboundLog;
+
+  /// No description provided for @workspaceHideFully.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide completely'**
+  String get workspaceHideFully;
+
+  /// No description provided for @workspaceShowFully.
+  ///
+  /// In en, this message translates to:
+  /// **'Show completely'**
+  String get workspaceShowFully;
+
   /// No description provided for @railBottomZone.
   ///
   /// In en, this message translates to:

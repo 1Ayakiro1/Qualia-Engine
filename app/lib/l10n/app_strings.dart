@@ -152,6 +152,7 @@ extension AppStrings on BuildContext {
     "Bug report" => l10n.textBugReport56,
     "Сообщить о проблеме" => l10n.textReportAProblem57,
     "Настройки" => l10n.textSettings58,
+    'Privacy' => l10n.privacyDataTitle,
     "Режимы, сборка, лицензии" => l10n.textModesBuildLicenses59,
     "File" => l10n.textFile60,
     "Edit" => l10n.textEdit61,

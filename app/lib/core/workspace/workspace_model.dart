@@ -49,6 +49,7 @@ class WorkspaceNode {
     List<String>? outputs,
     Map<String, dynamic>? settings,
     this.headerColor = WorkspaceNodeColor.none,
+    this.fullyHidden = false,
     Map<String, WorkspaceNodeColor>? inputColors,
     Map<String, WorkspaceNodeColor>? outputColors,
     Map<String, String>? inputLabels,
@@ -87,6 +88,9 @@ class WorkspaceNode {
   SystemModule module;
   Offset position;
   WorkspaceNodeColor headerColor;
+
+  /// Host-owned canvas visibility, never an author/module parameter.
+  bool fullyHidden;
   final Map<String, WorkspaceNodeColor> inputColors;
   final Map<String, WorkspaceNodeColor> outputColors;
   final Map<String, String> inputLabels;
@@ -155,6 +159,7 @@ class WorkspaceNode {
     if (includeRuntime) 'runtimeHistory': runtimeHistory,
     if (includeRuntime) 'runtimeStatus': runtimeStatus,
     'headerColor': headerColor.name,
+    if (fullyHidden) 'fullyHidden': true,
     'inputColors': inputColors.map((port, color) => MapEntry(port, color.name)),
     'outputColors': outputColors.map(
       (port, color) => MapEntry(port, color.name),
@@ -203,6 +208,7 @@ class WorkspaceNode {
       inputTypes: _portTypesFromJson(json['inputTypes']),
       outputTypes: _portTypesFromJson(json['outputTypes']),
     );
+    node.fullyHidden = json['fullyHidden'] == true;
     if (json['runtimeValues'] is Map) {
       node.runtimeValues.addAll(
         Map<String, dynamic>.from(json['runtimeValues'] as Map),

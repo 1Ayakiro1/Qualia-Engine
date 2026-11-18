@@ -111,6 +111,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceRedoNotice => 'Action redone';
 
   @override
+  String get privacyDataTitle => 'Data privacy';
+
+  @override
+  String get privacyDataDescription =>
+      'Local processing is the default. Optional diagnostics are disabled until you explicitly enable them.';
+
+  @override
+  String get privacyCrashReports => 'Crash reports';
+
+  @override
+  String get privacyCrashReportsDescription =>
+      'Allow anonymized crash diagnostics to be prepared for an external reporting service. No report is sent by this build.';
+
+  @override
+  String get privacyMetrics => 'Usage metrics';
+
+  @override
+  String get privacyMetricsDescription =>
+      'Consent to optional usage metrics. This build has no metrics upload service and sends no metrics.';
+
+  @override
+  String get privacyExternalData => 'Allow data outside the app';
+
+  @override
+  String get privacyExternalDataDescription =>
+      'Enable Supabase sign-in, catalog, covers and explicit publishing. Off blocks new application HTTP requests. It does not sandbox installed modules or cancel requests already sent.';
+
+  @override
+  String get privacyOutboundLog =>
+      'Outbound audit: logs/outbound.jsonl in the local app data directory. Records destination, field names, byte count and response/failure, never field values or tokens. Browser sign-in is recorded as a handoff, not a completed transfer. See docs/DATA_PRIVACY.md.';
+
+  @override
+  String get workspaceHideFully => 'Hide completely';
+
+  @override
+  String get workspaceShowFully => 'Show completely';
+
+  @override
   String get railBottomZone => 'Bottom of rail';
 
   @override

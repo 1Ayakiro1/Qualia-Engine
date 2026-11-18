@@ -111,6 +111,44 @@ class AppLocalizationsRu extends AppLocalizations {
   String get workspaceRedoNotice => 'Действие возвращено';
 
   @override
+  String get privacyDataTitle => 'Приватность данных';
+
+  @override
+  String get privacyDataDescription =>
+      'Локальная обработка включена по умолчанию. Необязательная диагностика выключена, пока вы явно её не разрешите.';
+
+  @override
+  String get privacyCrashReports => 'Краш-репорты';
+
+  @override
+  String get privacyCrashReportsDescription =>
+      'Разрешить подготовку обезличенной диагностики сбоев для внешнего сервиса. Эта сборка ничего не отправляет.';
+
+  @override
+  String get privacyMetrics => 'Метрики использования';
+
+  @override
+  String get privacyMetricsDescription =>
+      'Согласие на необязательные метрики использования. В этой сборке нет сервиса отправки метрик; метрики не передаются.';
+
+  @override
+  String get privacyExternalData => 'Разрешить передачу данных наружу';
+
+  @override
+  String get privacyExternalDataDescription =>
+      'Включить вход через Supabase, каталог, обложки и явную публикацию. Выключение блокирует новые HTTP-запросы приложения, но не изолирует установленные модули и не отменяет уже отправленные запросы.';
+
+  @override
+  String get privacyOutboundLog =>
+      'Аудит передачи: logs/outbound.jsonl в локальном каталоге данных приложения. Содержит назначение, имена полей, размер и ответ/ошибку, без значений и токенов. Вход в браузере записывается как передача управления, а не завершённая отправка. Подробнее: docs/DATA_PRIVACY.md.';
+
+  @override
+  String get workspaceHideFully => 'Скрыть полностью';
+
+  @override
+  String get workspaceShowFully => 'Показать полностью';
+
+  @override
   String get railBottomZone => 'Нижняя часть рейла';
 
   @override

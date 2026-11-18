@@ -4,8 +4,8 @@
   "generatedBy": "scripts/generate_version_lock.py",
   "engine": {
     "name": "Qualia Engine",
-    "version": "0.5.2-dev.4",
-    "coreVersion": "0.5.2-dev.4",
+    "version": "0.5.2-dev.5",
+    "coreVersion": "0.5.2-dev.5",
     "coreAbi": 3,
     "apiVersion": "1.1.0"
   },
@@ -191,6 +191,11 @@
         "source": "hosted",
         "sha256": "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
       },
+      "http": {
+        "version": "1.6.0",
+        "source": "hosted",
+        "sha256": "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      },
       "intl": {
         "version": "0.20.3",
         "source": "hosted",
@@ -215,6 +220,11 @@
         "version": "2.5.5",
         "source": "hosted",
         "sha256": "c3025c5534b01739267eb7d76959bbc25a6d10f6988e1c2a3036940133dd10bf"
+      },
+      "sqlite3": {
+        "version": "2.9.4",
+        "source": "hosted",
+        "sha256": "3145bd74dcdb4fd6f5c6dda4d4e4490a8087d7f286a14dee5d37087290f0f8a2"
       },
       "supabase_flutter": {
         "version": "2.17.2",
@@ -809,6 +819,11 @@
         "version": "1.10.2",
         "source": "hosted",
         "sha256": "56a02f1f4cd1a2d96303c0144c93bd6d909eea6bee6bf5a0e0b685edbd4c47ab"
+      },
+      "sqlite3": {
+        "version": "2.9.4",
+        "source": "hosted",
+        "sha256": "3145bd74dcdb4fd6f5c6dda4d4e4490a8087d7f286a14dee5d37087290f0f8a2"
       },
       "stack_trace": {
         "version": "1.12.2",

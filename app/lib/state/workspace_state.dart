@@ -173,12 +173,16 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     if (identical(a, b)) return true;
     if (a is List && b is List) {
       return a.length == b.length &&
-          List.generate(a.length, (i) => i).every((i) => _jsonEqual(a[i], b[i]));
+          List.generate(
+            a.length,
+            (i) => i,
+          ).every((i) => _jsonEqual(a[i], b[i]));
     }
     if (a is Map && b is Map) {
-      return a.length == b.length && a.keys.every(
-        (key) => b.containsKey(key) && _jsonEqual(a[key], b[key]),
-      );
+      return a.length == b.length &&
+          a.keys.every(
+            (key) => b.containsKey(key) && _jsonEqual(a[key], b[key]),
+          );
     }
     return a == b;
   }
@@ -209,20 +213,20 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     await _persist(() async {
       final encoded = await _encodeDocument(document);
       final prefs = await SharedPreferences.getInstance();
-       if (!await prefs.setString(storageKey, encoded) ||
-           !await prefs.setString(savedStorageKey, encoded)) {
-         throw StateError('Workspace could not be saved.');
-       }
-       // Recovery autosaves update the file cache, but do not make it the
-       // authoritative reopen source. That switch is changed only by the
-        // explicit Save action below.
-       final storedOnDisk = _isTestBinding
-           ? false
-           : await _saveDocumentsToFileStore(openIfNeeded: true);
-       if (storedOnDisk) {
-         await prefs.setBool(documentStoreEnabledKey, true);
-       }
-        final directoryPath = _workspaceDirectoryPath;
+      if (!await prefs.setString(storageKey, encoded) ||
+          !await prefs.setString(savedStorageKey, encoded)) {
+        throw StateError('Workspace could not be saved.');
+      }
+      // Recovery autosaves update the file cache, but do not make it the
+      // authoritative reopen source. That switch is changed only by the
+      // explicit Save action below.
+      final storedOnDisk = _isTestBinding
+          ? false
+          : await _saveDocumentsToFileStore(openIfNeeded: true);
+      if (storedOnDisk) {
+        await prefs.setBool(documentStoreEnabledKey, true);
+      }
+      final directoryPath = _workspaceDirectoryPath;
       if (directoryPath != null) {
         await WorkspaceArchive.writeDirectory(
           Directory(directoryPath),
@@ -370,8 +374,7 @@ class WorkspaceController extends Notifier<WorkspaceState> {
       // Flutter tests intentionally isolate persistence through the mocked
       // preferences backend. Do not let a real desktop SQLite cache leak
       // between test isolates or override that recovery fixture.
-      if (!_isTestBinding &&
-          prefs.getBool(documentStoreEnabledKey) == true) {
+      if (!_isTestBinding && prefs.getBool(documentStoreEnabledKey) == true) {
         try {
           _documentStore = await WorkspaceDocumentStore.open();
         } catch (error) {
@@ -398,9 +401,11 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         _syncRuntime();
         _lastDocument = _document();
         final saved = prefs.getString(savedStorageKey);
-        _savedDocument = saved == null ? _lastDocument : (_isTestBinding
-            ? WorkspaceDocumentSchema.decode(saved)
-            : await WorkspaceIsolateCodec.decode(saved));
+        _savedDocument = saved == null
+            ? _lastDocument
+            : (_isTestBinding
+                  ? WorkspaceDocumentSchema.decode(saved)
+                  : await WorkspaceIsolateCodec.decode(saved));
       }
       // Keep the legacy recovery load's scheduling unchanged when the file
       // store is unavailable (notably in widget tests). Opening the optional
@@ -450,7 +455,8 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     }
     if (projects.isEmpty || _disposed) return;
     final activeId = state.activeProjectId;
-    final active = projects.where((p) => p.id == activeId).firstOrNull ?? projects.first;
+    final active =
+        projects.where((p) => p.id == activeId).firstOrNull ?? projects.first;
     state = state.copyWith(
       projects: projects,
       activeProjectId: active.id,
@@ -465,11 +471,18 @@ class WorkspaceController extends Notifier<WorkspaceState> {
     );
     _namedProjects
       ..clear()
-      ..addAll(projects.where((p) => p.id != 'default' || p.name != 'Workspace').map((p) => p.id));
+      ..addAll(
+        projects
+            .where((p) => p.id != 'default' || p.name != 'Workspace')
+            .map((p) => p.id),
+      );
     // File documents are authoritative once the store has been enabled.
     _lastDocument = _document();
     _savedDocument = _lastDocument;
-    await prefs.setString(savedStorageKey, await _encodeDocument(_lastDocument!));
+    await prefs.setString(
+      savedStorageKey,
+      await _encodeDocument(_lastDocument!),
+    );
   }
 
   void _restoreDirectoryProject(WorkspaceArchiveContents contents) {
@@ -625,7 +638,9 @@ class WorkspaceController extends Notifier<WorkspaceState> {
           : [...state.projects, project],
     );
     final document = _document();
-    if (recordHistory && _lastDocument != null && !_jsonEqual(document, _lastDocument)) {
+    if (recordHistory &&
+        _lastDocument != null &&
+        !_jsonEqual(document, _lastDocument)) {
       if (!_historyGroup || !_groupRecorded) {
         _undo.add(_lastDocument!);
         if (_undo.length > 50) _undo.removeAt(0);
@@ -681,35 +696,40 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   static dynamic _copyJson(dynamic value) {
     if (value is Map) {
       return <String, dynamic>{
-        for (final entry in value.entries) entry.key as String: _copyJson(entry.value),
+        for (final entry in value.entries)
+          entry.key as String: _copyJson(entry.value),
       };
     }
     if (value is List) return value.map(_copyJson).toList();
     return value;
   }
 
-  Map<String, dynamic> _document() => _copyJson(WorkspaceDocumentSchema.encode({
-    'nodes': state.nodes.map((node) => node.toJson()).toList(),
-    'links': state.links.map((link) => link.toJson()).toList(),
-    'annotations': state.annotations
-        .map((annotation) => annotation.toJson())
-        .toList(),
-    'canvasWidth': state.canvasWidth,
-    'canvasHeight': state.canvasHeight,
-    'library': state.library.map((module) => module.toWorkspaceJson()).toList(),
-    'presets': state.presets.map((preset) => preset.toJson()).toList(),
-    'presetModuleIds': state.presetModuleIds,
-    'authorMetadata': state.authorMetadata,
-    'projects': state.projects.map((p) => p.toJson()).toList(),
-    'activeProjectId': state.activeProjectId,
-    'moduleActiveOverrides': state.moduleActiveOverrides,
-    'hiddenModuleIds': state.hiddenModuleIds.toList(),
-    'hiddenNodeIds': state.hiddenNodeIds.toList(),
-    'removedModuleIds': state.removedModuleIds.toList(),
-    'showLogicBlocks': state.showLogicBlocks,
-    'showModuleBlocks': state.showModuleBlocks,
-    'namedProjects': _namedProjects.toList(),
-  })) as Map<String, dynamic>;
+  Map<String, dynamic> _document() => _copyJson(
+    WorkspaceDocumentSchema.encode({
+      'nodes': state.nodes.map((node) => node.toJson()).toList(),
+      'links': state.links.map((link) => link.toJson()).toList(),
+      'annotations': state.annotations
+          .map((annotation) => annotation.toJson())
+          .toList(),
+      'canvasWidth': state.canvasWidth,
+      'canvasHeight': state.canvasHeight,
+      'library': state.library
+          .map((module) => module.toWorkspaceJson())
+          .toList(),
+      'presets': state.presets.map((preset) => preset.toJson()).toList(),
+      'presetModuleIds': state.presetModuleIds,
+      'authorMetadata': state.authorMetadata,
+      'projects': state.projects.map((p) => p.toJson()).toList(),
+      'activeProjectId': state.activeProjectId,
+      'moduleActiveOverrides': state.moduleActiveOverrides,
+      'hiddenModuleIds': state.hiddenModuleIds.toList(),
+      'hiddenNodeIds': state.hiddenNodeIds.toList(),
+      'removedModuleIds': state.removedModuleIds.toList(),
+      'showLogicBlocks': state.showLogicBlocks,
+      'showModuleBlocks': state.showModuleBlocks,
+      'namedProjects': _namedProjects.toList(),
+    }),
+  ) as Map<String, dynamic>;
 
   Future<bool> _saveDocumentsToFileStore({bool openIfNeeded = false}) async {
     if (!openIfNeeded && _documentStore == null) return false;
@@ -735,7 +755,10 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         final json = await _encodeDocument(document);
         final prefs = await SharedPreferences.getInstance();
         if (_savedDocument != null && !prefs.containsKey(savedStorageKey)) {
-          if (!await prefs.setString(savedStorageKey, await _encodeDocument(_savedDocument!))) {
+          if (!await prefs.setString(
+            savedStorageKey,
+            await _encodeDocument(_savedDocument!),
+          )) {
             throw StateError('Workspace checkpoint could not be saved.');
           }
         }
@@ -770,12 +793,12 @@ class WorkspaceController extends Notifier<WorkspaceState> {
         showLogicBlocks: state.showLogicBlocks,
         showModuleBlocks: state.showModuleBlocks,
       );
-       if (!await prefs.setString(workspaceDirectoryStorageKey, cleaned) ||
-           !await prefs.setString(storageKey, encoded) ||
-           !await prefs.setString(savedStorageKey, encoded)) {
+      if (!await prefs.setString(workspaceDirectoryStorageKey, cleaned) ||
+          !await prefs.setString(storageKey, encoded) ||
+          !await prefs.setString(savedStorageKey, encoded)) {
         throw StateError('Workspace could not be saved.');
-       }
-       await prefs.setBool(documentStoreEnabledKey, true);
+      }
+      await prefs.setBool(documentStoreEnabledKey, true);
       _workspaceDirectoryPath = cleaned;
       _savedDocument = document;
     });
@@ -1490,6 +1513,45 @@ class WorkspaceController extends Notifier<WorkspaceState> {
   }
 
   void setNodeHidden(String id, bool hidden) => setNodesHidden({id}, hidden);
+
+  /// Removes a node from the canvas completely while keeping it in the
+  /// workspace document. The Scene Collection/context menu can restore it.
+  void setNodeFullyHidden(String id, bool hidden) {
+    final node = state.nodes.where((item) => item.id == id).firstOrNull;
+    if (node == null || node.isLogic) return;
+    if (node.fullyHidden == hidden) return;
+    if (!hidden) {
+      node.fullyHidden = false;
+      setNodeHidden(id, false);
+      return;
+    }
+    node.fullyHidden = true;
+    state = state.copyWith(nodes: [...state.nodes]);
+    _changed();
+  }
+
+  void setModuleFullyHidden(String moduleId, bool hidden) {
+    final nodes = <WorkspaceNode>{
+      ...state.nodes,
+      for (final project in state.projects) ...project.nodes,
+    }.where((node) => node.module.id == moduleId && !node.isLogic).toList();
+    if (nodes.isEmpty || nodes.every((node) => node.fullyHidden == hidden)) {
+      return;
+    }
+    for (final node in nodes) {
+      node.fullyHidden = hidden;
+    }
+    final ids = {...state.hiddenNodeIds};
+    final modules = {...state.hiddenModuleIds};
+    if (!hidden) ids.removeAll(nodes.map((node) => node.id));
+    if (!hidden) modules.remove(moduleId);
+    state = state.copyWith(
+      nodes: [...state.nodes],
+      hiddenNodeIds: ids,
+      hiddenModuleIds: modules,
+    );
+    _changed();
+  }
 
   /// Publish one visibility change and undo checkpoint for the whole array.
   void setNodesHidden(Set<String> nodeIds, bool hidden) {

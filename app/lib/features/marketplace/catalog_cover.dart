@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../core/privacy/privacy_preferences.dart';
+import '../../core/privacy/privacy_http_client.dart';
 import 'catalog_entry.dart';
 
 /// Shared wallpaper renderer for catalog cards and author previews.
@@ -32,11 +35,7 @@ class CatalogCover extends StatelessWidget {
       ),
       CustomPaint(painter: _WallpaperPainter(pattern: pattern)),
       if (imageUrl != null && Uri.tryParse(imageUrl!)?.scheme == 'https')
-        Image.network(
-          imageUrl!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
+        _ConsentedCoverImage(url: imageUrl!),
       if (imageUrl == null)
         Center(
           child: Container(
@@ -55,6 +54,74 @@ class CatalogCover extends StatelessWidget {
         ),
     ],
   );
+}
+
+/// Covers use the same consent/audit boundary as the catalog adapter, not
+/// Image.network's independent HTTP client. Revocation removes the image.
+class _ConsentedCoverImage extends StatefulWidget {
+  const _ConsentedCoverImage({required this.url});
+  final String url;
+  @override
+  State<_ConsentedCoverImage> createState() => _ConsentedCoverImageState();
+}
+
+class _ConsentedCoverImageState extends State<_ConsentedCoverImage> {
+  Future<Uint8List?>? _image;
+  bool _hasConsent = false;
+  @override
+  void initState() {
+    super.initState();
+    PrivacyPreferences.instance.addListener(_consentChanged);
+    _refresh();
+  }
+
+  void _refresh() {
+    _hasConsent = PrivacyPreferences.instance.externalData;
+    _image = _hasConsent ? _load(widget.url) : null;
+  }
+
+  void _consentChanged() {
+    if (PrivacyPreferences.instance.externalData == _hasConsent) return;
+    setState(_refresh);
+  }
+
+  Future<Uint8List?> _load(String url) async {
+    final client = PrivacyHttpClient();
+    try {
+      final response = await client.get(Uri.parse(url));
+      return response.statusCode == 200 ? response.bodyBytes : null;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ConsentedCoverImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) _refresh();
+  }
+
+  @override
+  void dispose() {
+    PrivacyPreferences.instance.removeListener(_consentChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _image == null
+      ? const SizedBox.shrink()
+      : FutureBuilder<Uint8List?>(
+          future: _image,
+          builder: (_, snapshot) => snapshot.data == null
+              ? const SizedBox.shrink()
+              : Image.memory(
+                  snapshot.data!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+        );
 }
 
 class _WallpaperPainter extends CustomPainter {

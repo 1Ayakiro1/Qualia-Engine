@@ -222,6 +222,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
             (node) =>
                 !next.hiddenNodeIds.contains(node.id) &&
                 !next.hiddenModuleIds.contains(node.module.id) &&
+                !node.fullyHidden &&
                 (node.isLogic ? next.showLogicBlocks : next.showModuleBlocks),
           )
           .map((node) => node.id)
@@ -608,7 +609,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       .where((node) {
         final graph = ref.read(workspaceProvider);
         return !graph.hiddenNodeIds.contains(node.id) &&
-            !graph.hiddenModuleIds.contains(node.module.id);
+            !graph.hiddenModuleIds.contains(node.module.id) &&
+            !node.fullyHidden;
       })
       .toList();
 
@@ -630,6 +632,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
           (node) =>
               !graph.hiddenNodeIds.contains(node.id) &&
               !graph.hiddenModuleIds.contains(node.module.id) &&
+              !node.fullyHidden &&
               (node.isLogic ? graph.showLogicBlocks : graph.showModuleBlocks),
         )
         .where((node) => node.headerColor == color)
@@ -654,9 +657,22 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     return node;
   }
 
-  WorkspaceNode? _nodeAt(Offset global) {
+  WorkspaceNode? _nodeAt(Offset global, {bool includePartiallyHidden = false}) {
     final scene = _sceneAt(global);
-    return _visibleNodes.reversed
+    final graph = ref.read(workspaceProvider);
+    final nodes = includePartiallyHidden
+        ? graph.nodes.where(
+            (node) =>
+                !node.fullyHidden &&
+                (node.isLogic
+                    ? graph.showLogicBlocks
+                    : graph.showModuleBlocks) &&
+                (_colorFilter == null || node.headerColor == _colorFilter),
+          )
+        : _visibleNodes;
+    return nodes
+        .toList()
+        .reversed
         .where(
           (node) =>
               (node.position & Size(node.width, node.height)).contains(scene),
@@ -715,10 +731,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     final current = ref.read(selectionProvider).ids;
     if (!setEquals(current, _selection) ||
         ref.read(selectionProvider).primaryId != _selectedId) {
-      ref.read(selectionProvider.notifier).replace(
-        _selection,
-        primaryId: _selectedId,
-      );
+      ref
+          .read(selectionProvider.notifier)
+          .replace(_selection, primaryId: _selectedId);
     }
   }
 
@@ -1342,6 +1357,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     if (_menuOpen) return;
     if (node != null && !_selection.contains(node.id)) _select(node);
     _menuOpen = true;
+    final graph = ref.read(workspaceProvider);
+    final hidden =
+        node != null &&
+        (node.fullyHidden ||
+            graph.hiddenNodeIds.contains(node.id) ||
+            graph.hiddenModuleIds.contains(node.module.id));
     final scene = _sceneAt(global);
     final modules = {for (final module in widget.modules) module.id: module}
         .values
@@ -1432,7 +1453,17 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
               value: 'sameColor',
               label: context.l10n.workspaceSelectSameColor,
             ),
-            DesktopMenuEntry(value: 'hide', label: context.l10n.textHide231),
+            DesktopMenuEntry(
+              value: hidden ? 'show' : 'hide',
+              label: hidden
+                  ? context.l10n.textShow232
+                  : context.l10n.textHide231,
+            ),
+            if (!node.fullyHidden && !node.isLogic)
+              DesktopMenuEntry(
+                value: 'hideFully',
+                label: context.l10n.workspaceHideFully,
+              ),
             DesktopMenuEntry(
               value: 'move',
               label: context.l10n.moduleMoveToWorkspace,
@@ -1513,6 +1544,17 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
       if (action == 'replace') _pick(replace: node, global: global);
       if (action == 'hide' && node != null) {
         _hideModule(node);
+      }
+      if (action == 'show' && node != null) {
+        if (node.fullyHidden) {
+          _controller.setNodeFullyHidden(node.id, false);
+        } else {
+          _controller.setNodeHidden(node.id, false);
+        }
+      }
+      if (action == 'hideFully' && node != null) {
+        _controller.setNodeFullyHidden(node.id, true);
+        _clearSelection();
       }
       if (action == 'delete' && node != null) {
         _controller.removeNodes(
@@ -1746,12 +1788,14 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         .where(
           (node) => _colorFilter == null || node.headerColor == _colorFilter,
         )
+        .where((node) => !node.fullyHidden)
         .toList();
     final visibleNodes = graph.nodes
         .where(
           (node) =>
               !graph.hiddenNodeIds.contains(node.id) &&
               !graph.hiddenModuleIds.contains(node.module.id) &&
+              !node.fullyHidden &&
               (node.isLogic ? graph.showLogicBlocks : graph.showModuleBlocks),
         )
         .where(
@@ -1763,7 +1807,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
           (node) =>
               node.id == _openedId &&
               !graph.hiddenNodeIds.contains(node.id) &&
-              !graph.hiddenModuleIds.contains(node.module.id),
+              !graph.hiddenModuleIds.contains(node.module.id) &&
+              !node.fullyHidden,
         )
         .firstOrNull;
     final selected = graph.nodes
@@ -1852,7 +1897,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
           },
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-                                               children: [
+            children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2389,7 +2434,11 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                 },
                                 onPointerDown: (event) {
                                   if (event.buttons == kSecondaryMouseButton &&
-                                      _nodeAt(event.position) == null) {
+                                      _nodeAt(
+                                            event.position,
+                                            includePartiallyHidden: true,
+                                          ) ==
+                                          null) {
                                     _menu(event.position);
                                     return;
                                   }
@@ -2598,10 +2647,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                 Positioned.fill(
                                                   child: IgnorePointer(
                                                     child: CustomPaint(
-                                                         painter: WorkspaceAnnotationLayerPainter(
+                                                      painter: WorkspaceAnnotationLayerPainter(
                                                         annotations:
                                                             _eraserPreview ??
-                                                             ref.watch(annotationProvider),
+                                                            ref.watch(
+                                                              annotationProvider,
+                                                            ),
                                                         activePoints:
                                                             _canvasTool ==
                                                                 _CanvasTool
@@ -2668,150 +2719,132 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                                  WorkspaceNodeLayer(
-                                                    nodes: renderNodes,
-                                                    builder: (context, node) =>
-                                                        _WorkspaceNodeView(
-                                                          node: node,
-                                                          hidden:
-                                                              graph.hiddenNodeIds
-                                                                  .contains(
-                                                                    node.id,
-                                                                  ) ||
-                                                              graph.hiddenModuleIds
-                                                                  .contains(
-                                                                    node.module.id,
-                                                                  ),
-                                                          dimmed:
-                                                              graph.hiddenNodeIds
-                                                                  .contains(
-                                                                    node.id,
-                                                                  ) ||
-                                                              graph.hiddenModuleIds
-                                                                  .contains(
-                                                                    node.module.id,
-                                                                  ) ||
-                                                              graph.moduleActiveOverrides[
-                                                                    node.module.id] ==
-                                                                  false,
-                                                          ignorePointer:
-                                                              graph.hiddenNodeIds
-                                                                  .contains(
-                                                                    node.id,
-                                                                  ) ||
-                                                              graph.hiddenModuleIds
-                                                                  .contains(
-                                                                    node.module.id,
-                                                                  ) ||
-                                                              _isCanvasDrawingTool ||
-                                                              _panModifier ||
-                                                              _panPointer != null,
-                                                          selected: _selection
-                                                              .contains(node.id),
-                                                          junctionMovable:
-                                                              _movableJunctionId ==
-                                                                  node.id,
-                                                          onJunctionMove:
-                                                              (details) {
-                                                            _select(node);
-                                                            setState(() {
-                                                              _movableJunctionId =
-                                                                  node.id;
-                                                              _pendingPort = null;
-                                                              _wireEnd = null;
-                                                            });
-                                                            _setNodeInteraction(
-                                                              true,
-                                                            );
-                                                            _startNodeDrag(
-                                                              DragStartDetails(
-                                                                globalPosition:
-                                                                    details
-                                                                        .globalPosition,
-                                                              ),
+                                                WorkspaceNodeLayer(
+                                                  nodes: renderNodes,
+                                                  builder: (context, node) => _WorkspaceNodeView(
+                                                    node: node,
+                                                    hidden:
+                                                        graph.hiddenNodeIds
+                                                            .contains(
                                                               node.id,
-                                                            );
-                                                          },
-                                                          onSelect: () =>
-                                                              _select(node),
-                                                          onInteraction:
-                                                              _setNodeInteraction,
-                                                          onDragStart: (details) =>
-                                                              _startNodeDrag(
-                                                                details,
-                                                                node.id,
-                                                              ),
-                                                          onResizeStart:
-                                                              (details) =>
-                                                                  _startNodeDrag(
-                                                                    details,
-                                                                    node.id,
-                                                                    resize: true,
-                                                                  ),
-                                                          onMove: (_) {},
-                                                          onResize: (_) {},
-                                                          onOpen: () => setState(
-                                                            () => _openedId =
-                                                                node.id,
-                                                          ),
-                                                          onDetach: () =>
-                                                              _detach(node),
-                                                          onHide: () =>
-                                                              _hideModule(node),
-                                                          onMenu: (position) =>
-                                                              _menu(
-                                                                position,
-                                                                node: node,
-                                                              ),
-                                                          onAddPort: (output) =>
-                                                              _controller.addPort(
-                                                                node.id,
-                                                                output,
-                                                              ),
-                                                          onPort: (port) {
-                                                            if (_canvasTool ==
-                                                                    _CanvasTool
-                                                                        .branch &&
-                                                                _pendingPort ==
-                                                                    null &&
-                                                                port.output) {
-                                                              setState(() {
-                                                                _pendingPort =
-                                                                    port;
-                                                              });
-                                                            } else if (
-                                                                _pendingPort !=
-                                                                    null) {
-                                                              _connect(
-                                                                _pendingPort!,
-                                                                port,
-                                                              );
-                                                            } else {
-                                                              setState(
-                                                                () =>
-                                                                    _pendingPort =
-                                                                        port,
-                                                              );
-                                                            }
-                                                          },
-                                                          onConnect: _connect,
-                                                          onPortMenu: _portMenu,
-                                                          onDragPort:
-                                                              (port, position) =>
-                                                                  setState(() {
-                                                                    _pendingPort =
-                                                                        port;
-                                                                    _wireGlobal =
-                                                                        position;
-                                                                    _wireEnd =
-                                                                        _sceneAt(
-                                                                          position,
-                                                                        );
-                                                                  }),
-                                                          onDragEnd:
-                                                              _finishPortDrag,
+                                                            ) ||
+                                                        graph.hiddenModuleIds
+                                                            .contains(
+                                                              node.module.id,
+                                                            ),
+                                                    dimmed:
+                                                        graph.hiddenNodeIds
+                                                            .contains(
+                                                              node.id,
+                                                            ) ||
+                                                        graph.hiddenModuleIds
+                                                            .contains(
+                                                              node.module.id,
+                                                            ) ||
+                                                        graph.moduleActiveOverrides[node
+                                                                .module
+                                                                .id] ==
+                                                            false ||
+                                                        node.fullyHidden,
+                                                    ignorePointer:
+                                                        _isCanvasDrawingTool ||
+                                                        _panModifier ||
+                                                        _panPointer != null,
+                                                    selected: _selection
+                                                        .contains(node.id),
+                                                    junctionMovable:
+                                                        _movableJunctionId ==
+                                                        node.id,
+                                                    onJunctionMove: (details) {
+                                                      _select(node);
+                                                      setState(() {
+                                                        _movableJunctionId =
+                                                            node.id;
+                                                        _pendingPort = null;
+                                                        _wireEnd = null;
+                                                      });
+                                                      _setNodeInteraction(true);
+                                                      _startNodeDrag(
+                                                        DragStartDetails(
+                                                          globalPosition: details
+                                                              .globalPosition,
                                                         ),
+                                                        node.id,
+                                                      );
+                                                    },
+                                                    onSelect: () =>
+                                                        _select(node),
+                                                    onInteraction:
+                                                        _setNodeInteraction,
+                                                    onDragStart: (details) =>
+                                                        _startNodeDrag(
+                                                          details,
+                                                          node.id,
+                                                        ),
+                                                    onResizeStart: (details) =>
+                                                        _startNodeDrag(
+                                                          details,
+                                                          node.id,
+                                                          resize: true,
+                                                        ),
+                                                    onMove: (_) {},
+                                                    onResize: (_) {},
+                                                    onOpen: () => setState(
+                                                      () => _openedId = node.id,
+                                                    ),
+                                                    onDetach: () =>
+                                                        _detach(node),
+                                                    onHiddenActivate: () =>
+                                                        _select(node),
+                                                    onMenu: (position) => _menu(
+                                                      position,
+                                                      node: node,
+                                                    ),
+                                                    onAddPort: (output) =>
+                                                        _controller.addPort(
+                                                          node.id,
+                                                          output,
+                                                        ),
+                                                    onPort: (port) {
+                                                      if (_canvasTool ==
+                                                              _CanvasTool
+                                                                  .branch &&
+                                                          _pendingPort ==
+                                                              null &&
+                                                          port.output) {
+                                                        setState(() {
+                                                          _pendingPort = port;
+                                                        });
+                                                      } else if (_pendingPort !=
+                                                          null) {
+                                                        _connect(
+                                                          _pendingPort!,
+                                                          port,
+                                                        );
+                                                      } else {
+                                                        setState(
+                                                          () => _pendingPort =
+                                                              port,
+                                                        );
+                                                      }
+                                                    },
+                                                    onConnect: _connect,
+                                                    onPortMenu: _portMenu,
+                                                    onDragPort:
+                                                        (
+                                                          port,
+                                                          position,
+                                                        ) => setState(() {
+                                                          _pendingPort = port;
+                                                          _wireGlobal =
+                                                              position;
+                                                          _wireEnd = _sceneAt(
+                                                            position,
+                                                          );
+                                                        }),
+                                                    onDragEnd: _finishPortDrag,
                                                   ),
+                                                ),
                                                 if (_marqueeStart != null &&
                                                     _marqueeEnd != null)
                                                   Positioned.fromRect(
@@ -3263,11 +3296,22 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                     hidden:
                         selected != null &&
                         (graph.hiddenNodeIds.contains(selected.id) ||
-                            graph.hiddenModuleIds.contains(selected.module.id)),
+                            graph.hiddenModuleIds.contains(
+                              selected.module.id,
+                            ) ||
+                            selected.fullyHidden),
                     onVisibilityChanged: selected == null
                         ? null
-                        : (visible) =>
-                              _controller.setNodeHidden(selected.id, !visible),
+                        : (visible) {
+                            if (selected.fullyHidden) {
+                              _controller.setNodeFullyHidden(
+                                selected.id,
+                                !visible,
+                              );
+                            } else {
+                              _controller.setNodeHidden(selected.id, !visible);
+                            }
+                          },
                     onPositionChanged: selected == null
                         ? null
                         : (position) =>
@@ -3360,7 +3404,7 @@ class _WorkspaceNodeView extends StatelessWidget {
     required this.onInteraction,
     required this.onOpen,
     required this.onDetach,
-    required this.onHide,
+    required this.onHiddenActivate,
     required this.onMenu,
     required this.onAddPort,
     required this.onPort,
@@ -3384,7 +3428,7 @@ class _WorkspaceNodeView extends StatelessWidget {
   final ValueChanged<bool> onInteraction;
   final VoidCallback onOpen;
   final VoidCallback onDetach;
-  final VoidCallback onHide;
+  final VoidCallback onHiddenActivate;
   final ValueChanged<Offset> onMenu;
   final ValueChanged<bool> onAddPort;
   final ValueChanged<_PortRef> onPort;
@@ -3404,12 +3448,12 @@ class _WorkspaceNodeView extends StatelessWidget {
           left: node.position.dx - _nodePortHitInset,
           top: node.position.dy,
           child: IgnorePointer(
-            ignoring: ignorePointer || hidden,
+            ignoring: ignorePointer || (hidden && node.isLogic),
             child: ExcludeFocus(
               excluding: hidden,
               child: Listener(
                 onPointerDown: (event) {
-                  if (event.buttons == kPrimaryMouseButton) {
+                  if (!hidden && event.buttons == kPrimaryMouseButton) {
                     onSelect();
                     onInteraction(true);
                   }
@@ -3418,7 +3462,7 @@ class _WorkspaceNodeView extends StatelessWidget {
                 onPointerCancel: (_) => onInteraction(false),
                 child: DesktopFocusableAction(
                   onActivate: hidden ? null : onOpen,
-                  onFocus: onSelect,
+                  onFocus: hidden ? null : onSelect,
                   onContextMenu: () {
                     final box = context.findRenderObject() as RenderBox;
                     onMenu(box.localToGlobal(const Offset(24, 24)));
@@ -3428,7 +3472,10 @@ class _WorkspaceNodeView extends StatelessWidget {
                     key: ValueKey('workspace selection ${node.id}'),
                     selected: selected,
                     child: GestureDetector(
-                      onTap: onSelect,
+                      onTap: hidden ? null : onSelect,
+                      onDoubleTap: hidden && !node.fullyHidden
+                          ? onHiddenActivate
+                          : null,
                       onSecondaryTapUp: (details) =>
                           onMenu(details.globalPosition),
                       child: RepaintBoundary(
@@ -3481,6 +3528,7 @@ class _WorkspaceNodeView extends StatelessWidget {
                                             children: [
                                               Listener(
                                                 onPointerDown: (event) {
+                                                  if (hidden) return;
                                                   if (event.buttons !=
                                                       kPrimaryMouseButton) {
                                                     return;
@@ -3563,29 +3611,6 @@ class _WorkspaceNodeView extends StatelessWidget {
                                                                 ),
                                                           ),
                                                         ),
-                                                        if (hidden)
-                                                          Icon(
-                                                            AppIcons.eyeOff,
-                                                            size: 15,
-                                                            color: context
-                                                                .palette
-                                                                .mutedText,
-                                                          ),
-                                                        if (!hidden &&
-                                                            !node.isLogic)
-                                                          DesktopIconButton(
-                                                            key: ValueKey(
-                                                              'workspace hide ${node.id}',
-                                                            ),
-                                                            icon:
-                                                                AppIcons.eyeOff,
-                                                            tooltip: context
-                                                                .l10n
-                                                                .textHide231,
-                                                            onPressed: onHide,
-                                                            size: 24,
-                                                            iconSize: 15,
-                                                          ),
                                                         Icon(
                                                           AppIcons.dragHandle,
                                                           size: 15,
@@ -3616,7 +3641,8 @@ class _WorkspaceNodeView extends StatelessWidget {
                                                 child: Row(
                                                   children: [
                                                     TextButton(
-                                                      onPressed: node.isLogic
+                                                      onPressed:
+                                                          node.isLogic || hidden
                                                           ? null
                                                           : () => onAddPort(
                                                               false,
@@ -3652,7 +3678,8 @@ class _WorkspaceNodeView extends StatelessWidget {
                                                     ),
                                                     const Spacer(),
                                                     TextButton(
-                                                      onPressed: node.isLogic
+                                                      onPressed:
+                                                          node.isLogic || hidden
                                                           ? null
                                                           : () =>
                                                                 onAddPort(true),
@@ -3767,8 +3794,9 @@ class _WorkspaceNodeView extends StatelessWidget {
                                                   behavior:
                                                       HitTestBehavior.opaque,
                                                   onPointerDown: (event) {
-                                                    if (event.buttons ==
-                                                        kPrimaryMouseButton) {
+                                                    if (!hidden &&
+                                                        event.buttons ==
+                                                            kPrimaryMouseButton) {
                                                       onSelect();
                                                       onResizeStart(
                                                         DragStartDetails(
@@ -3809,7 +3837,10 @@ class _WorkspaceNodeView extends StatelessWidget {
                                       1 +
                                       WorkspaceNode.headerHeight +
                                       WorkspaceNode.portsTopPadding,
-                                  child: _buildPorts(),
+                                  child: IgnorePointer(
+                                    ignoring: hidden,
+                                    child: _buildPorts(),
+                                  ),
                                 ),
                               ],
                             ),
