@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 import '../common/desktop_menu.dart';
 
@@ -61,10 +62,10 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
                 ? Colors.greenAccent
                 : theme.colorScheme.primary,
             icon: !engine.isOnline
-                ? Icons.power_off
+                ? AppIcons.plugOff
                 : engine.runState == EngineRunState.running
-                ? Icons.bolt
-                : Icons.check_circle,
+                ? AppIcons.bolt
+                : AppIcons.checkCircle,
           ),
         ),
         Padding(
@@ -81,7 +82,7 @@ class ShellTopBar extends ConsumerWidget implements PreferredSizeWidget {
                 ),
             ],
             child: Chip(
-              avatar: const Icon(Icons.switch_account, size: 16),
+              avatar: const Icon(AppIcons.users, size: 16),
               label: Text(context.hostLabel(mode.label)),
               visualDensity: VisualDensity.compact,
             ),

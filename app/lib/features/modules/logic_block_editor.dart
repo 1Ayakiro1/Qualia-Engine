@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -26,6 +28,7 @@ class _LogicBlockEditorState extends State<LogicBlockEditor> {
     LogicBlockType.select => 'fields',
     LogicBlockType.validate => 'schema',
     LogicBlockType.script => 'script',
+    LogicBlockType.junction => '',
   };
   late final TextEditingController _controller = TextEditingController(
     text:
@@ -58,59 +61,66 @@ class _LogicBlockEditorState extends State<LogicBlockEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        context.l10n.logicScriptHelp,
-        style: TextStyle(color: context.palette.mutedText, height: 1.5),
-      ),
-      const SizedBox(height: 16),
-      TextField(
-        controller: _controller,
-        key: ValueKey('logic editor $_field'),
-        minLines: _field == 'expression' || _field == 'fields' ? 2 : 6,
-        maxLines: 16,
-        maxLength: 8192,
-        style: const TextStyle(fontFamily: 'monospace'),
-        decoration: InputDecoration(labelText: _field),
-        onChanged: (value) => widget.onChanged(_field, value),
-      ),
-      const SizedBox(height: 16),
-      TextField(
-        controller: _sample,
-        maxLines: 5,
-        minLines: 2,
-        maxLength: 8192,
-        decoration: InputDecoration(labelText: context.l10n.logicTestInput),
-      ),
-      const SizedBox(height: 8),
-      TextButton.icon(
-        icon: const Icon(Icons.play_arrow),
-        label: Text(context.l10n.logicTest),
-        onPressed: () {
-          try {
-            final output = LogicBlocks.run(widget.node.logicType, {
-              ...widget.node.settings,
-              _field: _controller.text,
-            }, jsonDecode(_sample.text));
-            setState(
-              () => _result = output.isEmpty
-                  ? 'drop'
-                  : output
-                        .map((e) => '${e.port}: ${jsonEncode(e.value)}')
-                        .join('\n'),
-            );
-          } catch (error) {
-            setState(() => _result = '$error');
-          }
-        },
-      ),
-      if (_result != null) SelectableText(_result!),
-      if (widget.node.runtimeStatus != null) ...[
-        const SizedBox(height: 12),
-        Text(widget.node.runtimeStatus!),
-      ],
-    ],
-  );
+  Widget build(BuildContext context) => _field.isEmpty
+      ? Text(
+          'Pass-through junction. Connections are kept as separate graph edges.',
+          style: TextStyle(color: context.palette.mutedText, height: 1.5),
+        )
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.logicScriptHelp,
+              style: TextStyle(color: context.palette.mutedText, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              key: ValueKey('logic editor $_field'),
+              minLines: _field == 'expression' || _field == 'fields' ? 2 : 6,
+              maxLines: 16,
+              maxLength: 8192,
+              style: const TextStyle(fontFamily: 'monospace'),
+              decoration: InputDecoration(labelText: _field),
+              onChanged: (value) => widget.onChanged(_field, value),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _sample,
+              maxLines: 5,
+              minLines: 2,
+              maxLength: 8192,
+              decoration: InputDecoration(
+                labelText: context.l10n.logicTestInput,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(AppIcons.play),
+              label: Text(context.l10n.logicTest),
+              onPressed: () {
+                try {
+                  final output = LogicBlocks.run(widget.node.logicType, {
+                    ...widget.node.settings,
+                    _field: _controller.text,
+                  }, jsonDecode(_sample.text));
+                  setState(
+                    () => _result = output.isEmpty
+                        ? 'drop'
+                        : output
+                              .map((e) => '${e.port}: ${jsonEncode(e.value)}')
+                              .join('\n'),
+                  );
+                } catch (error) {
+                  setState(() => _result = '$error');
+                }
+              },
+            ),
+            if (_result != null) SelectableText(_result!),
+            if (widget.node.runtimeStatus != null) ...[
+              const SizedBox(height: 12),
+              Text(widget.node.runtimeStatus!),
+            ],
+          ],
+        );
 }

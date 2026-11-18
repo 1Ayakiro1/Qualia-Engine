@@ -2,9 +2,13 @@
 
 Кроссплатформенный модульный движок для нейроинтерфейсов (в первую очередь ЭЭГ).
 
-**Статус: Alpha 0.5.1 — portable modules, TCP transport and larger packages.**
+**Опубликованная версия: Alpha 0.5.1. В разработке: 0.5.2-dev.2.**
 Готовые release-пакеты и исходники — в [GitHub Releases](https://github.com/1Ayakiro1/Qualia-Engine/releases).
 Linux AppImage/tarball и Windows/macOS ZIP собираются матрицей GitHub Actions.
+
+Полный ML runtime ещё **не реализован**. [Состояние и критерий 0.5.2](docs/ML_RUNTIME_V2.md):
+в текущей разработке есть native ownership/backpressure и draft binary codec,
+но нет host protocol v2, HAL/Registry/job services и enforced sandbox на трёх ОС.
 
 ## Режимы использования
 
@@ -29,14 +33,16 @@ Linux AppImage/tarball и Windows/macOS ZIP собираются матрице�
 - **Консоль логов в отдельном окне**: пауза/продолжить, фильтр уровня,
   поиск, автопрокрутка, сохранение видимого, очистка вида (минимализм в духе GNOME)
 - **Flutter GUI** (Desktop-first): боковая навигация по режимам, тёмная тема, 10 экранов-каркасов
-- **C++-ядро** (`core/`): движок с рабочим потоком, lock-free очереди
-  (readerwriterqueue), конвейер из 6 системных модулей (passthrough, gain,
-  EMA-сглаживание, диагностика RMS/FFT/качество, маркеры, рекордер)
+- **C++-ядро** (`core/`): рабочий поток, bounded ownership очереди с byte budget,
+  конвейер из 4 системных модулей: passthrough, gain, EMA-сглаживание,
+  диагностика RMS/FFT/качество. ABI 3 добавляет timestamped float32 blocks,
+  channel-major layout и `every`/`drop-oldest`/`latest-only`; старый samples API сохранён.
+  Это не hard-real-time гарантия и пока не data-plane внешних `.qmod`.
 - **FFI-мост** Dart ↔ C++ (стабильный C ABI, `bci_engine_*`)
 - **E2E-сессия**: синтетический сигнал → ядро → live-метрики (RMS, доминирующая частота, качество)
 - **Спектрограмма** в реальном времени (STFT-демо в Dart, маркеры событий)
 - **Тесты**: Catch2 (ядро) + flutter_test (UI/реестр/FFI)
-- **Сборка/упаковка**: `scripts/build_all.sh` → `builds/` (AppImage + tar.gz + бинарник); CI для Linux/Windows/macOS
+- **Сборка/упаковка**: `scripts/build_all.sh` → `builds/<VERSION>/` (одна актуальная версия: AppImage + tar.gz + бинарник + SHA256SUMS); CI для Linux/Windows/macOS
 
 ## Быстрый старт
 
@@ -48,7 +54,7 @@ Linux AppImage/tarball и Windows/macOS ZIP собираются матрице�
 ./app/build/linux/x64/release/bundle/bci_engine
 
 # или через AppImage
-./builds/Qualia-Engine-0.5.1-x86_64.AppImage
+./builds/$(cat VERSION)/Qualia-Engine-$(cat VERSION)-x86_64.AppImage
 ```
 
 ### Отдельный debug terminal
@@ -76,7 +82,7 @@ Debug terminal работает как отдельный процесс и nati
 ## Структура
 
 ```
-core/        C++ ядро (CMake, Catch2, readerwriterqueue)
+core/        C++ ядро (CMake, Catch2, bounded block queues)
 app/         Flutter-приложение (Riverpod)
 builds/      Готовые сборки: AppImage, tar.gz, бинарник (для пользователей)
 scripts/packaging/  Метаданные AppImage и AppRun
@@ -89,5 +95,9 @@ docs/        Архитектура, модули, сборка, роадмап
 [docs/ROADMAP.md](docs/ROADMAP.md)
 
 Для нейросетей и авторов модулей: [MODULE_AUTHORING_AI.md](docs/MODULE_AUTHORING_AI.md).
+API для ИИ-моделей: [AI_API.md](docs/AI_API.md). Политика версий и форков:
+[VERSIONING.md](docs/VERSIONING.md). Машиночитаемый snapshot: [qualia.lock.json](qualia.lock.json).
+Границы API: [API_LAYERS.md](docs/API_LAYERS.md) — внутренний (модуль ↔ модуль),
+средний (модуль ↔ движок), внешний (движок ↔ сторонние системы).
 Релиз: [Alpha 0.5.1](docs/releases/ALPHA_0.5.1.md). Полные исходники доступны в
 теге `v0.5.1-alpha` и в отдельных source-архивах релиза.

@@ -11,6 +11,7 @@ import 'core/logging/app_logger.dart';
 import 'core/logging/debug_terminal_app.dart';
 import 'core/logging/debug_terminal_launcher.dart';
 import 'core/logging/log_entry.dart';
+import 'core/privacy/privacy_preferences.dart';
 import 'core/auth/auth_service.dart';
 import 'core/auth/supabase_config.dart';
 import 'features/modules/module_window_app.dart';
@@ -131,15 +132,18 @@ void main(List<String> args) async {
     debugPrint('не удалось скрыть системную панель окна: $e');
   }
   await AppLogger.instance.init();
-  try {
-    await AuthService.instance.initialize();
-    await _handleAuthCallbackArguments(args);
-  } catch (error) {
-    AppLogger.instance.log(
-      LogSource.profile,
-      'Supabase Auth недоступен: $error',
-      level: LogLevel.warning,
-    );
+  await PrivacyPreferences.instance.load();
+  if (PrivacyPreferences.instance.externalData) {
+    try {
+      await AuthService.instance.initialize();
+      await _handleAuthCallbackArguments(args);
+    } catch (error) {
+      AppLogger.instance.log(
+        LogSource.profile,
+        'Supabase Auth недоступен: $error',
+        level: LogLevel.warning,
+      );
+    }
   }
   FlutterError.onError = (FlutterErrorDetails details) {
     AppLogger.instance.log(

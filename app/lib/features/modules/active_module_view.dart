@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -68,7 +70,7 @@ class ActiveModuleView extends StatelessWidget {
                   TextButton.icon(
                     autofocus: true,
                     onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back, size: 16),
+                    icon: const Icon(AppIcons.arrowBack, size: 16),
                     label: Text(context.l10n.textBack233),
                   ),
                   const SizedBox(width: 16),
@@ -88,13 +90,13 @@ class ActiveModuleView extends StatelessWidget {
                   if (onDetach != null)
                     DesktopIconButton(
                       key: const ValueKey('active module detach'),
-                      icon: Icons.open_in_new,
+                      icon: AppIcons.externalLink,
                       tooltip: context.l10n.moduleOpenWindow,
                       onPressed: onDetach,
                     ),
                   DesktopIconButton(
                     key: const ValueKey('active module fullscreen'),
-                    icon: fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    icon: fullscreen ? AppIcons.shrink : AppIcons.expand,
                     tooltip: fullscreen
                         ? context.l10n.moduleExitFullscreen
                         : context.l10n.moduleFullscreen,

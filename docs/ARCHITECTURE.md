@@ -1,5 +1,23 @@
 # Архитектура Ayakiro BCI Engine
 
+## Актуальные границы API
+
+Нормативная карта для текущего process runtime: [API_LAYERS.md](API_LAYERS.md).
+
+- `internal`: прикладные данные экземпляр ↔ экземпляр через host-owned links;
+  адрес `(workspaceId, instanceId, portId)`, не package ID или PID.
+- `middle`: модуль ↔ движок — `ModuleRuntime` владеет handshake, процессами,
+  параметрами и переносом internal `input/output` по stdio/TCP.
+- `external`: движок ↔ сторонние клиенты/сервисы через adapters (Supabase и
+  offline AI development API); live-control gateway пока отсутствует.
+
+Источник машиночитаемого описания — SDK `api_layers.json`, генерируемый снимок —
+`qualia.lock.json`, discovery — `engine.context` / `api.describe`. C ABI остаётся
+внутренней реализацией **host/core**, а не API внешнего process-модуля.
+
+Ниже сохранена исходная схема native pipeline и roadmap v0.1; её статусы не
+описывают текущий `.qmod` runtime (см. [LOCAL_MODULES.md](LOCAL_MODULES.md)).
+
 ## Высокоуровневая структура
 
 ```

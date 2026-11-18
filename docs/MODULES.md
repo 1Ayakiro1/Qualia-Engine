@@ -1,5 +1,17 @@
 # Модульная система
 
+## Уровни API
+
+- **Внутренний (`internal`)**: конкретный экземпляр ↔ экземпляр через объявленные
+  порты и host-owned workspace links; package ID не является адресом процесса.
+- **Средний (`middle`)**: модуль ↔ host, `process-v1` handshake/parameters/events/state,
+  а также доставка внутренних `input/output` по stdio/TCP.
+- **Внешний (`external`)**: engine adapters ↔ сторонние сервисы/AI developer clients;
+  это не произвольные команды в module stream и не прямой доступ к module process.
+
+Полный нормативный контракт, implemented/planned границы и версии:
+[API_LAYERS.md](API_LAYERS.md). C ABI host/core не является API внешнего `.qmod`.
+
 ## Реализованный локальный runtime
 
 Локальные доверенные модули на любом языке устанавливаются из `.qmod` и выполняются
@@ -44,12 +56,15 @@ host-owned логические узлы; отдельные иконки, по�
 к файловой системе, сети или устройствам. Прежняя идея подписанного WASM sandbox
 не реализована и не является текущим контрактом локальных C++-модулей.
 
-Host API модуля ограничен:
+Средний API внешнего process-v1 модуля ограничен:
 
-- входной и выходной `SampleBlock` текущего pipeline;
-- декларативные параметры модуля;
-- события и метрики через явно выданные capabilities;
-- логирование с ограничением частоты.
+- handshake и объявленные параметры/события UI;
+- state объявленных UI values и JSON input/output объявленных портов;
+- описанные в protocol capabilities функции (`port-schemas-v1`, `host-logic-v1`);
+- diagnostics на stderr, не команды engine service или shell.
+
+Native `SampleBlock` pipeline — отдельная реализация внутри core, не входной
+контракт `.qmod`; binary data-plane и sandbox capabilities пока не реализованы.
 
 UI модуля описывается декларативным manifest/UI schema. Для локальных `.qmod`
 поддерживается host-rendered `uiLayout` с карточками, строками/колонками,

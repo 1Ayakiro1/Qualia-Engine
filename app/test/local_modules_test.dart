@@ -63,6 +63,10 @@ void main() {
   test(
     'offline SDK creates a real executable and immutable installation',
     () async {
+      expect(
+        await File('${temporary.path}/project/api_layers.json').readAsString(),
+        await File('assets/module_sdk/api_layers.json').readAsString(),
+      );
       final module = await store.install(package);
       final again = await store.install(package);
       expect(module.localPackage, again.localPackage);
@@ -201,48 +205,64 @@ void main() {
     expect(statuses, isEmpty);
   });
 
-  test(
-    'crashing instance does not kill its sibling or automatically respawn',
-    () async {
-      final module = await store.install(package);
-      final processes = <Process>[];
-      final statuses = <String, String>{};
-      final runtime = ModuleRuntime(
-        store: store,
-        onUpdate: (id, status, _) => statuses[id] = status,
-        launch: (executable, directory) async {
-          final process = await Process.start(
-            executable,
-            [],
-            workingDirectory: directory,
-          );
-          processes.add(process);
-          return process;
-        },
-      );
-      addTearDown(runtime.dispose);
-      final nodes = [
-        WorkspaceNode(id: 'a', module: module),
-        WorkspaceNode(id: 'b', module: module),
-      ];
-      runtime.sync('project', nodes, [], [module]);
+  test('crashing instance does not kill its sibling or automatically respawn', () async {
+    final module = await store.install(package);
+    final processes = <Process>[];
+    final statuses = <String, String>{};
+    final runtime = ModuleRuntime(
+      store: store,
+      onUpdate: (id, status, _) => statuses[id] = status,
+      launch: (executable, directory) async {
+        final process = await Process.start(
+          executable,
+          [],
+          workingDirectory: directory,
+        );
+        processes.add(process);
+        return process;
+      },
+    );
+    addTearDown(runtime.dispose);
+    final nodes = [
+      WorkspaceNode(id: 'a', module: module),
+      WorkspaceNode(id: 'b', module: module),
+    ];
+    Future<void> waitFor(bool Function() condition) async {
       final deadline = DateTime.now().add(const Duration(seconds: 5));
-      while (statuses['a'] != 'running' || statuses['b'] != 'running') {
-        if (DateTime.now().isAfter(deadline)) fail('Handshake timeout');
+      while (!condition()) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail(
+            'Runtime timeout: $statuses; launched ${processes.length} processes',
+          );
+        }
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-      processes.first.kill(ProcessSignal.sigkill);
-      await processes.first.exitCode;
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(statuses['a'], startsWith('exited'));
-      expect(statuses['b'], 'running');
-      runtime.sync('project', nodes, [], [module]);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(processes.length, 2);
-      runtime.dispose();
-      await processes.last.exitCode.timeout(const Duration(seconds: 3));
-    },
-  );
+    }
+
+    // Preparation is asynchronous: launching both together does not guarantee
+    // that processes.first belongs to a. Establish identity before adding b.
+    runtime.sync('project', [nodes.first], [], [module]);
+    await waitFor(() => statuses['a'] == 'running');
+    expect(processes.length, 1);
+    final first = processes.single;
+    runtime.sync('project', nodes, [], [module]);
+    await waitFor(() => statuses['b'] == 'running');
+    expect(processes.length, 2);
+    final sibling = processes.last;
+    expect(sibling.pid, isNot(first.pid));
+    expect(first.kill(ProcessSignal.sigkill), isTrue);
+    await first.exitCode.timeout(const Duration(seconds: 3));
+    // exitCode completion and the runtime's scheduled status notification need
+    // not be observed in the same event-loop turn, especially on a busy runner.
+    await waitFor(() => statuses['a']?.startsWith('exited') == true);
+    expect(statuses['a'], startsWith('exited'));
+    expect(statuses['b'], 'running');
+    runtime.sync('project', nodes, [], [module]);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(processes.length, 2);
+    runtime.dispose();
+    await sibling.exitCode.timeout(const Duration(seconds: 3));
+  });
 
   test('runtime values are transient but sent to module windows', () async {
     final module = await store.install(package);

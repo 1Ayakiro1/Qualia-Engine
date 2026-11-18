@@ -6,6 +6,10 @@
 #include <cstddef>
 
 namespace qualia {
+// API layers: input/emit = internal module data contract, carried by the middle
+// process-v1 host protocol. emit() never addresses a peer process directly; the
+// host selects recipients using workspace links. External services/AI API are a
+// separate integration boundary, not commands on this stream (api_layers.json).
 using Json = nlohmann::json;
 inline constexpr std::size_t kMaxFrameBytes = 1024 * 1024;
 // stdout is protocol-only. Diagnostics belong on stderr.

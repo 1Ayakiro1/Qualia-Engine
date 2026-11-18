@@ -1,0 +1,981 @@
+{
+  "format": "qualia-lock",
+  "lockVersion": 1,
+  "generatedBy": "scripts/generate_version_lock.py",
+  "engine": {
+    "name": "Qualia Engine",
+    "version": "0.5.2-dev.5",
+    "coreVersion": "0.5.2-dev.5",
+    "coreAbi": 3,
+    "apiVersion": "1.1.0"
+  },
+  "apiLayers": {
+    "format": "qualia-api-layers",
+    "schemaVersion": 1,
+    "classification": "responsibility-not-transport-or-privilege",
+    "layers": {
+      "internal": {
+        "version": "1.0.0",
+        "scope": "module-to-module",
+        "owner": "host-router",
+        "address": [
+          "workspaceId",
+          "instanceId",
+          "portId"
+        ],
+        "binding": "workspace-links-v1",
+        "messages": [
+          "input",
+          "output"
+        ],
+        "routing": "host-owned-links-only",
+        "implemented": [
+          "declared-port-routing",
+          "fan-out",
+          "port-schemas",
+          "hop-and-delivery-budgets"
+        ],
+        "notImplemented": [
+          "direct-instance-rpc",
+          "cross-workspace-routing",
+          "module-discovery",
+          "binary-module-data-plane"
+        ]
+      },
+      "middle": {
+        "version": "1.0.0",
+        "scope": "module-to-engine",
+        "owner": "module-supervisor",
+        "binding": "process-v1",
+        "manifestSchema": 1,
+        "protocol": 1,
+        "transports": [
+          "stdio-ndjson",
+          "tcp-ndjson"
+        ],
+        "moduleToHost": [
+          "ready",
+          "state",
+          "output"
+        ],
+        "hostToModule": [
+          "init",
+          "parameters",
+          "event",
+          "input"
+        ],
+        "capabilities": [
+          "port-schemas-v1",
+          "host-logic-v1"
+        ],
+        "implemented": [
+          "handshake",
+          "per-instance-process",
+          "parameter-allowlist",
+          "ui-state",
+          "integrity-before-launch"
+        ],
+        "notImplemented": [
+          "os-sandbox",
+          "protocol-v2",
+          "host-service-rpc",
+          "automatic-restart"
+        ]
+      },
+      "external": {
+        "version": "1.0.0",
+        "scope": "engine-to-third-party",
+        "owner": "integration-adapter",
+        "bindings": {
+          "aiDevelopment": {
+            "version": "1.1.0",
+            "transport": "stdio-jsonrpc-2.0",
+            "runtimeControl": false,
+            "methods": [
+              "initialize",
+              "engine.context",
+              "api.describe",
+              "engine.plan_change",
+              "module.validate",
+              "workspace.validate",
+              "workspace.fork",
+              "version.compare"
+            ]
+          },
+          "supabase": {
+            "contract": "repository-migrations-and-client-adapters",
+            "direction": "outbound",
+            "authorization": "auth-session-and-rls"
+          }
+        },
+        "implemented": [
+          "local-development-api",
+          "supabase-auth-and-catalog-adapters"
+        ],
+        "notImplemented": [
+          "public-http-control-server",
+          "live-module-gateway",
+          "generic-webhooks",
+          "automatic-model-code-execution"
+        ]
+      }
+    },
+    "invariants": [
+      "layer-does-not-grant-permissions",
+      "host-binds-source-identity-to-instance",
+      "payload-cannot-select-an-unauthorized-target",
+      "transport-does-not-change-layer",
+      "core-ffi-is-host-implementation-not-a-module-api",
+      "unknown-contracts-must-not-silently-downgrade",
+      "module-processes-are-trusted-not-os-sandboxed"
+    ]
+  },
+  "contracts": {
+    "moduleSchema": 1,
+    "moduleProtocol": 1,
+    "workspacePackage": 1,
+    "coreAbi": 3,
+    "supportedTargets": [
+      "linux-x64",
+      "linux-arm64",
+      "windows-x64",
+      "windows-arm64",
+      "macos-x64",
+      "macos-arm64"
+    ]
+  },
+  "toolchain": {
+    "flutter": "3.47.5",
+    "dart": ">=3.13.4 <4.0.0",
+    "cmake": ">=3.21",
+    "python": "3.12",
+    "go": "1.23.6"
+  },
+  "dependencies": {
+    "application": {
+      "archive": {
+        "version": "3.6.1",
+        "source": "hosted",
+        "sha256": "cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d"
+      },
+      "crypto": {
+        "version": "3.0.7",
+        "source": "hosted",
+        "sha256": "c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf"
+      },
+      "ffi": {
+        "version": "2.2.0",
+        "source": "hosted",
+        "sha256": "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
+      },
+      "file_selector": {
+        "version": "1.1.0",
+        "source": "hosted",
+        "sha256": "bd15e43e9268db636b53eeaca9f56324d1622af30e5c34d6e267649758c84d9a"
+      },
+      "flutter": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "flutter_localizations": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "flutter_riverpod": {
+        "version": "3.4.3",
+        "source": "hosted",
+        "sha256": "2b7f9d2a3c730ac1a98221b420cef966b990fca7ab546ede324642ca57a533e3"
+      },
+      "flutter_staggered_grid_view": {
+        "version": "0.7.0",
+        "source": "hosted",
+        "sha256": "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
+      },
+      "http": {
+        "version": "1.6.0",
+        "source": "hosted",
+        "sha256": "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      },
+      "intl": {
+        "version": "0.20.3",
+        "source": "hosted",
+        "sha256": "1ca20c894b1717686a2319b8548763d812bc0aabdac580420a44c5178c57a867"
+      },
+      "path": {
+        "version": "1.9.1",
+        "source": "hosted",
+        "sha256": "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
+      },
+      "path_provider": {
+        "version": "2.1.6",
+        "source": "hosted",
+        "sha256": "a7f4874f987173da295a61c181b8ee71dab59b332a486b391babf26a1b884825"
+      },
+      "phosphor_icons": {
+        "version": "3.0.1",
+        "source": "hosted",
+        "sha256": "0f32a6c6a7bbadb2e42cba15ec103dcd23dfa47137f17a6f5b5a078081ac55f8"
+      },
+      "shared_preferences": {
+        "version": "2.5.5",
+        "source": "hosted",
+        "sha256": "c3025c5534b01739267eb7d76959bbc25a6d10f6988e1c2a3036940133dd10bf"
+      },
+      "sqlite3": {
+        "version": "2.9.4",
+        "source": "hosted",
+        "sha256": "3145bd74dcdb4fd6f5c6dda4d4e4490a8087d7f286a14dee5d37087290f0f8a2"
+      },
+      "supabase_flutter": {
+        "version": "2.17.2",
+        "source": "hosted",
+        "sha256": "26eb3d3b71bcc5651551e64d6b131ba929ea261998570bbcc90356b1b42fd532"
+      },
+      "url_launcher": {
+        "version": "6.3.2",
+        "source": "hosted",
+        "sha256": "f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8"
+      },
+      "window_manager": {
+        "version": "0.5.2",
+        "source": "hosted",
+        "sha256": "05c231fd7b23d2380f14c5cc10b7b93d60d4fa4a2fb4e0f032de27e44b5560e9"
+      }
+    },
+    "plugins": {
+      "app_links_linux": {
+        "version": "1.0.3",
+        "source": "hosted",
+        "sha256": "f5f7173a78609f3dfd4c2ff2c95bd559ab43c80a87dc6a095921d96c05688c81"
+      },
+      "app_links_platform_interface": {
+        "version": "2.0.4",
+        "source": "hosted",
+        "sha256": "7546f09a6e93f4a2df2fe2bd40a5c6c64310ac461b036d82b43033be7a59f809"
+      },
+      "file_selector_android": {
+        "version": "0.5.2+11",
+        "source": "hosted",
+        "sha256": "d670cd0ce77a2e785b18d8b4d0a8d6a222d6a813ec9b7ddf2790a1b4fb6fa92c"
+      },
+      "file_selector_ios": {
+        "version": "0.5.3+6",
+        "source": "hosted",
+        "sha256": "97269e5307a0ab813b1fa2430bada0a96e0afb74848417f8676f64ba5de0051c"
+      },
+      "file_selector_linux": {
+        "version": "0.9.4+1",
+        "source": "hosted",
+        "sha256": "da76400e7872ce7637ffdce12749ec24169c25f6195c28372208e65a24bcd2ab"
+      },
+      "file_selector_macos": {
+        "version": "0.9.5+1",
+        "source": "hosted",
+        "sha256": "d57c62362766b5e7ae739448650b66c6aab7a68ba7ecc65e04018652645ae0f4"
+      },
+      "file_selector_platform_interface": {
+        "version": "2.7.0",
+        "source": "hosted",
+        "sha256": "35e0bd61ebcdb91a3505813b055b09b79dfdc7d0aee9c09a7ba59ae4bb13dc85"
+      },
+      "file_selector_windows": {
+        "version": "0.9.3+6",
+        "source": "hosted",
+        "sha256": "fbefc5fb92c6d3cbe8d284a2cd971b593bb07d2cd6da8557b81a862250b4acec"
+      },
+      "passkeys_platform_interface": {
+        "version": "2.10.0",
+        "source": "hosted",
+        "sha256": "5fca044a6f1a3c5abff645ca5a5417b613c130d1c4e08513ba9182c7f4834619"
+      },
+      "path_provider_android": {
+        "version": "2.3.1",
+        "source": "hosted",
+        "sha256": "69cbd515a62b94d32a7944f086b2f82b4ac40a1d45bebfc00813a430ab2dabcd"
+      },
+      "path_provider_linux": {
+        "version": "2.2.2",
+        "source": "hosted",
+        "sha256": "58c2005f147315b11e9b4a7bc889cd5203e250cba8e3f012dae259b4972b5c16"
+      },
+      "path_provider_platform_interface": {
+        "version": "2.1.3",
+        "source": "hosted",
+        "sha256": "484838772624c3a4b94f1e44a3e19897fee738f2d5c4ce448443b0417f7c9dda"
+      },
+      "path_provider_windows": {
+        "version": "2.3.0",
+        "source": "hosted",
+        "sha256": "bd6f00dbd873bfb70d0761682da2b3a2c2fccc2b9e84c495821639601d81afe7"
+      },
+      "plugin_platform_interface": {
+        "version": "2.1.8",
+        "source": "hosted",
+        "sha256": "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
+      },
+      "screen_retriever_linux": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "7b52006a5ceae1f3d5af7f77188c3290d6e7d8ded16d99809bea84967c65c257"
+      },
+      "screen_retriever_macos": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "a1489b99cce597c45a54b9aae1cd94c8d4705353b7e0bb2457a6e4de44e0ad8a"
+      },
+      "screen_retriever_platform_interface": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "94a5535277510a63184ca178ce12a1449bc0b38618879aa1c18bf57369c5064a"
+      },
+      "screen_retriever_windows": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "dafc6922b0bfbf1d48cf3ccbf519b4fff47bdcb820da1728ea6db675fecc9324"
+      },
+      "shared_preferences_android": {
+        "version": "2.4.28",
+        "source": "hosted",
+        "sha256": "1e12aafe408aa50da80edfd679a2a6bf63ba7ab37c7fa98286da459a757b3399"
+      },
+      "shared_preferences_linux": {
+        "version": "2.4.1",
+        "source": "hosted",
+        "sha256": "580abfd40f415611503cae30adf626e6656dfb2f0cee8f465ece7b6defb40f2f"
+      },
+      "shared_preferences_platform_interface": {
+        "version": "2.4.2",
+        "source": "hosted",
+        "sha256": "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
+      },
+      "shared_preferences_windows": {
+        "version": "2.4.1",
+        "source": "hosted",
+        "sha256": "94ef0f72b2d71bc3e700e025db3710911bd51a71cefb65cc609dd0d9a982e3c1"
+      },
+      "url_launcher_android": {
+        "version": "6.3.33",
+        "source": "hosted",
+        "sha256": "611e87fb320b70d1dd721dc46af89c98aceccea9b31fde49e084591414e0c610"
+      },
+      "url_launcher_ios": {
+        "version": "6.4.2",
+        "source": "hosted",
+        "sha256": "8faa1aab294f1ab4040b43660c887b0418d5fa4f0cffef76a484e6aa1092eb4a"
+      },
+      "url_launcher_linux": {
+        "version": "3.2.3",
+        "source": "hosted",
+        "sha256": "10f86fef4c2c43563fa6c211ff9cf757adf4d3ab762c56bd430664a947d70cd0"
+      },
+      "url_launcher_macos": {
+        "version": "3.2.6",
+        "source": "hosted",
+        "sha256": "5e835a3b869c2d70325349c81c5a45c28e20791265b67b2669da6b08c5cd5201"
+      },
+      "url_launcher_platform_interface": {
+        "version": "2.3.2",
+        "source": "hosted",
+        "sha256": "552f8a1e663569be95a8190206a38187b531910283c3e982193e4f2733f01029"
+      },
+      "url_launcher_windows": {
+        "version": "3.1.6",
+        "source": "hosted",
+        "sha256": "6c5ad3f22cd4c38e089b81963b3cd7bb83b111b2df5dce008bb066162f42e429"
+      }
+    },
+    "resolved": {
+      "app_links": {
+        "version": "7.2.1",
+        "source": "hosted",
+        "sha256": "f8db46d2ea9ff6f3a37191a7fd5b7813da1253ace8c32c1b9eadace41d1188ea"
+      },
+      "app_links_linux": {
+        "version": "1.0.3",
+        "source": "hosted",
+        "sha256": "f5f7173a78609f3dfd4c2ff2c95bd559ab43c80a87dc6a095921d96c05688c81"
+      },
+      "app_links_platform_interface": {
+        "version": "2.0.4",
+        "source": "hosted",
+        "sha256": "7546f09a6e93f4a2df2fe2bd40a5c6c64310ac461b036d82b43033be7a59f809"
+      },
+      "app_links_web": {
+        "version": "1.0.4",
+        "source": "hosted",
+        "sha256": "af060ed76183f9e2b87510a9480e56a5352b6c249778d07bd2c95fc35632a555"
+      },
+      "archive": {
+        "version": "3.6.1",
+        "source": "hosted",
+        "sha256": "cb6a278ef2dbb298455e1a713bda08524a175630ec643a242c399c932a0a1f7d"
+      },
+      "args": {
+        "version": "2.7.0",
+        "source": "hosted",
+        "sha256": "d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04"
+      },
+      "async": {
+        "version": "2.13.1",
+        "source": "hosted",
+        "sha256": "e2eb0491ba5ddb6177742d2da23904574082139b07c1e33b8503b9f46f3e1a37"
+      },
+      "boolean_selector": {
+        "version": "2.1.2",
+        "source": "hosted",
+        "sha256": "8aab1771e1243a5063b8b0ff68042d67334e3feab9e95b9490f9a6ebf73b42ea"
+      },
+      "characters": {
+        "version": "1.4.1",
+        "source": "hosted",
+        "sha256": "faf38497bda5ead2a8c7615f4f7939df04333478bf32e4173fcb06d428b5716b"
+      },
+      "clock": {
+        "version": "1.1.3",
+        "source": "hosted",
+        "sha256": "e51d50bca3217c9a9fa2b41a30e4a38971133f5f9ec7a3d57bae095007f1d28e"
+      },
+      "code_assets": {
+        "version": "1.2.1",
+        "source": "hosted",
+        "sha256": "bf394f466ba9205f1812a0433b392d6af280f155f56651eda7c18cc32ed493b8"
+      },
+      "collection": {
+        "version": "1.19.1",
+        "source": "hosted",
+        "sha256": "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
+      },
+      "convert": {
+        "version": "3.1.2",
+        "source": "hosted",
+        "sha256": "b30acd5944035672bc15c6b7a8b47d773e41e2f17de064350988c5d02adb1c68"
+      },
+      "cross_file": {
+        "version": "0.3.5+5",
+        "source": "hosted",
+        "sha256": "f141ea4f277af142a0356955707f6556f37b03947d39d55585981a06ca437bd6"
+      },
+      "crypto": {
+        "version": "3.0.7",
+        "source": "hosted",
+        "sha256": "c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf"
+      },
+      "dart_jsonwebtoken": {
+        "version": "3.4.1",
+        "source": "hosted",
+        "sha256": "ad84e60181696513d04d5f2078e0bbc20365b911f46f647797317414bdc88fbe"
+      },
+      "fake_async": {
+        "version": "1.3.3",
+        "source": "hosted",
+        "sha256": "5368f224a74523e8d2e7399ea1638b37aecfca824a3cc4dfdf77bf1fa905ac44"
+      },
+      "ffi": {
+        "version": "2.2.0",
+        "source": "hosted",
+        "sha256": "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
+      },
+      "file": {
+        "version": "7.0.1",
+        "source": "hosted",
+        "sha256": "a3b4f84adafef897088c160faf7dfffb7696046cb13ae90b508c2cbc95d3b8d4"
+      },
+      "file_selector": {
+        "version": "1.1.0",
+        "source": "hosted",
+        "sha256": "bd15e43e9268db636b53eeaca9f56324d1622af30e5c34d6e267649758c84d9a"
+      },
+      "file_selector_android": {
+        "version": "0.5.2+11",
+        "source": "hosted",
+        "sha256": "d670cd0ce77a2e785b18d8b4d0a8d6a222d6a813ec9b7ddf2790a1b4fb6fa92c"
+      },
+      "file_selector_ios": {
+        "version": "0.5.3+6",
+        "source": "hosted",
+        "sha256": "97269e5307a0ab813b1fa2430bada0a96e0afb74848417f8676f64ba5de0051c"
+      },
+      "file_selector_linux": {
+        "version": "0.9.4+1",
+        "source": "hosted",
+        "sha256": "da76400e7872ce7637ffdce12749ec24169c25f6195c28372208e65a24bcd2ab"
+      },
+      "file_selector_macos": {
+        "version": "0.9.5+1",
+        "source": "hosted",
+        "sha256": "d57c62362766b5e7ae739448650b66c6aab7a68ba7ecc65e04018652645ae0f4"
+      },
+      "file_selector_platform_interface": {
+        "version": "2.7.0",
+        "source": "hosted",
+        "sha256": "35e0bd61ebcdb91a3505813b055b09b79dfdc7d0aee9c09a7ba59ae4bb13dc85"
+      },
+      "file_selector_web": {
+        "version": "0.9.5",
+        "source": "hosted",
+        "sha256": "73181fbc5257776d8ecaa6a94ab3c8e920ad143b9132a6d984a9271dfc6928d3"
+      },
+      "file_selector_windows": {
+        "version": "0.9.3+6",
+        "source": "hosted",
+        "sha256": "fbefc5fb92c6d3cbe8d284a2cd971b593bb07d2cd6da8557b81a862250b4acec"
+      },
+      "fixnum": {
+        "version": "1.1.1",
+        "source": "hosted",
+        "sha256": "b6dc7065e46c974bc7c5f143080a6764ec7a4be6da1285ececdc37be96de53be"
+      },
+      "flutter": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "flutter_lints": {
+        "version": "6.0.0",
+        "source": "hosted",
+        "sha256": "3105dc8492f6183fb076ccf1f351ac3d60564bff92e20bfc4af9cc1651f4e7e1"
+      },
+      "flutter_localizations": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "flutter_riverpod": {
+        "version": "3.4.3",
+        "source": "hosted",
+        "sha256": "2b7f9d2a3c730ac1a98221b420cef966b990fca7ab546ede324642ca57a533e3"
+      },
+      "flutter_staggered_grid_view": {
+        "version": "0.7.0",
+        "source": "hosted",
+        "sha256": "19e7abb550c96fbfeb546b23f3ff356ee7c59a019a651f8f102a4ba9b7349395"
+      },
+      "flutter_test": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "flutter_web_plugins": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "functions_client": {
+        "version": "2.7.1",
+        "source": "hosted",
+        "sha256": "931e822688d2e97867b2300e2fdbb08c9db73f8653fc83efc7a259d2e0cca769"
+      },
+      "gotrue": {
+        "version": "2.27.2",
+        "source": "hosted",
+        "sha256": "cd73a6de4198baca71341177bed233673d7965aca2a0257ab5561feb2abdaf59"
+      },
+      "gtk": {
+        "version": "2.2.0",
+        "source": "hosted",
+        "sha256": "4ff85b2a16724029dd9e5bbb5a94b6918f9973f74ba571c949d2002801879cf5"
+      },
+      "hooks": {
+        "version": "2.0.2",
+        "source": "hosted",
+        "sha256": "9a62a50b50b769a737bc0a8ff381f333529df3ab746b2f6b02e83760231455ba"
+      },
+      "http": {
+        "version": "1.6.0",
+        "source": "hosted",
+        "sha256": "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      },
+      "http_parser": {
+        "version": "4.1.2",
+        "source": "hosted",
+        "sha256": "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
+      },
+      "intl": {
+        "version": "0.20.3",
+        "source": "hosted",
+        "sha256": "1ca20c894b1717686a2319b8548763d812bc0aabdac580420a44c5178c57a867"
+      },
+      "jni": {
+        "version": "1.0.0",
+        "source": "hosted",
+        "sha256": "c2230682d5bc2362c1c9e8d3c7f406d9cbba23ab3f2e203a025dd47e0fb2e68f"
+      },
+      "jni_flutter": {
+        "version": "1.0.1",
+        "source": "hosted",
+        "sha256": "8b59e590786050b1cd866677dddaf76b1ade5e7bc751abe04b86e84d379d3ba6"
+      },
+      "json_annotation": {
+        "version": "4.12.0",
+        "source": "hosted",
+        "sha256": "2a743920d81b7910627f68ee2c9ac1fc0bfee32b9fc3403587d7c6791ca12f80"
+      },
+      "leak_tracker": {
+        "version": "11.0.2",
+        "source": "hosted",
+        "sha256": "33e2e26bdd85a0112ec15400c8cbffea70d0f9c3407491f672a2fad47915e2de"
+      },
+      "leak_tracker_flutter_testing": {
+        "version": "3.0.10",
+        "source": "hosted",
+        "sha256": "1dbc140bb5a23c75ea9c4811222756104fbcd1a27173f0c34ca01e16bea473c1"
+      },
+      "leak_tracker_testing": {
+        "version": "3.0.2",
+        "source": "hosted",
+        "sha256": "8d5a2d49f4a66b49744b23b018848400d23e54caf9463f4eb20df3eb8acb2eb1"
+      },
+      "lints": {
+        "version": "6.1.0",
+        "source": "hosted",
+        "sha256": "12f842a479589fea194fe5c5a3095abc7be0c1f2ddfa9a0e76aed1dbd26a87df"
+      },
+      "listen": {
+        "version": "1.0.1",
+        "source": "hosted",
+        "sha256": "47501a08016a43fcad79252439d723f50f14f88fa7bfd8a177e0a417e5c9e1f2"
+      },
+      "logging": {
+        "version": "1.3.0",
+        "source": "hosted",
+        "sha256": "c8245ada5f1717ed44271ed1c26b8ce85ca3228fd2ffdb75468ab01979309d61"
+      },
+      "matcher": {
+        "version": "0.12.20",
+        "source": "hosted",
+        "sha256": "31bd099b47c10cd1aeb55146a2d46ce0277630ecef3f7dae54ad7873f36696cd"
+      },
+      "material_color_utilities": {
+        "version": "0.13.0",
+        "source": "hosted",
+        "sha256": "9c337007e82b1889149c82ed242ed1cb24a66044e30979c44912381e9be4c48b"
+      },
+      "meta": {
+        "version": "1.18.3",
+        "source": "hosted",
+        "sha256": "c82594181e3312f3d0695fc95aaaf7758d75b8d4ae2bbecf223b9fd5109a059d"
+      },
+      "mime": {
+        "version": "2.1.0",
+        "source": "hosted",
+        "sha256": "bd47de35f07e27267e69c8c8b22edf9473bfee170a60d60fcc93730c5144b7f6"
+      },
+      "objective_c": {
+        "version": "9.4.1",
+        "source": "hosted",
+        "sha256": "6cb691c686fa2838c6deb34980d426145c2a5d537491cb83d463c33cdbc726ed"
+      },
+      "package_config": {
+        "version": "2.2.0",
+        "source": "hosted",
+        "sha256": "f096c55ebb7deb7e384101542bfba8c52696c1b56fca2eb62827989ef2353bbc"
+      },
+      "passkeys_platform_interface": {
+        "version": "2.10.0",
+        "source": "hosted",
+        "sha256": "5fca044a6f1a3c5abff645ca5a5417b613c130d1c4e08513ba9182c7f4834619"
+      },
+      "path": {
+        "version": "1.9.1",
+        "source": "hosted",
+        "sha256": "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
+      },
+      "path_provider": {
+        "version": "2.1.6",
+        "source": "hosted",
+        "sha256": "a7f4874f987173da295a61c181b8ee71dab59b332a486b391babf26a1b884825"
+      },
+      "path_provider_android": {
+        "version": "2.3.1",
+        "source": "hosted",
+        "sha256": "69cbd515a62b94d32a7944f086b2f82b4ac40a1d45bebfc00813a430ab2dabcd"
+      },
+      "path_provider_foundation": {
+        "version": "2.6.0",
+        "source": "hosted",
+        "sha256": "2a376b7d6392d80cd3705782d2caa734ca4727776db0b6ec36ef3f1855197699"
+      },
+      "path_provider_linux": {
+        "version": "2.2.2",
+        "source": "hosted",
+        "sha256": "58c2005f147315b11e9b4a7bc889cd5203e250cba8e3f012dae259b4972b5c16"
+      },
+      "path_provider_platform_interface": {
+        "version": "2.1.3",
+        "source": "hosted",
+        "sha256": "484838772624c3a4b94f1e44a3e19897fee738f2d5c4ce448443b0417f7c9dda"
+      },
+      "path_provider_windows": {
+        "version": "2.3.0",
+        "source": "hosted",
+        "sha256": "bd6f00dbd873bfb70d0761682da2b3a2c2fccc2b9e84c495821639601d81afe7"
+      },
+      "phosphor_icons": {
+        "version": "3.0.1",
+        "source": "hosted",
+        "sha256": "0f32a6c6a7bbadb2e42cba15ec103dcd23dfa47137f17a6f5b5a078081ac55f8"
+      },
+      "platform": {
+        "version": "3.2.0",
+        "source": "hosted",
+        "sha256": "a36d119c13416516a7b5913fbe8af8531e11633d784c550b2125f76c758524ec"
+      },
+      "plugin_platform_interface": {
+        "version": "2.1.8",
+        "source": "hosted",
+        "sha256": "4820fbfdb9478b1ebae27888254d445073732dae3d6ea81f0b7e06d5dedc3f02"
+      },
+      "pointycastle": {
+        "version": "4.0.0",
+        "source": "hosted",
+        "sha256": "92aa3841d083cc4b0f4709b5c74fd6409a3e6ba833ffc7dc6a8fee096366acf5"
+      },
+      "postgrest": {
+        "version": "2.9.1",
+        "source": "hosted",
+        "sha256": "b7f957273ba6a1c26cefa987ac524f4138e9ab7542fbb9e6abdfddacb9895a21"
+      },
+      "pub_semver": {
+        "version": "2.2.1",
+        "source": "hosted",
+        "sha256": "261236774e8b1d69cfc6b9eabbc96c40f25e7a2d6b171f3385d4f65d5734fb24"
+      },
+      "realtime_client": {
+        "version": "2.13.0",
+        "source": "hosted",
+        "sha256": "ff731ce21fd775e0d7accfb1eaccdcf47b687610720822ba8b9fd8f5bccb2bd9"
+      },
+      "record_use": {
+        "version": "0.6.0",
+        "source": "hosted",
+        "sha256": "2551bd8eecfe95d14ae75f6021ad0248be5c27f138c2ec12fcb52b500b3ba1ed"
+      },
+      "riverpod": {
+        "version": "3.4.3",
+        "source": "hosted",
+        "sha256": "484dfc873ea4c4f4240e5635444fa066f87b07862b7279ebd004a2b71fba4b7a"
+      },
+      "screen_retriever": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "ace919117a7520c13a50a6259e60c4a0d4cbe98809468792a91b5c5adada2aa6"
+      },
+      "screen_retriever_linux": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "7b52006a5ceae1f3d5af7f77188c3290d6e7d8ded16d99809bea84967c65c257"
+      },
+      "screen_retriever_macos": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "a1489b99cce597c45a54b9aae1cd94c8d4705353b7e0bb2457a6e4de44e0ad8a"
+      },
+      "screen_retriever_platform_interface": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "94a5535277510a63184ca178ce12a1449bc0b38618879aa1c18bf57369c5064a"
+      },
+      "screen_retriever_windows": {
+        "version": "0.2.2",
+        "source": "hosted",
+        "sha256": "dafc6922b0bfbf1d48cf3ccbf519b4fff47bdcb820da1728ea6db675fecc9324"
+      },
+      "shared_preferences": {
+        "version": "2.5.5",
+        "source": "hosted",
+        "sha256": "c3025c5534b01739267eb7d76959bbc25a6d10f6988e1c2a3036940133dd10bf"
+      },
+      "shared_preferences_android": {
+        "version": "2.4.28",
+        "source": "hosted",
+        "sha256": "1e12aafe408aa50da80edfd679a2a6bf63ba7ab37c7fa98286da459a757b3399"
+      },
+      "shared_preferences_foundation": {
+        "version": "2.5.7",
+        "source": "hosted",
+        "sha256": "2ec3934efa51e46117f23031cc141b8fc878e8525b94ec1ea4f7f586cf1b47ea"
+      },
+      "shared_preferences_linux": {
+        "version": "2.4.1",
+        "source": "hosted",
+        "sha256": "580abfd40f415611503cae30adf626e6656dfb2f0cee8f465ece7b6defb40f2f"
+      },
+      "shared_preferences_platform_interface": {
+        "version": "2.4.2",
+        "source": "hosted",
+        "sha256": "649dc798a33931919ea356c4305c2d1f81619ea6e92244070b520187b5140ef9"
+      },
+      "shared_preferences_web": {
+        "version": "2.4.3",
+        "source": "hosted",
+        "sha256": "c49bd060261c9a3f0ff445892695d6212ff603ef3115edbb448509d407600019"
+      },
+      "shared_preferences_windows": {
+        "version": "2.4.1",
+        "source": "hosted",
+        "sha256": "94ef0f72b2d71bc3e700e025db3710911bd51a71cefb65cc609dd0d9a982e3c1"
+      },
+      "sky_engine": {
+        "version": "0.0.0",
+        "source": "sdk"
+      },
+      "source_span": {
+        "version": "1.10.2",
+        "source": "hosted",
+        "sha256": "56a02f1f4cd1a2d96303c0144c93bd6d909eea6bee6bf5a0e0b685edbd4c47ab"
+      },
+      "sqlite3": {
+        "version": "2.9.4",
+        "source": "hosted",
+        "sha256": "3145bd74dcdb4fd6f5c6dda4d4e4490a8087d7f286a14dee5d37087290f0f8a2"
+      },
+      "stack_trace": {
+        "version": "1.12.2",
+        "source": "hosted",
+        "sha256": "277654b3034d17ac6f9f1cb5595db011b1d5d41e8806866db28e0abaa101c490"
+      },
+      "state_notifier": {
+        "version": "1.0.0",
+        "source": "hosted",
+        "sha256": "b8677376aa54f2d7c58280d5a007f9e8774f1968d1fb1c096adcb4792fba29bb"
+      },
+      "storage_client": {
+        "version": "2.8.0",
+        "source": "hosted",
+        "sha256": "b16aaaadcef812fda31fca056f50fb3485afe64f94e5d537d30f485ed55dec5e"
+      },
+      "stream_channel": {
+        "version": "2.1.4",
+        "source": "hosted",
+        "sha256": "969e04c80b8bcdf826f8f16579c7b14d780458bd97f56d107d3950fdbeef059d"
+      },
+      "string_scanner": {
+        "version": "1.4.1",
+        "source": "hosted",
+        "sha256": "921cd31725b72fe181906c6a94d987c78e3b98c2e205b397ea399d4054872b43"
+      },
+      "supabase": {
+        "version": "2.16.1",
+        "source": "hosted",
+        "sha256": "0645becf76f49d2633d8ec9bfd78ab98dce42de6899da8fa1f069c2c836d5d23"
+      },
+      "supabase_common": {
+        "version": "0.1.2",
+        "source": "hosted",
+        "sha256": "a7961a44953cf8d9da049381fc3377516348255042fbb12b9d4f8540816f2fe9"
+      },
+      "supabase_flutter": {
+        "version": "2.17.2",
+        "source": "hosted",
+        "sha256": "26eb3d3b71bcc5651551e64d6b131ba929ea261998570bbcc90356b1b42fd532"
+      },
+      "term_glyph": {
+        "version": "1.2.2",
+        "source": "hosted",
+        "sha256": "7f554798625ea768a7518313e58f83891c7f5024f88e46e7182a4558850a4b8e"
+      },
+      "test_api": {
+        "version": "0.7.12",
+        "source": "hosted",
+        "sha256": "2a122cbe059f8b610d3a5415f42e255b6c17b1f21eee1d960f31080237fb4f11"
+      },
+      "typed_data": {
+        "version": "1.4.0",
+        "source": "hosted",
+        "sha256": "f9049c039ebfeb4cf7a7104a675823cd72dba8297f264b6637062516699fa006"
+      },
+      "url_launcher": {
+        "version": "6.3.2",
+        "source": "hosted",
+        "sha256": "f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8"
+      },
+      "url_launcher_android": {
+        "version": "6.3.33",
+        "source": "hosted",
+        "sha256": "611e87fb320b70d1dd721dc46af89c98aceccea9b31fde49e084591414e0c610"
+      },
+      "url_launcher_ios": {
+        "version": "6.4.2",
+        "source": "hosted",
+        "sha256": "8faa1aab294f1ab4040b43660c887b0418d5fa4f0cffef76a484e6aa1092eb4a"
+      },
+      "url_launcher_linux": {
+        "version": "3.2.3",
+        "source": "hosted",
+        "sha256": "10f86fef4c2c43563fa6c211ff9cf757adf4d3ab762c56bd430664a947d70cd0"
+      },
+      "url_launcher_macos": {
+        "version": "3.2.6",
+        "source": "hosted",
+        "sha256": "5e835a3b869c2d70325349c81c5a45c28e20791265b67b2669da6b08c5cd5201"
+      },
+      "url_launcher_platform_interface": {
+        "version": "2.3.2",
+        "source": "hosted",
+        "sha256": "552f8a1e663569be95a8190206a38187b531910283c3e982193e4f2733f01029"
+      },
+      "url_launcher_web": {
+        "version": "2.4.3",
+        "source": "hosted",
+        "sha256": "85c81589622fbc87c1c683aaea164d3604a7777495a79d91e39ffcdec39ddb34"
+      },
+      "url_launcher_windows": {
+        "version": "3.1.6",
+        "source": "hosted",
+        "sha256": "6c5ad3f22cd4c38e089b81963b3cd7bb83b111b2df5dce008bb066162f42e429"
+      },
+      "uuid": {
+        "version": "4.6.0",
+        "source": "hosted",
+        "sha256": "9b129329f58692f6e6578329498a8fe9fbe98f090beb764ffbb8ee2eadd01dcd"
+      },
+      "vector_math": {
+        "version": "2.4.0",
+        "source": "hosted",
+        "sha256": "1d774bbdf6b72a0b12122fc1560c9c2d2a67db5a4a4cc2bd8a5c990ab20e3188"
+      },
+      "vm_service": {
+        "version": "15.3.0",
+        "source": "hosted",
+        "sha256": "5f37239c4851efcef929cea7824e76df7f2f0970aef85d66bbc430afa40e72f0"
+      },
+      "web": {
+        "version": "1.1.1",
+        "source": "hosted",
+        "sha256": "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
+      },
+      "web_socket": {
+        "version": "1.0.1",
+        "source": "hosted",
+        "sha256": "34d64019aa8e36bf9842ac014bb5d2f5586ca73df5e4d9bf5c936975cae6982c"
+      },
+      "web_socket_channel": {
+        "version": "3.0.3",
+        "source": "hosted",
+        "sha256": "d645757fb0f4773d602444000a8131ff5d48c9e47adfe9772652dd1a4f2d45c8"
+      },
+      "window_manager": {
+        "version": "0.5.2",
+        "source": "hosted",
+        "sha256": "05c231fd7b23d2380f14c5cc10b7b93d60d4fa4a2fb4e0f032de27e44b5560e9"
+      },
+      "xdg_directories": {
+        "version": "1.1.0",
+        "source": "hosted",
+        "sha256": "7a3f37b05d989967cdddcbb571f1ea834867ae2faa29725fd085180e0883aa15"
+      },
+      "yaml": {
+        "version": "3.1.4",
+        "source": "hosted",
+        "sha256": "f67cdd8e07d3c6329146aaef1ba043542b3134c12489f553ca9a7435d1068aea"
+      },
+      "yet_another_json_isolate": {
+        "version": "2.1.1",
+        "source": "hosted",
+        "sha256": "eaa26beb5990b25a49d942374fd5a0c5aa67a837e03b14b4c26134aaa1ed01a9"
+      }
+    },
+    "native": {
+      "catch2": {
+        "version": "2.13.10",
+        "sha256": "3725c0f0a75f376a5005dde31ead0feb8f7da7507644c201b814443de8355170"
+      }
+    }
+  }
+}

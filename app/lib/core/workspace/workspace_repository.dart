@@ -6,6 +6,7 @@ import '../auth/auth_service.dart';
 import '../modules/module_registry.dart';
 import '../modules/module_repository.dart';
 import '../modules/module_preview_data.dart';
+import '../privacy/privacy_preferences.dart';
 import 'workspace_project.dart';
 
 class PublishedWorkspace {
@@ -42,6 +43,7 @@ class WorkspaceRepository {
     required int offset,
     int limit = 24,
   }) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!AuthService.instance.isInitialized) return [];
     final rows = await Supabase.instance.client
         .from('workspace_catalog')
@@ -60,6 +62,7 @@ class WorkspaceRepository {
     required String license,
   }) async {
     final auth = AuthService.instance;
+    PrivacyPreferences.instance.requireExternalConsent();
     if (auth.currentUser == null) {
       throw StateError('Sign in with GitHub to submit a workspace.');
     }
@@ -110,10 +113,17 @@ Future<List<SystemModule>> resolveWorkspaceModules(
         ),
       )
       .toList();
-  if (unresolved.isNotEmpty) {
+  final unresolvedExternal = unresolved.where((m) => !m.isLocal).toList();
+  // Resolution can remain completely local when consent is unavailable. Do
+  // not ask the repository to perform a blocked external lookup in that case;
+  // the normal dependency error is more useful to callers and preserves the
+  // offline import path. If consent is granted, the repository applies the
+  // same policy check immediately before its HTTP request.
+  if (unresolvedExternal.isNotEmpty &&
+      PrivacyPreferences.instance.externalData) {
     available.addAll(
       await (repository ?? ModuleRepository()).findPublishedVersions(
-        unresolved.where((m) => !m.isLocal).toList(),
+        unresolvedExternal,
       ),
     );
   }

@@ -1,5 +1,95 @@
 # Changelog
 
+## [0.5.2-dev.5] — 2026-11-18 (development snapshot, not a 0.5.2 release)
+
+- Add local-only privacy defaults, persistent diagnostic opt-ins, consent-gated
+  Supabase/cover HTTP and a redacted outbound audit journal.
+- Document data privacy, clinical deployment checks and module trust limitations.
+- Add custom-module creation/import from the scene header and remove the leading
+  disclosure arrow and canvas-card hide button.
+- Add persistent complete hiding and double-click selection/restoration of
+  partially hidden module instances without stopping their processing.
+
+## [0.5.2-dev.4] — 2026-10-29 (development snapshot, not a 0.5.2 release)
+
+- Add protruding circular input/output ports while preserving stable graph
+  coordinates and connection endpoints.
+- Add a Workspace canvas tool rail for selection, freehand annotations,
+  connection cutting and output branching.
+- Persist canvas annotations in workspace projects and packages.
+- Move module and Logic Block creation into the Workspace inspector while
+  keeping the Explorer optional for the rest of the shell.
+- Make Workspace canvas width and height configurable per project, with safe
+  limits and legacy-project defaults; empty canvas area is not serialized.
+- Improve connection curves with anti-aliased strokes and stable reverse-edge
+  geometry, and keep Linux rendering on the monitor's native GTK refresh clock
+  for high-refresh displays when using the native embedder build.
+
+## [0.5.2-dev.3] — 2026-10-29 (development snapshot, not a 0.5.2 release)
+
+- Add native-style hover switching for shared horizontal desktop menus, including
+  Workspace toolbar menus.
+- Add Workspace magnetic placement with optional grid and module-edge snapping,
+  collision avoidance, rounded selection and Logic Blocks controls.
+- Add canvas module hiding, Explorer selection synchronization, a compact active
+  modules list above settings, and Workspace Explorer visibility control.
+- Keep the canvas in a finite 10,000 × 10,000 scene with stable clamped movement
+  instead of wrapping coordinates and breaking saved graph geometry.
+
+## [0.5.2-dev.2] — 2026-10-29 (development snapshot, not a 0.5.2 release)
+
+- Add explicit workspace checkpoints (Ctrl+S / File → Save), separate crash-recovery
+  drafts, first-save naming and native close protection with save/discard/cancel.
+- Show undo/redo feedback in a compact five-second bottom notification.
+- Add persisted top/bottom rail zones, drag-to-pin and direct pin controls, plus
+  animated icon return to the unused-items panel on removal.
+- Match module picker density to top-bar menus; enable hover switching between
+  open top-bar menus. Unify Marketplace outer/filter/catalog spacing to 20px.
+- Lock hidden canvas instances against selection, drag, edit and keyboard focus;
+  keep their graph and runtime active independently of visibility.
+- Use shared monochrome pill toggles throughout the app; simplify module settings
+  composition and remove module descriptions. Match Logic Blocks Explorer typography.
+- Replace rail settings dialog with an in-shell customization mode: dimmed
+  workspace, adjacent compact panel, hold-to-drag buttons, animated insertion,
+  reorder/add/remove, persistent mixed section/extension ordering and keyboard controls.
+- Keep canvas selection borders visible for mouse and keyboard independently of
+  navigation focus, above opaque node headers; preserve port geometry.
+- Remove the Marketplace filter/catalog divider while retaining its resize target;
+  normalize filter rows and compact action hit targets.
+- Open directly on the module workspace/canvas, including return from settings/profile.
+- Unify Explorer section spacing, slightly recess search fields, and align workspace
+  toolbar button heights. Show module dots only for packages placed on the active canvas;
+  make the hidden-module eye an immediate reveal action.
+- Replace module-add dialogs with compact, palette-matched context menus without titles
+  or dimming. Complete a wire on empty canvas to choose and connect a new module.
+- Add bounded session undo/redo (Ctrl+Z, Ctrl+Shift+Z / Ctrl+Y) for workspace edits,
+  including Explorer removal across projects, library references, settings and links;
+  group pointer drags and connected-node creation into single undo steps.
+- Keep a single current artifact set in `builds/<VERSION>/`; stage complete builds
+  before replacement, remove obsolete packages/backups, generate SHA256SUMS.
+- Formalize internal (host-routed instance ports), middle (module/host process-v1)
+  and external (engine/service adapters) API boundaries in SDK metadata and agent docs.
+- External AI development API 1.1.0: additive `api.describe`, `apiLayers` context
+  and layer-aware change plans; preserve module wire protocol 1 and existing routes.
+
+## [0.5.2-dev.1] — Earlier development work (not a 0.5.2 release)
+
+- Add local JSON-RPC 2.0 `qualia-ai` API for manifest/workspace validation,
+  safe fork lineage, SemVer comparison and reviewed engine change plans.
+- Add `qualia.lock.json` plus dependency/plugin/native/toolchain snapshot and
+  version consistency checks for AI and CI consumers.
+- Add immutable workspace `revision` metadata with parent digest/revision for
+  reproducible forks; legacy workspace packages remain readable.
+- Additive native C ABI 3: exclusive owned/wrapped timestamped float32 blocks,
+  interleaved/channel-major layout, zero-copy ownership push/process/pop.
+- Bounded native queues with independent input/output backpressure policies and
+  byte budgets. Remove unsafe producer dequeue from an SPSC queue. Preserve FIFO
+  across partial legacy reads; stop wakes a blocked lossless output worker.
+- Draft C++/Python QSB2 chunk codecs with shared conformance header, CRC and bounded
+  assembly. Not yet host protocol-v2, TCP session negotiation or shared memory.
+- Full ML/HAL/runtime/Storage/Registry/job/UI/trust release gates tracked in
+  `docs/ML_RUNTIME_V2.md`; 0.5.2 is NOT published or complete.
+
 ## [0.5.1] — Alpha: portable modules and TCP
 
 - UTF-8 NDJSON frames and manifests up to 1 MiB, with byte-accurate boundary checks.

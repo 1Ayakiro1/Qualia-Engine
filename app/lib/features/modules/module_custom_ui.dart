@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -152,11 +154,11 @@ class _CustomNode extends StatelessWidget {
   FontWeight? _weight(dynamic value) =>
       value == 'bold' ? FontWeight.w600 : null;
   IconData _icon(dynamic value) => switch (value) {
-    'play' => Icons.play_arrow_outlined,
-    'add' => Icons.add,
-    'remove' => Icons.remove,
-    'clear' => Icons.close,
-    _ => Icons.bolt_outlined,
+    'play' => AppIcons.play,
+    'add' => AppIcons.add,
+    'remove' => AppIcons.minus,
+    'clear' => AppIcons.close,
+    _ => AppIcons.bolt,
   };
   Color? _color(BuildContext context, dynamic value) => switch (value) {
     'muted' => context.palette.mutedText,

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_service.dart';
+import '../privacy/privacy_preferences.dart';
 import 'module_registry.dart';
 
 /// CRUD for the signed-in user's module drafts in Supabase.
@@ -17,6 +18,7 @@ class ModuleRepository {
     required int offset,
     int limit = 24,
   }) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized) return const [];
     final rows = await _client
         .from('modules')
@@ -30,6 +32,7 @@ class ModuleRepository {
   }
 
   Future<List<SystemModule>> findPublishedByIds(List<String> ids) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized || ids.isEmpty) return const [];
     final modules = <SystemModule>[];
     // Bound query size for imported presets, which support up to 500 IDs.
@@ -49,6 +52,7 @@ class ModuleRepository {
   Future<List<SystemModule>> findPublishedVersions(
     List<SystemModule> requested,
   ) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized || requested.isEmpty) return [];
     final result = <SystemModule>[];
     final ids = requested.map((m) => m.id).toSet().toList();
@@ -109,6 +113,7 @@ class ModuleRepository {
   }
 
   Future<List<SystemModule>> listMine() async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized || _auth.currentUser == null) {
       return const <SystemModule>[];
     }
@@ -126,6 +131,7 @@ class ModuleRepository {
   }
 
   Future<SystemModule> saveDraft(SystemModule module) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized) {
       throw StateError('Supabase Auth is unavailable.');
     }
@@ -167,6 +173,7 @@ class ModuleRepository {
   }
 
   Future<void> delete(SystemModule module) async {
+    PrivacyPreferences.instance.requireExternalConsent();
     if (!_auth.isInitialized || _auth.currentUser == null) {
       throw StateError('Sign in with GitHub to manage your modules.');
     }

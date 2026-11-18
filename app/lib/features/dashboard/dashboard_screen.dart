@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -57,7 +58,7 @@ class DashboardScreen extends ConsumerWidget {
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.settings),
-                  icon: const Icon(Icons.settings_outlined, size: 17),
+                  icon: const Icon(AppIcons.settings, size: 17),
                   label: Text(context.l10n.textConfigure237),
                 );
 
@@ -75,7 +76,7 @@ class DashboardScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
-                              Icons.auto_awesome,
+                              AppIcons.sparkles,
                               color: theme.colorScheme.primary,
                             ),
                           ),
@@ -99,7 +100,7 @@ class DashboardScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        Icons.auto_awesome,
+                        AppIcons.sparkles,
                         color: theme.colorScheme.primary,
                       ),
                     ),
@@ -114,7 +115,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         InfoCard(
           title: context.l10n.textCoreCFFI238,
-          headerIcon: Icons.memory,
+          headerIcon: AppIcons.cpu,
           trailing: StatusChip(
             label: engine.isOnline
                 ? context.l10n.textOnline239
@@ -152,7 +153,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         InfoCard(
           title: context.l10n.textQuickStart247,
-          headerIcon: Icons.bolt,
+          headerIcon: AppIcons.bolt,
           children: [
             Wrap(
               spacing: 10,
@@ -162,21 +163,21 @@ class DashboardScreen extends ConsumerWidget {
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.session),
-                  icon: const Icon(Icons.play_arrow),
+                  icon: const Icon(AppIcons.play),
                   label: Text(context.l10n.textStartATestSession248),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.spectrogram),
-                  icon: const Icon(Icons.graphic_eq),
+                  icon: const Icon(AppIcons.waveform),
                   label: Text(context.l10n.textSpectrogramDemo249),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => ref
                       .read(navSectionProvider.notifier)
                       .select(SectionId.modules),
-                  icon: const Icon(Icons.extension_outlined),
+                  icon: const Icon(AppIcons.puzzle),
                   label: Text(context.l10n.textModuleRegistry250),
                 ),
               ],
@@ -193,7 +194,7 @@ class DashboardScreen extends ConsumerWidget {
         ),
         InfoCard(
           title: context.l10n.recentSessions,
-          headerIcon: Icons.history,
+          headerIcon: AppIcons.history,
           children: [
             KeyValue(
               keyLabel: context.hostLabel('24.09 · тест'),

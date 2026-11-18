@@ -85,14 +85,14 @@ class SmoothingModule final : public IModule {
     const int ch = block.channels;
     for (int f = 0; f < block.frames; ++f) {
       for (int c = 0; c < ch; ++c) {
-        const float x = block.data[f * ch + c];
+        const float x = block.at(f, c);
         if (!primed_[c]) {
           prev_[c] = x;
           primed_[c] = true;
         } else {
           prev_[c] = alpha_ * prev_[c] + (1.0f - alpha_) * x;
         }
-        block.data[f * ch + c] = prev_[c];
+        block.at(f, c) = prev_[c];
       }
     }
   }
@@ -142,7 +142,7 @@ class DiagnosticsModule final : public IModule {
 
     // Spectrum of channel 0 over a Hann-windowed 256-sample window.
     for (int f = 0; f < block.frames; ++f) {
-      window_[write_pos_] = block.data[f * ch];
+      window_[write_pos_] = block.at(f, 0);
       write_pos_ = (write_pos_ + 1) % kWindow;
       if (write_pos_ == 0) {
         filled_ = true;

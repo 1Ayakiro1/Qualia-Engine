@@ -10,6 +10,164 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get workspaceCanvasHints => 'Canvas hints';
+
+  @override
+  String get sceneCreateGroup => 'Create group';
+
+  @override
+  String get sceneEditGroup => 'Edit group';
+
+  @override
+  String get sceneGroupName => 'Group name';
+
+  @override
+  String get sceneMoveToGroup => 'Move to group';
+
+  @override
+  String get sceneRemoveFromGroup => 'Remove from group';
+
+  @override
+  String get sceneDissolveGroup => 'Dissolve group';
+
+  @override
+  String get workspaceObjectVisible => 'Visible on canvas';
+
+  @override
+  String get workspaceObjectGeometry => 'Position and size';
+
+  @override
+  String get canvasEraser => 'Eraser';
+
+  @override
+  String get canvasBrush => 'Brush';
+
+  @override
+  String get canvasBrushColor => 'Brush color';
+
+  @override
+  String get canvasColorWhite => 'White';
+
+  @override
+  String get canvasColorBlack => 'Black';
+
+  @override
+  String get canvasDiameter => 'Diameter';
+
+  @override
+  String get workspaceSave => 'Save workspace';
+
+  @override
+  String get workspaceSaved => 'Workspace saved';
+
+  @override
+  String get sceneSelection => 'SCENE OBJECTS';
+
+  @override
+  String get sceneCollapse => 'Collapse scene selection';
+
+  @override
+  String get sceneExpand => 'Expand scene selection';
+
+  @override
+  String get sceneNoObjects => 'No objects found';
+
+  @override
+  String get sceneSelectObject => 'Select an object';
+
+  @override
+  String get workspaceSaveFailed =>
+      'Could not save the workspace. Your draft is still available.';
+
+  @override
+  String get canvasFullscreen => 'Fullscreen canvas';
+
+  @override
+  String get canvasExitFullscreen => 'Exit canvas fullscreen';
+
+  @override
+  String get canvasScreenshot => 'Save canvas screenshot';
+
+  @override
+  String get canvasScreenshotSaved => 'Canvas screenshot saved';
+
+  @override
+  String get canvasScreenshotFailed => 'Could not save the canvas screenshot.';
+
+  @override
+  String get workspaceUnsavedTitle => 'Save workspace changes?';
+
+  @override
+  String get workspaceUnsavedMessage =>
+      'Your workspace has unsaved changes. Save them before closing, or discard changes since the last save.';
+
+  @override
+  String get workspaceDiscard => 'Don\'t save';
+
+  @override
+  String get workspaceUndoNotice => 'Action undone';
+
+  @override
+  String get workspaceRedoNotice => 'Action redone';
+
+  @override
+  String get privacyDataTitle => 'Data privacy';
+
+  @override
+  String get privacyDataDescription =>
+      'Local processing is the default. Optional diagnostics are disabled until you explicitly enable them.';
+
+  @override
+  String get privacyCrashReports => 'Crash reports';
+
+  @override
+  String get privacyCrashReportsDescription =>
+      'Allow anonymized crash diagnostics to be prepared for an external reporting service. No report is sent by this build.';
+
+  @override
+  String get privacyMetrics => 'Usage metrics';
+
+  @override
+  String get privacyMetricsDescription =>
+      'Consent to optional usage metrics. This build has no metrics upload service and sends no metrics.';
+
+  @override
+  String get privacyExternalData => 'Allow data outside the app';
+
+  @override
+  String get privacyExternalDataDescription =>
+      'Enable Supabase sign-in, catalog, covers and explicit publishing. Off blocks new application HTTP requests. It does not sandbox installed modules or cancel requests already sent.';
+
+  @override
+  String get privacyOutboundLog =>
+      'Outbound audit: logs/outbound.jsonl in the local app data directory. Records destination, field names, byte count and response/failure, never field values or tokens. Browser sign-in is recorded as a handoff, not a completed transfer. See docs/DATA_PRIVACY.md.';
+
+  @override
+  String get workspaceHideFully => 'Hide completely';
+
+  @override
+  String get workspaceShowFully => 'Show completely';
+
+  @override
+  String get railBottomZone => 'Bottom of rail';
+
+  @override
+  String get railUnusedItems => 'Unused items';
+
+  @override
+  String get railUsedItems => 'On the rail';
+
+  @override
+  String get railPinBottom => 'Move to bottom';
+
+  @override
+  String get railPinTop => 'Move to top';
+
+  @override
+  String get railDragHint =>
+      'Drag buttons into the rail to add or reorder them. Drag back here to remove. Click to toggle; Alt + ↑ / ↓ moves a focused button.';
+
+  @override
   String get logicBlocks => 'Logic blocks';
 
   @override
@@ -347,7 +505,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workspaceResizeNode => 'Drag to resize module';
 
   @override
-  String get workspaceSelectHint => 'Shift + click to select multiple modules';
+  String get workspaceSelectHint =>
+      'Shift / Alt + click — select multiple; Space + drag — pan canvas';
+
+  @override
+  String get workspaceCopy => 'Copy';
+
+  @override
+  String get workspaceCut => 'Cut';
+
+  @override
+  String get workspacePaste => 'Paste';
+
+  @override
+  String get workspaceMoveJunction => 'Move point';
+
+  @override
+  String get workspaceClipboardFailed =>
+      'Could not copy or paste nodes. Check module availability and scene size.';
 
   @override
   String get textSupabaseAuthIsUnavailable0 => 'Supabase Auth is unavailable.';
@@ -1410,7 +1585,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Drag a module from Explorer or right-click → Add';
 
   @override
-  String get textReturnToModules304 => 'Return to modules';
+  String get textReturnToModules304 => 'Return to start';
 
   @override
   String get textMMBDragToPanWheelToZoom305 =>

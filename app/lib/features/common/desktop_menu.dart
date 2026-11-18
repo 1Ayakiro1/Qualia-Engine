@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -194,9 +196,6 @@ class _MenuTile<T> extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               overlayColor: Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
               textStyle: const TextStyle(fontSize: 14),
             ),
             child: Row(
@@ -241,7 +240,7 @@ class _MenuTile<T> extends StatelessWidget {
                 ],
                 if (entry.submenu != null)
                   Icon(
-                    Icons.chevron_right,
+                    AppIcons.caretRight,
                     size: 16,
                     color: context.palette.mutedText,
                   ),
@@ -261,18 +260,29 @@ Future<T?> showDesktopMenu<T>({
   double width = 240,
   double itemHeight = 38,
   DesktopMenuSearch<T>? search,
+  double? scale,
 }) {
-  return Navigator.of(context).push<T>(
+  final navigator = Navigator.of(context);
+  final overlay = navigator.overlay!.context.findRenderObject() as RenderBox;
+  final anchor = context.findRenderObject();
+  // Popup routes live outside the shell's Transform.scale. Carry the effective
+  // density across that boundary instead of rendering smaller text and targets.
+  final menuScale =
+      scale ??
+      (anchor is RenderBox
+          ? (anchor.localToGlobal(const Offset(1, 0), ancestor: overlay) -
+                    anchor.localToGlobal(Offset.zero, ancestor: overlay))
+                .distance
+          : 1.0);
+  return navigator.push<T>(
     _DesktopMenuRoute<T>(
-      position: position,
+      position: overlay.globalToLocal(position) / menuScale,
+      scale: menuScale,
       entries: entries,
       width: desktopMenuWidth(context, entries, width),
       itemHeight: itemHeight,
       search: search,
-      themes: InheritedTheme.capture(
-        from: context,
-        to: Navigator.of(context).context,
-      ),
+      themes: InheritedTheme.capture(from: context, to: navigator.context),
       palette: context.palette,
     ),
   );
@@ -286,6 +296,7 @@ class _DesktopMenuRoute<T> extends PopupRoute<T> {
     required this.themes,
     required this.palette,
     required this.itemHeight,
+    required this.scale,
     this.search,
   });
   final Offset position;
@@ -294,6 +305,7 @@ class _DesktopMenuRoute<T> extends PopupRoute<T> {
   final CapturedThemes themes;
   final AppPalette palette;
   final double itemHeight;
+  final double scale;
   final DesktopMenuSearch<T>? search;
   @override
   Color? get barrierColor => null;
@@ -313,12 +325,33 @@ class _DesktopMenuRoute<T> extends PopupRoute<T> {
   ) => themes.wrap(
     AppThemeScope(
       palette: palette,
-      child: _MenuPage<T>(
-        position: position,
-        entries: entries,
-        width: width,
-        itemHeight: itemHeight,
-        search: search,
+      child: LayoutBuilder(
+        builder: (context, constraints) => OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: constraints.maxWidth / scale,
+          maxWidth: constraints.maxWidth / scale,
+          minHeight: constraints.maxHeight / scale,
+          maxHeight: constraints.maxHeight / scale,
+          child: Transform.scale(
+            scale: scale,
+            alignment: Alignment.topLeft,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                size: Size(
+                  constraints.maxWidth / scale,
+                  constraints.maxHeight / scale,
+                ),
+              ),
+              child: _MenuPage<T>(
+                position: position,
+                entries: entries,
+                width: width,
+                itemHeight: itemHeight,
+                search: search,
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -367,14 +400,13 @@ class _MenuPageState<T> extends State<_MenuPage<T>> {
           final entries = _query.trim().isNotEmpty && widget.search != null
               ? results
               : widget.entries;
+          final showEmpty = widget.search != null && entries.isEmpty;
           final width = math.min(
             widget.width,
             math.max(0.0, bounds.maxWidth - 16),
           );
           final height = entries.fold<double>(
-            widget.search == null
-                ? 16
-                : 76 + (_query.trim().isNotEmpty && results.isEmpty ? 38 : 0),
+            widget.search == null ? 16 : 76 + (showEmpty ? 38 : 0),
             (height, entry) =>
                 height + widget.itemHeight + (entry.dividerBefore ? 8 : 0),
           );
@@ -445,24 +477,29 @@ class _MenuPageState<T> extends State<_MenuPage<T>> {
                                         _submenu = null;
                                       }),
                                       onSubmitted: (_) {
-                                        if (results.isNotEmpty) {
-                                          Navigator.pop(
-                                            context,
-                                            results.first.value,
-                                          );
+                                        final first = entries
+                                            .where(
+                                              (e) =>
+                                                  e.enabled &&
+                                                  e.submenu == null,
+                                            )
+                                            .firstOrNull;
+                                        if (first != null) {
+                                          Navigator.pop(context, first.value);
                                         }
                                       },
                                       style: const TextStyle(fontSize: 14),
                                       decoration: InputDecoration(
                                         hintText: widget.search!.hint,
                                         prefixIcon: const Icon(
-                                          Icons.search,
+                                          AppIcons.search,
                                           size: 18,
                                         ),
+                                        filled: true,
+                                        fillColor: context.palette.searchField,
                                       ),
                                     ),
-                                    if (_query.trim().isNotEmpty &&
-                                        results.isEmpty)
+                                    if (showEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 12),
                                         child: Text(
@@ -526,7 +563,7 @@ class _MenuPageState<T> extends State<_MenuPage<T>> {
   );
 }
 
-class DesktopMenuButton<T> extends StatelessWidget {
+class DesktopMenuButton<T> extends StatefulWidget {
   const DesktopMenuButton({
     super.key,
     required this.tooltip,
@@ -543,22 +580,88 @@ class DesktopMenuButton<T> extends StatelessWidget {
   final double width;
   final double itemHeight;
   @override
+  State<DesktopMenuButton<T>> createState() => _DesktopMenuButtonState<T>();
+}
+
+/// Desktop menus behave like a native menu bar: once one menu is open,
+/// moving to a neighbouring menu trigger switches the open menu without
+/// requiring another click. The registry is deliberately local to this
+/// shared control so every horizontal menu row gets the same behaviour.
+class _DesktopMenuButtonState<T> extends State<DesktopMenuButton<T>> {
+  static Object? _activeToken;
+  static VoidCallback? _activeCloser;
+  Object? _token;
+
+  @override
+  void dispose() {
+    if (identical(_activeToken, _token)) {
+      _activeToken = null;
+      _activeCloser = null;
+    }
+    super.dispose();
+  }
+
+  Future<void> _openMenu() async {
+    final previousCloser = _activeCloser;
+    if (_activeToken != null) {
+      // Close the previous popup while its token is still current. Clearing
+      // the registry first would make the closer refuse to pop its own route.
+      previousCloser?.call();
+      _activeToken = null;
+      _activeCloser = null;
+    }
+    final navigator = Navigator.of(context);
+    final box = context.findRenderObject() as RenderBox;
+    final menuFuture = showDesktopMenu<T>(
+      context: context,
+      position: box.localToGlobal(Offset(0, box.size.height)),
+      entries: widget.entries,
+      width: widget.width,
+      itemHeight: widget.itemHeight,
+    );
+    final token = Object();
+    _token = token;
+    _activeToken = token;
+    _activeCloser = () {
+      if (!identical(_activeToken, token)) return;
+      _activeToken = null;
+      _activeCloser = null;
+      if (navigator.canPop()) navigator.pop();
+    };
+    final value = await menuFuture;
+    if (identical(_activeToken, token)) {
+      _activeToken = null;
+      _activeCloser = null;
+      _token = null;
+    }
+    if (value != null && mounted) widget.onSelected(value);
+  }
+
+  void _closeMenu() {
+    if (_token == null || !identical(_activeToken, _token)) return;
+    _activeCloser?.call();
+  }
+
+  @override
   Widget build(BuildContext context) => DesktopTooltip(
-    message: tooltip,
-    child: DesktopHoverTile(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () async {
-        final box = context.findRenderObject() as RenderBox;
-        final value = await showDesktopMenu<T>(
-          context: context,
-          position: box.localToGlobal(Offset(0, box.size.height)),
-          entries: entries,
-          width: width,
-          itemHeight: itemHeight,
-        );
-        if (value != null && context.mounted) onSelected(value);
+    message: widget.tooltip,
+    child: MouseRegion(
+      onEnter: (_) {
+        if (_activeToken != null && !identical(_activeToken, _token)) {
+          _openMenu();
+        }
       },
-      child: child,
+      child: DesktopHoverTile(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () {
+          if (_token != null && identical(_activeToken, _token)) {
+            _closeMenu();
+          } else {
+            _openMenu();
+          }
+        },
+        child: widget.child,
+      ),
     ),
   );
 }
@@ -597,7 +700,7 @@ class DesktopSelectField<T> extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Icon(Icons.expand_more, size: 16),
+          const Icon(AppIcons.caretDown, size: 16),
         ],
       ),
     ),

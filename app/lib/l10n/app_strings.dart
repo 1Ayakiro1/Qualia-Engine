@@ -9,6 +9,7 @@ extension AppStrings on BuildContext {
     'select' => l10n.logicSelectFields,
     'validate' => l10n.logicValidate,
     'script' => l10n.logicScript,
+    'junction' => 'Junction',
     _ => l10n.logicBlocks,
   };
   AppLocalizations get l10n =>
@@ -151,6 +152,7 @@ extension AppStrings on BuildContext {
     "Bug report" => l10n.textBugReport56,
     "Сообщить о проблеме" => l10n.textReportAProblem57,
     "Настройки" => l10n.textSettings58,
+    'Privacy' => l10n.privacyDataTitle,
     "Режимы, сборка, лицензии" => l10n.textModesBuildLicenses59,
     "File" => l10n.textFile60,
     "Edit" => l10n.textEdit61,

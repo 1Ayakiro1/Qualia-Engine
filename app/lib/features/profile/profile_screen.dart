@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -72,7 +73,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Row(
             children: [
               _ProfileAction(
-                icon: Icons.arrow_back,
+                icon: AppIcons.arrowBack,
                 label: context.l10n.textBackToApp370,
                 onTap: widget.onBack,
               ),
@@ -130,7 +131,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       const SizedBox(height: 24),
       _LoginProviderButton(
         label: _busy ? context.l10n.textConnectingToGitHub401 : 'GitHub',
-        icon: Icons.code,
+        icon: AppIcons.code,
         onPressed: _busy ? null : _signIn,
       ),
       if (_error != null) ...[
@@ -158,7 +159,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           foregroundImage: avatar is String && avatar.isNotEmpty
               ? NetworkImage(avatar)
               : null,
-          child: const Icon(Icons.person_outline, size: 30),
+          child: const Icon(AppIcons.user, size: 30),
         ),
         const SizedBox(height: 14),
         Text(
@@ -190,7 +191,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           label: _busy
               ? context.l10n.textSigningOut402
               : context.l10n.textSignOut403,
-          icon: Icons.logout,
+          icon: AppIcons.logout,
           onPressed: _busy ? null : _signOut,
         ),
         if (_error != null) ...[
@@ -228,7 +229,6 @@ class _LoginProviderButton extends StatelessWidget {
         foregroundColor: context.palette.text,
         backgroundColor: context.palette.panel,
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
     ),
@@ -254,7 +254,6 @@ class _ProfileAction extends StatelessWidget {
     style: TextButton.styleFrom(
       foregroundColor: context.palette.text,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
   );
 }

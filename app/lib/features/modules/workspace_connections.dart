@@ -16,13 +16,29 @@ Paint workspaceConnectionPaint(
 ) {
   final paint = Paint()
     ..style = PaintingStyle.stroke
+    ..isAntiAlias = true
     ..strokeCap = StrokeCap.round
-    ..strokeWidth = 2
+    ..strokeWidth = 2.2
     ..color = output;
   if (output != input && (to - from).distanceSquared > .001) {
     paint.shader = ui.Gradient.linear(from, to, [output, input]);
   }
   return paint;
+}
+
+Path workspaceConnectionPath(Offset from, Offset to) {
+  final direction = to.dx >= from.dx ? 1.0 : -1.0;
+  final bend = math.max(60.0, (to.dx - from.dx).abs() * .45);
+  return Path()
+    ..moveTo(from.dx, from.dy)
+    ..cubicTo(
+      from.dx + direction * bend,
+      from.dy,
+      to.dx - direction * bend,
+      to.dy,
+      to.dx,
+      to.dy,
+    );
 }
 
 void paintWorkspaceConnection(
@@ -32,11 +48,8 @@ void paintWorkspaceConnection(
   Color output,
   Color input,
 ) {
-  final dx = math.max(60.0, (to.dx - from.dx).abs() * .45);
   canvas.drawPath(
-    Path()
-      ..moveTo(from.dx, from.dy)
-      ..cubicTo(from.dx + dx, from.dy, to.dx - dx, to.dy, to.dx, to.dy),
+    workspaceConnectionPath(from, to),
     workspaceConnectionPaint(from, to, output, input),
   );
 }
@@ -51,6 +64,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
     this.pendingOutput = false,
     this.wireEnd,
     this.dimmedModuleIds = const {},
+    this.dimmedNodeIds = const {},
   });
   final List<WorkspaceNode> nodes;
   final List<WorkspaceLink> links;
@@ -60,6 +74,7 @@ class WorkspaceConnectionsPainter extends CustomPainter {
   final bool pendingOutput;
   final Offset? wireEnd;
   final Set<String> dimmedModuleIds;
+  final Set<String> dimmedNodeIds;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -69,6 +84,8 @@ class WorkspaceConnectionsPainter extends CustomPainter {
       final target = byId[link.target];
       if (source == null || target == null) continue;
       final dimmed =
+          dimmedNodeIds.contains(source.id) ||
+          dimmedNodeIds.contains(target.id) ||
           dimmedModuleIds.contains(source.module.id) ||
           dimmedModuleIds.contains(target.module.id);
       paintWorkspaceConnection(
@@ -98,5 +115,14 @@ class WorkspaceConnectionsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WorkspaceConnectionsPainter oldDelegate) => true;
+  bool shouldRepaint(covariant WorkspaceConnectionsPainter oldDelegate) =>
+      oldDelegate.nodes != nodes ||
+      oldDelegate.links != links ||
+      oldDelegate.neutral != neutral ||
+      oldDelegate.pendingNode != pendingNode ||
+      oldDelegate.pendingPort != pendingPort ||
+      oldDelegate.pendingOutput != pendingOutput ||
+      oldDelegate.wireEnd != wireEnd ||
+      oldDelegate.dimmedModuleIds != dimmedModuleIds ||
+      oldDelegate.dimmedNodeIds != dimmedNodeIds;
 }

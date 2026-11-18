@@ -58,6 +58,11 @@
 
 ## Сетевой транспорт
 
+Stdio/TCP — transport **среднего API** (module ↔ engine); `input/output`
+несут **внутренние** данные между экземплярами, которые маршрутизирует host.
+Даже сетевой endpoint из manifest не является внешним engine service API.
+Нормативные границы и адресация: [API_LAYERS.md](API_LAYERS.md).
+
 По умолчанию модуль обменивается с host через UTF-8 NDJSON по stdin/stdout.
 Для процесса, который поднимает TCP listener, manifest может объявить:
 

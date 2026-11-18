@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -8,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/engine_provider.dart';
+import '../../core/runtime/runtime_events.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/logging/log_entry.dart';
-import '../common/signal_gen.dart';
 import '../common/widgets.dart';
 
 class _SessionRecord {
@@ -39,9 +40,9 @@ class SessionScreen extends ConsumerStatefulWidget {
 
 class _SessionScreenState extends ConsumerState<SessionScreen> {
   final List<_SessionRecord> _history = <_SessionRecord>[];
-  final SyntheticSignal _signal = SyntheticSignal();
 
-  Timer? _timer;
+  StreamSubscription<RuntimeSignalBlock>? _signals;
+  StreamSubscription<RuntimeFrame>? _frameSubscription;
   bool _running = false;
   DateTime? _startedAt;
   int _frames = 0;
@@ -50,6 +51,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   double _quality = 0;
   double _rmsSum = 0;
   int _metricSamples = 0;
+  double _pendingRms = 0;
+  double _pendingPeakHz = 0;
+  double _pendingQuality = 0;
 
   static const int _blockFrames = 64;
   static const int _popWindow = 256;
@@ -60,7 +64,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
 
   @override
   void dispose() {
-    _stopTimer();
+    _stopStreams();
     _freeBuffers();
     super.dispose();
   }
@@ -110,7 +114,6 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       );
     }
 
-    _signal.reset();
     setState(() {
       _running = true;
       _startedAt = DateTime.now();
@@ -120,53 +123,56 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       _quality = 0;
       _rmsSum = 0;
       _metricSamples = 0;
+      _pendingRms = 0;
+      _pendingPeakHz = 0;
+      _pendingQuality = 0;
     });
 
-    _timer = Timer.periodic(const Duration(milliseconds: 40), (_) => _tick());
+    _signals = RuntimeEventHub.instance.signals.listen(_processBlock);
+    _frameSubscription = RuntimeEventHub.instance.frames.listen((_) {
+      if (mounted && _running) {
+        setState(() {
+          _rms = _pendingRms;
+          _peakHz = _pendingPeakHz;
+          _quality = _pendingQuality;
+        });
+      }
+    });
   }
 
-  void _tick() {
+  void _processBlock(RuntimeSignalBlock signal) {
     if (!_running) {
       return;
     }
-    final List<double> block = _signal.take(_blockFrames);
+    final List<double> block = signal.samples;
 
     if (_coreOnline && _inBuffer != null && _outBuffer != null) {
-      for (int i = 0; i < block.length; i++) {
+      final int frames = math.min(block.length, _blockFrames);
+      for (int i = 0; i < frames; i++) {
         _inBuffer![i] = block[i];
       }
       final EngineController controller = ref.read(engineProvider.notifier);
-      controller.pushSamples(_inBuffer!, _blockFrames, 1);
+      controller.pushSamples(_inBuffer!, frames, 1);
       final int? popped = controller.popSamplesInto(_outBuffer!, _popWindow, 1);
       final List<double>? metrics = controller.metrics();
-      if (!mounted) {
-        return;
+      if (popped != null && popped > 0) _frames += popped;
+      if (metrics != null) {
+        _pendingRms = metrics[0];
+        _pendingPeakHz = metrics[1];
+        _pendingQuality = metrics[2];
+        _rmsSum += metrics[0];
+        _metricSamples++;
       }
-      setState(() {
-        if (popped != null && popped > 0) {
-          _frames += popped;
-        }
-        if (metrics != null) {
-          _rms = metrics[0];
-          _peakHz = metrics[1];
-          _quality = metrics[2];
-          _rmsSum += metrics[0];
-          _metricSamples++;
-        }
-      });
     } else {
       double sum = 0;
       for (final double v in block) {
         sum += v * v;
       }
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _frames += block.length;
-        _rms = math.sqrt(sum / block.length);
-        _quality = _rms > 1e-4 ? 0.75 : 0.2;
-      });
+      _frames += block.length;
+      _pendingRms = math.sqrt(sum / block.length);
+      _pendingQuality = _pendingRms > 1e-4 ? 0.75 : 0.2;
+      _rmsSum += _pendingRms;
+      _metricSamples++;
     }
   }
 
@@ -190,16 +196,18 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     if (_coreOnline) {
       ref.read(engineProvider.notifier).stop();
     }
-    _stopTimer();
+    _stopStreams();
     _freeBuffers();
     if (mounted) {
       setState(() => _running = false);
     }
   }
 
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
+  void _stopStreams() {
+    _signals?.cancel();
+    _signals = null;
+    _frameSubscription?.cancel();
+    _frameSubscription = null;
   }
 
   String _elapsed() {
@@ -230,7 +238,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           title: _running
               ? context.l10n.textSessionRunning275
               : context.l10n.textTestSession276,
-          headerIcon: Icons.monitor_heart_outlined,
+          headerIcon: AppIcons.heartbeat,
           trailing: StatusChip(
             label: viaCore
                 ? context.l10n.textThroughCore277
@@ -238,7 +246,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             color: viaCore
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
-            icon: viaCore ? Icons.memory : Icons.timer,
+            icon: viaCore ? AppIcons.cpu : AppIcons.timer,
           ),
           children: [
             Wrap(
@@ -267,13 +275,13 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 if (!_running)
                   FilledButton.icon(
                     onPressed: _start,
-                    icon: const Icon(Icons.play_arrow),
+                    icon: const Icon(AppIcons.play),
                     label: Text(context.l10n.textStart283),
                   )
                 else
                   FilledButton.icon(
                     onPressed: _stop,
-                    icon: const Icon(Icons.stop),
+                    icon: const Icon(AppIcons.stop),
                     label: Text(context.l10n.textStop284),
                   ),
                 const SizedBox(width: 12),
@@ -291,7 +299,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
         ),
         InfoCard(
           title: context.l10n.textSessionHistoryInMemoryV01286,
-          headerIcon: Icons.history,
+          headerIcon: AppIcons.history,
           children: [
             if (_history.isEmpty)
               Text(

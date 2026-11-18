@@ -328,7 +328,7 @@ void main() {
         tester.getSize(find.byType(ActiveModuleView).last),
         const Size(1400, 900),
       );
-      await tester.tap(find.byType(Switch).last);
+      await tester.tap(find.byType(DesktopToggle).last);
       await tester.pumpAndSettle();
       expect(node.settings['active'], true);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);

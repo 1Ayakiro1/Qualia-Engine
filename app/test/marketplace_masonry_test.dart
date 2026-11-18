@@ -85,6 +85,27 @@ void main() {
         final second = rect(1);
         final third = rect(2);
         expect(first.width, closeTo(second.width, .01));
+        final filterHeader = tester.getRect(
+          find.byKey(const ValueKey('marketplace filters header')),
+        );
+        final search = tester.getRect(
+          find.byKey(const ValueKey('marketplace search field')),
+        );
+        final kindSpacing = tester.getRect(
+          find.byKey(const ValueKey('marketplace kind spacing')),
+        );
+        expect(filterHeader.top, search.top);
+        expect(search.left - filterHeader.right, 20);
+        expect(first.left, search.left);
+        expect(search.top - kindSpacing.bottom, 0);
+        expect(
+          tester
+              .widget<Padding>(
+                find.byKey(const ValueKey('marketplace kind spacing')),
+              )
+              .padding,
+          const EdgeInsets.all(20),
+        );
         expect(second.height, greaterThan(first.height));
         for (final index in [0, 1, 2]) {
           final cover = tester.getRect(

@@ -57,7 +57,7 @@ GTK engine. SDK пользователя не изменяется: исходн
 кадров. Для сравнения со старым путём запустить:
 
 ```bash
-QUALIA_NATIVE_VSYNC=0 ./builds/binary/bci_engine
+QUALIA_NATIVE_VSYNC=0 ./builds/$(cat VERSION)/binary/bci_engine
 ```
 
 Тесты `scripts/test_native_vsync.sh` проверяют перевод 60/144/165/240-Гц timings,

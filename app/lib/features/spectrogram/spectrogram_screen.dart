@@ -1,10 +1,11 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../common/signal_gen.dart';
+import '../../core/runtime/runtime_events.dart';
 import '../common/widgets.dart';
 import 'spectro_model.dart';
 import 'spectro_painter.dart';
@@ -19,20 +20,31 @@ class SpectrogramScreen extends StatefulWidget {
 
 class _SpectrogramScreenState extends State<SpectrogramScreen> {
   final SpectroModel _model = SpectroModel();
-  final SyntheticSignal _signal = SyntheticSignal();
-  Timer? _timer;
+  StreamSubscription<RuntimeSignalBlock>? _signals;
+  StreamSubscription<RuntimeFrame>? _frames;
+  final List<List<double>> _pendingBlocks = <List<double>>[];
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      _model.push(_signal.take(16));
+    _signals = RuntimeEventHub.instance.signals.listen((block) {
+      if (mounted) _pendingBlocks.add(block.samples);
+    });
+    _frames = RuntimeEventHub.instance.frames.listen((_) {
+      if (!mounted || _pendingBlocks.isEmpty) return;
+      final blocks = List<List<double>>.of(_pendingBlocks);
+      _pendingBlocks.clear();
+      for (final block in blocks) {
+        _model.push(block);
+      }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _signals?.cancel();
+    _frames?.cancel();
+    _pendingBlocks.clear();
     _model.dispose();
     super.dispose();
   }
@@ -54,17 +66,17 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
               onPressed: () => setState(() {
                 _model.setPaused(!_model.paused);
               }),
-              icon: Icon(_model.paused ? Icons.play_arrow : Icons.pause),
+              icon: Icon(_model.paused ? AppIcons.play : AppIcons.pause),
             ),
             IconButton(
               tooltip: context.l10n.textAddMarker330,
               onPressed: () => setState(_model.addMarker),
-              icon: const Icon(Icons.flag_outlined),
+              icon: const Icon(AppIcons.flag),
             ),
             IconButton(
               tooltip: context.l10n.textClear331,
               onPressed: () => setState(_model.clear),
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.trash),
             ),
             const SizedBox(width: 8),
           ],
@@ -137,7 +149,7 @@ class _SidePanel extends StatelessWidget {
       children: [
         InfoCard(
           title: context.l10n.textMarkers334,
-          headerIcon: Icons.flag_outlined,
+          headerIcon: AppIcons.flag,
           children: [
             if (model.markers.isEmpty)
               Text(
@@ -159,7 +171,7 @@ class _SidePanel extends StatelessWidget {
         const SizedBox(height: 8),
         InfoCard(
           title: context.l10n.textParameters336,
-          headerIcon: Icons.tune,
+          headerIcon: AppIcons.sliders,
           children: [
             Text(
               context.l10n.textSensitivityArg0337(
@@ -180,7 +192,7 @@ class _SidePanel extends StatelessWidget {
         Expanded(
           child: InfoCard(
             title: context.l10n.textAboutVersions338,
-            headerIcon: Icons.info_outline,
+            headerIcon: AppIcons.info,
             children: [
               Text(
                 context.l10n.spectrogramVersionNotice,

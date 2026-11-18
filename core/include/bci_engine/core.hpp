@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "bci_engine/version.h"
+#include "bci_engine/sample_block.hpp"
 
 namespace bci {
 
@@ -26,15 +27,7 @@ enum class Status : int {
   kInvalidArgument = -4,
   kQueueOverflow = -5,
   kInternalError = -6,
-};
-
-// A view over an interleaved sample buffer: data[frame * channels + channel].
-struct SampleBlock {
-  float* data = nullptr;
-  int frames = 0;
-  int channels = 0;
-  double sample_rate = 0.0;
-  uint64_t first_sample = 0;
+  kQueueEmpty = -7,
 };
 
 // Module categories (kept as int in ModuleInfo for the C ABI).
@@ -81,7 +74,7 @@ class EngineContext {
   Engine& engine_;
 };
 
-// Real-time engine: owns the worker thread, the lock-free queues and the
+// Streaming engine: owns the worker thread, bounded ownership queues and the
 // processing pipeline (list of system modules).
 class Engine {
  public:
@@ -99,6 +92,12 @@ class Engine {
   // Producer side (called from the Dart/UI thread).
   Status push_samples(const float* interleaved, int frames, int channels);
 
+  // Takes ownership only on success; leaves block untouched on refusal.
+  Status push_block(SampleBlockPtr& block);
+  Status pop_block(SampleBlockPtr& block);
+  Status configure_queues(size_t capacity, size_t max_bytes,
+                          QueuePolicy input, QueuePolicy output);
+
   // Consumer side (called from the Dart/UI thread).
   int pop_samples(float* out_interleaved, int frames, int channels);
 
@@ -114,19 +113,8 @@ class Engine {
   void core_log(const std::string& message);
 
  private:
-  struct Block {
-    std::vector<float> data;
-    int frames = 0;
-    int channels = 0;
-    double sample_rate = 0.0;
-    uint64_t first_sample = 0;
-  };
-  using BlockPtr = std::unique_ptr<Block>;
-
   void worker_loop();
   void build_pipeline();
-
-  static constexpr size_t kQueueCapacity = 512;  // blocks per queue
 
   struct Impl;
 
@@ -139,6 +127,12 @@ class Engine {
   double sample_rate_ = 0.0;
   int channels_ = 0;
   uint64_t sample_counter_ = 0;
+
+  // Retain a partially drained legacy block at the head without rebuilding or
+  // re-enqueuing it behind later output. Serialize API-side start/stop/push/pop.
+  SampleBlockPtr draining_;
+  int drain_offset_ = 0;
+  mutable std::mutex lifecycle_mutex_;
 
   std::atomic<bool> running_{false};
   std::thread worker_;

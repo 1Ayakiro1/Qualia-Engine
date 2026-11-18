@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:bci_engine/core/theme/app_icons.dart';
+
 import 'package:bci_engine/app.dart';
 import 'package:bci_engine/core/logic/logic_blocks.dart';
 import 'package:bci_engine/core/logic/logic_script.dart';
@@ -331,7 +333,7 @@ if has(value, "score") and value.score >= 0.7 {
         const Offset(4820, 4820),
       );
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.account_tree_outlined), findsWidgets);
+      expect(find.byIcon(AppIcons.workflow), findsWidgets);
       expect(find.byKey(ValueKey('workspace node ${node.id}')), findsOneWidget);
       controller.setBlockVisibility(logic: false);
       await tester.pumpAndSettle();
@@ -348,12 +350,13 @@ if has(value, "score") and value.score >= 0.7 {
             .first,
       );
       await tester.pumpAndSettle();
-      final field = find.byKey(const ValueKey('logic editor script'));
+      // The scene pane also exposes these controls; edit the opened view here.
+      final field = find.byKey(const ValueKey('logic editor script')).first;
       expect(field, findsOneWidget);
       await tester.enterText(field, 'emit output select(value, "score");');
       await tester.pumpAndSettle();
       expect(node.settings['script'], 'emit output select(value, "score");');
-      final button = find.text('Test without sending to graph');
+      final button = find.text('Test without sending to graph').first;
       await tester.ensureVisible(button);
       await tester.tap(button);
       await tester.pumpAndSettle();

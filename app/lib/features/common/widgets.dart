@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,6 +9,67 @@ import 'desktop_focus.dart';
 
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
+
+/// Compact monochrome pill, shared by settings, devices and module controls.
+class DesktopToggle extends StatelessWidget {
+  const DesktopToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    toggled: value,
+    enabled: onChanged != null,
+    child: DesktopFocusableAction(
+      onActivate: onChanged == null ? null : () => onChanged!(!value),
+      child: GestureDetector(
+        onTap: onChanged == null ? null : () => onChanged!(!value),
+        behavior: HitTestBehavior.opaque,
+        child: MouseRegion(
+          cursor: onChanged == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+            child: Opacity(
+              opacity: onChanged == null ? .4 : 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                width: 40,
+                height: 22,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: value ? Colors.white : const Color(0xFF454545),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: value
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value ? Colors.black : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 /// Tooltip used by desktop controls throughout the shell.
 ///
@@ -168,10 +231,10 @@ class _DesktopHoverTileState extends State<DesktopHoverTile> {
           duration: AppTheme.hoverDuration,
           curve: AppTheme.hoverCurve,
           decoration: BoxDecoration(
-            color: _hovered
-                ? widget.hoverColor ?? palette.hover
-                : widget.selected
+            color: widget.selected
                 ? widget.selectedColor ?? palette.background
+                : _hovered
+                ? widget.hoverColor ?? palette.hover
                 : widget.color ?? palette.hover.withAlpha(0),
             borderRadius: widget.borderRadius,
           ),
@@ -226,6 +289,7 @@ class DesktopIconButton extends StatefulWidget {
     this.iconSize = 17,
     this.active = false,
     this.label,
+    this.customIcon,
   });
 
   final IconData icon;
@@ -235,6 +299,7 @@ class DesktopIconButton extends StatefulWidget {
   final double iconSize;
   final bool active;
   final String? label;
+  final Widget? customIcon;
 
   @override
   State<DesktopIconButton> createState() => _DesktopIconButtonState();
@@ -284,19 +349,23 @@ class _DesktopIconButtonState extends State<DesktopIconButton> {
                   color: _hovered || widget.active
                       ? palette.hover
                       : palette.hover.withAlpha(0),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: AppTheme.controlBorderRadius,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DesktopColorTransition(
-                      color: iconColor,
-                      builder: (context, color) => Icon(
-                        widget.icon,
-                        size: widget.iconSize,
-                        color: color,
-                      ),
-                    ),
+                    widget.customIcon ??
+                        DesktopColorTransition(
+                          color: iconColor,
+                          builder: (context, color) => Icon(
+                            AppIcons.resolve(
+                              widget.icon,
+                              active: widget.active,
+                            ),
+                            size: widget.iconSize,
+                            color: color,
+                          ),
+                        ),
                     if (widget.label case final label?) ...[
                       const SizedBox(width: 7),
                       Flexible(
@@ -333,11 +402,13 @@ class ExplorerSectionHeader extends StatefulWidget {
     required this.title,
     required this.expanded,
     required this.onToggle,
+    this.trailing,
   });
 
   final String title;
   final bool expanded;
   final VoidCallback onToggle;
+  final Widget? trailing;
 
   @override
   State<ExplorerSectionHeader> createState() => _ExplorerSectionHeaderState();
@@ -371,7 +442,7 @@ class _ExplorerSectionHeaderState extends State<ExplorerSectionHeader> {
             child: Row(
               children: [
                 Icon(
-                  widget.expanded ? Icons.expand_more : Icons.chevron_right,
+                  widget.expanded ? AppIcons.caretDown : AppIcons.caretRight,
                   size: 16,
                   color: context.palette.text,
                 ),
@@ -389,6 +460,7 @@ class _ExplorerSectionHeaderState extends State<ExplorerSectionHeader> {
                     ),
                   ),
                 ),
+                if (widget.trailing != null) widget.trailing!,
               ],
             ),
           ),
@@ -410,6 +482,7 @@ class ExplorerDisclosureSection extends StatelessWidget {
     required this.onToggle,
     required this.children,
     this.showDivider = true,
+    this.trailing,
   });
 
   final String title;
@@ -417,6 +490,7 @@ class ExplorerDisclosureSection extends StatelessWidget {
   final VoidCallback onToggle;
   final List<Widget> children;
   final bool showDivider;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -426,9 +500,17 @@ class ExplorerDisclosureSection extends StatelessWidget {
         title: title,
         expanded: expanded,
         onToggle: onToggle,
+        trailing: trailing,
       ),
-      if (expanded) ...children,
-      if (showDivider) const Divider(height: 1),
+      if (expanded)
+        Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      if (showDivider) const Divider(height: 9),
     ],
   );
 }

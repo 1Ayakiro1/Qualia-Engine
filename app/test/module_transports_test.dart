@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:bci_engine/core/logic/logic_blocks.dart';
@@ -65,7 +66,13 @@ void main() {
           ..compress = false,
       );
     }
-    return ZipEncoder().encode(archive, level: 0)!;
+    return ZipEncoder().encode(
+      archive,
+      level: 0,
+      // DOS time's low byte is 250. A search for a payload value must not
+      // accidentally select this metadata byte (as the old CRC test did).
+      modified: DateTime(2026, 10, 15, 12, 7, 52),
+    )!;
   }
 
   Future<void> wait(bool Function() done, Map<String, String> statuses) async {
@@ -187,9 +194,15 @@ void main() {
   test(
     'file-backed install preserves payload chunks and rejects corrupt CRC',
     () async {
-      final bytes = package(
-        manifest,
-        asset: List.generate(160000, (i) => i % 251),
+      final asset = List.generate(160000, (i) => i % 251);
+      final bytes = Uint8List.fromList(
+        package(
+          manifest,
+          // Place the asset's local header after byte 1000 to exercise the
+          // timestamp/payload ambiguity in the old indexOf(250, 1000) mutation.
+          source: '${'# padding\n' * 150}$script',
+          asset: asset,
+        ),
       );
       final file = File('${temporary.path}/test.qmod');
       await file.writeAsBytes(bytes);
@@ -197,18 +210,56 @@ void main() {
       final command = await store.command(installed);
       expect(
         await File('${command.directory}/assets/data.bin').readAsBytes(),
-        List.generate(160000, (i) => i % 251),
+        asset,
       );
-      final corrupt = List<int>.from(bytes);
-      // Corrupt an asset data byte without modifying either ZIP CRC field.
-      final data = ZipDecoder()
-          .decodeBytes(corrupt)
-          .findFile('assets/data.bin')!;
-      expect(data.size, 160000);
-      final index = corrupt.indexOf(250, 1000);
-      corrupt[index] ^= 1;
-      await file.writeAsBytes(corrupt);
-      await expectLater(store.installFile(file), throwsFormatException);
+      final directory = ZipDirectory.read(InputStream(bytes));
+      final header = directory.fileHeaders.singleWhere(
+        (entry) => entry.filename == 'assets/data.bin',
+      );
+      final local = header.localHeaderOffset!;
+      final view = ByteData.sublistView(bytes);
+      expect(view.getUint32(local, Endian.little), 0x04034b50);
+      final dataStart =
+          local +
+          30 +
+          view.getUint16(local + 26, Endian.little) +
+          view.getUint16(local + 28, Endian.little);
+      expect(header.compressionMethod, 0);
+      expect(header.uncompressedSize, asset.length);
+      expect(bytes.sublist(dataStart, dataStart + asset.length), asset);
+      // The previous mutation could hit the timestamp, not the payload. Such a
+      // change must be accepted: CRC covers entry content, not ZIP metadata.
+      final oldIndex = bytes.indexOf(250, 1000);
+      expect(oldIndex, inInclusiveRange(local, dataStart - 1));
+      final metadataOnly = Uint8List.fromList(bytes)..[oldIndex] ^= 1;
+      expect(
+        ZipDecoder()
+            .decodeBytes(metadataOnly)
+            .findFile('assets/data.bin')!
+            .content,
+        asset,
+      );
+      await file.writeAsBytes(metadataOnly);
+      await store.installFile(file);
+
+      // Exercise both sides of the installer's 64 KiB read boundaries and the
+      // tail. Corrupt a known payload offset, preserving both ZIP CRC fields.
+      for (final offset in [0, 65535, 65536, asset.length - 1]) {
+        final corrupt = Uint8List.fromList(bytes);
+        corrupt[dataStart + offset] ^= 1;
+        final corrupted = ZipDecoder()
+            .decodeBytes(corrupt)
+            .findFile('assets/data.bin')!;
+        expect(corrupted.crc32, header.crc32);
+        expect(getCrc32(corrupted.content as List<int>), isNot(header.crc32));
+        expect(corrupt.sublist(0, dataStart), bytes.sublist(0, dataStart));
+        expect(
+          corrupt.sublist(dataStart + asset.length),
+          bytes.sublist(dataStart + asset.length),
+        );
+        await file.writeAsBytes(corrupt);
+        await expectLater(store.installFile(file), throwsFormatException);
+      }
       expect(
         await (await store.directory)
             .list()
@@ -391,6 +442,140 @@ void main() {
           .timeout(const Duration(seconds: 3));
     },
   );
+
+  test(
+    'module-supplied identities cannot bypass internal workspace links',
+    () async {
+      // Same package, three instances: only the host-owned a -> b link is allowed.
+      // All peers claim c/another workspace as their desired recipient and source.
+      final hostile = script.replaceFirst(
+        '"type": "output", "port": "output",',
+        '"type": "output", "source": "c", "instanceId": "c", '
+            '"target": "c", "workspaceId": "other", "port": "output",',
+      );
+      expect(hostile, isNot(script));
+      final installed = await store.install(package(manifest, source: hostile));
+      final statuses = <String, String>{};
+      final values = <String, dynamic>{};
+      final children = <Process>[];
+      final runtime = ModuleRuntime(
+        store: store,
+        onUpdate: (id, status, state) {
+          statuses[id] = status;
+          if (state.containsKey('result')) values[id] = state['result'];
+        },
+        launchPackaged: (command) async {
+          final child = await launchTracked(command);
+          children.add(child);
+          return child;
+        },
+      );
+      addTearDown(runtime.dispose);
+      final nodes = [
+        WorkspaceNode(
+          id: 'source',
+          module: LogicBlocks.module(LogicBlockType.select),
+          kind: WorkspaceNodeKind.logic,
+          logicType: LogicBlockType.select,
+        ),
+        for (final id in ['a', 'b', 'c'])
+          WorkspaceNode(id: id, module: installed),
+      ];
+      final links = [
+        const WorkspaceLink(
+          source: 'source',
+          output: 'output',
+          target: 'a',
+          input: 'input',
+        ),
+        const WorkspaceLink(
+          source: 'a',
+          output: 'output',
+          target: 'b',
+          input: 'input',
+        ),
+      ];
+      runtime.sync('scoped', nodes, links, [installed]);
+      await wait(
+        () => ['a', 'b', 'c'].every((id) => statuses[id] == 'running'),
+        statuses,
+      );
+      final payload = {'target': 'c', 'workspaceId': 'other', 'score': 42};
+      runtime.routeOutput('source', 'output', payload, 32);
+      await wait(() => values['b'] != null, statuses);
+      expect(values['b'], payload);
+      expect(values.containsKey('c'), isFalse);
+
+      // Disabled recipients do not receive even a well-formed, linked message.
+      runtime.sync(
+        'scoped',
+        [
+          for (final node in nodes)
+            node.id == 'b'
+                ? WorkspaceNode(
+                    id: 'b',
+                    module: installed,
+                    settings: {'enabled': false},
+                  )
+                : node,
+        ],
+        links,
+        [installed],
+      );
+      values.clear();
+      runtime.routeOutput('source', 'output', 'disabled-target', 32);
+      await wait(() => values['a'] == 'disabled-target', statuses);
+      expect(values.containsKey('b'), isFalse);
+      expect(values.containsKey('c'), isFalse);
+      runtime.sync('other', [], [], [installed]);
+      await Future.wait(children.map((p) => p.exitCode))
+          .timeout(const Duration(seconds: 3));
+    },
+  );
+
+  for (final handshake in [
+    {'type': 'ready', 'protocol': 2},
+    {
+      'type': 'ready',
+      'protocol': 1,
+      'requires': ['direct-instance-rpc'],
+    },
+  ]) {
+    test('middle API rejects unsupported handshake: $handshake', () async {
+      final source =
+          '''import json, sys
+print(${jsonEncode(jsonEncode(handshake))}, flush=True)
+for line in sys.stdin:
+    pass
+''';
+      final rejected = await store.install(package(manifest, source: source));
+      final sibling = await store.install(
+        package({...manifest, 'id': 'sibling'}),
+      );
+      final statuses = <String, String>{};
+      final runtime = ModuleRuntime(
+        store: store,
+        launchPackaged: launchTracked,
+        onUpdate: (id, status, _) => statuses[id] = status,
+      );
+      addTearDown(runtime.dispose);
+      runtime.sync(
+        'handshake',
+        [
+          WorkspaceNode(id: 'rejected', module: rejected),
+          WorkspaceNode(id: 'sibling', module: sibling),
+        ],
+        [],
+        [rejected, sibling],
+      );
+      await wait(
+        () =>
+            statuses['rejected'] == 'error: invalid protocol frame' &&
+            statuses['sibling'] == 'running',
+        statuses,
+      );
+    });
+  }
 
   test('TCP connection close fails only its instance', () async {
     final source = '''import socket, os

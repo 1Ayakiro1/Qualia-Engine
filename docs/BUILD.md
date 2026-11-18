@@ -7,6 +7,11 @@
 - Windows: Visual Studio Build Tools + Windows desktop toolchain
 - macOS: Xcode (command line tools), CMake (`brew install cmake`)
 
+Текущий рабочий код — `0.5.2-dev.2`, не готовый ML runtime/release 0.5.2.
+Для dev-проверок без замены текущего набора:
+`DIST_OUT=/tmp/opencode/qualia-check ./scripts/build_all.sh`.
+Ограничения и критерий публикации: `docs/ML_RUNTIME_V2.md`.
+
 ## Команды
 
 ```bash
@@ -33,6 +38,13 @@ QUALIA_LARGE_MODULE_TEST=full flutter test test/module_transports_test.dart \
 Без этой переменной тяжёлый тест пропускается. Для варианта 257 MiB укажите
 `QUALIA_LARGE_MODULE_TEST=1`. Нужны Python 3 и место под payload, архив и установку.
 
+Новые native block/queue/QSB2 проверки запускаются через `./scripts/build_core.sh`.
+Python wire conformance: `python3 -m unittest discover -s modules/tests -p 'test_signal_v2.py' -v`.
+Native tests обязательны, а не молча пропускаются при сбое загрузки Catch2.
+Для offline CMake tests передайте `-DBCI_FETCH_DEPS=OFF`
+и `-DBCI_CATCH2_HEADER=/path/to/catch.hpp` (Catch2 2.13.10, pinned SHA256).
+Это файл зависимости build toolchain, не часть runtime модулей.
+
 > `flutter analyze` в этом репозитории запрещён: падает на путях с
 > кириллицей/пробелами (баг LSP-фрейминга анализ-сервера). Используйте
 > `./scripts/analyze.sh`.
@@ -46,16 +58,28 @@ Linux pipeline автоматически собирает pinned custom GTK emb
 Скрипт проверяет engine revision, чтобы исключить смешивание ABI/snapshot версий.
 Native vsync и диагностика частоты описаны в `docs/PERFORMANCE.md`.
 
-Артефакты складываются в `builds/` (папка в корне репозитория):
+Артефакты складываются в **единственный** `builds/<VERSION>/`:
 
 - `Qualia-Engine-<v>-x86_64.AppImage`
 - `Qualia-Engine-<v>-linux-x64.tar.gz`
-- бинарник: `builds/binary/bci_engine` (готовый бандл, запускается напрямую)
+- бинарник: `builds/<v>/binary/bci_engine` (готовый бандл, запускается напрямую)
+- `SHA256SUMS`: SHA-256 файлов пакетов и содержимого bundle
 
-Старые версии артефактов сохраняются. Предыдущий raw bundle при упаковке
-перемещается в `binary-previous-<timestamp>/`. Для проверочной сборки без замены
-пользовательских файлов задайте `DIST_OUT=/tmp/opencode/<каталог>`; после проверки
-обновите актуальные AppImage/tarball/bundle в `builds/`, сохранив прежние файлы.
+`build_all.sh` сначала создаёт полный набор во временном staging-каталоге.
+Только после успеха всех шагов `publish_build.py` заменяет текущий набор,
+удаляет старые version-папки/пакеты и `binary-previous-*` из `builds/`.
+При ошибке сборки прежний набор остаётся; при ошибке замены выполняется rollback.
+README и посторонние файлы в корне не удаляются. Не храните личные файлы внутри
+каталогов версий: это управляемые, заменяемые результаты сборки.
+Резервные копии не накапливаются. Старые source archives/verification не
+переносятся в новый набор: одинаковый номер dev-версии не доказывает совпадение кода.
+
+`DIST_OUT` задаёт **точный каталог** результата, без автоматического добавления
+версии; его соседние каталоги не очищаются. Не задавайте `DIST_OUT=builds`:
+используйте default либо отдельный путь вне `builds/`. Отдельные
+`package_linux.sh`/`build_appimage.sh` — низкоуровневые шаги; для согласованного
+набора с проверками и очисткой используйте `build_all.sh`.
+Тесты публикации: `python3 -m unittest scripts.test_publish_build -v`.
 
 ## Windows / macOS
 
@@ -71,6 +95,10 @@ Native vsync и диагностика частоты описаны в `docs/PE
   Xcode/Visual Studio приложения. macOS архитектуры определяются Xcode/Flutter,
   проверяются `lipo -info` при необходимости; CI артефакт не обещает universal
   Intel/ARM без проверки содержимого bundle.
+- Windows/macOS также публикуют один набор в `builds/<VERSION>/` с `SHA256SUMS`;
+  нужен Python 3.12+. Публикация заменяет набор целиком, не смешивая старые
+  platform artifacts с новой сборкой. Для объединения CI-пакетов разных ОС
+  используйте отдельный каталог и проверяйте одинаковый исходный snapshot.
 - macOS App Sandbox выключен для разрешённого пользователем запуска packaged
   модулей из Application Support. Это обычное desktop-приложение, не App Store
   sandbox; модули доверенные и работают с правами пользователя.

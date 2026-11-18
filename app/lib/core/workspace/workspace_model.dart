@@ -49,6 +49,7 @@ class WorkspaceNode {
     List<String>? outputs,
     Map<String, dynamic>? settings,
     this.headerColor = WorkspaceNodeColor.none,
+    this.fullyHidden = false,
     Map<String, WorkspaceNodeColor>? inputColors,
     Map<String, WorkspaceNodeColor>? outputColors,
     Map<String, String>? inputLabels,
@@ -64,7 +65,18 @@ class WorkspaceNode {
        inputTypes = inputTypes ?? {},
        outputTypes = outputTypes ?? {},
        settings = settings ?? {},
-       width = width.isFinite ? width.clamp(minWidth, maxSize) : defaultWidth,
+       width = width.isFinite
+           ? width.clamp(
+               kind == WorkspaceNodeKind.logic &&
+                       logicType == LogicBlockType.junction
+                   ? 28
+                   : minWidth,
+               maxSize,
+             )
+           : (kind == WorkspaceNodeKind.logic &&
+                     logicType == LogicBlockType.junction
+                 ? 28
+                 : defaultWidth),
        preferredHeight = height != null && height.isFinite
            ? height.clamp(0, maxSize)
            : 0;
@@ -72,9 +84,13 @@ class WorkspaceNode {
   final WorkspaceNodeKind kind;
   final LogicBlockType logicType;
   bool get isLogic => kind == WorkspaceNodeKind.logic;
+  bool get isJunction => isLogic && logicType == LogicBlockType.junction;
   SystemModule module;
   Offset position;
   WorkspaceNodeColor headerColor;
+
+  /// Host-owned canvas visibility, never an author/module parameter.
+  bool fullyHidden;
   final Map<String, WorkspaceNodeColor> inputColors;
   final Map<String, WorkspaceNodeColor> outputColors;
   final Map<String, String> inputLabels;
@@ -106,25 +122,27 @@ class WorkspaceNode {
   final Map<String, List<double>> runtimeHistory = {};
   String? runtimeStatus;
   // Minimum size follows the port count; manual height never clips new ports.
-  double get minHeight =>
-      144 + math.max(inputs.length, outputs.length) * portRowHeight;
+  double get minHeight => isJunction
+      ? 28
+      : 144 + math.max(inputs.length, outputs.length) * portRowHeight;
   double get height => math.max(minHeight, preferredHeight);
   void resize(Size size) {
     if (!size.width.isFinite || !size.height.isFinite) return;
-    width = size.width.clamp(minWidth, maxSize);
+    width = size.width.clamp(isJunction ? 28 : minWidth, maxSize);
     preferredHeight = size.height.clamp(minHeight, maxSize);
   }
 
-  Offset portPosition(String port, bool output) =>
-      position +
-      Offset(
-        output ? width - 6 : 6,
-        1 +
-            headerHeight +
-            portsTopPadding +
-            portRowHeight / 2 +
-            (output ? outputs : inputs).indexOf(port) * portRowHeight,
-      );
+  Offset portPosition(String port, bool output) => isJunction
+      ? position + Offset(width / 2, height / 2)
+      : position +
+            Offset(
+              output ? width : 0,
+              1 +
+                  headerHeight +
+                  portsTopPadding +
+                  portRowHeight / 2 +
+                  (output ? outputs : inputs).indexOf(port) * portRowHeight,
+            );
   Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'id': id,
     'kind': kind.name,
@@ -141,6 +159,7 @@ class WorkspaceNode {
     if (includeRuntime) 'runtimeHistory': runtimeHistory,
     if (includeRuntime) 'runtimeStatus': runtimeStatus,
     'headerColor': headerColor.name,
+    if (fullyHidden) 'fullyHidden': true,
     'inputColors': inputColors.map((port, color) => MapEntry(port, color.name)),
     'outputColors': outputColors.map(
       (port, color) => MapEntry(port, color.name),
@@ -189,6 +208,7 @@ class WorkspaceNode {
       inputTypes: _portTypesFromJson(json['inputTypes']),
       outputTypes: _portTypesFromJson(json['outputTypes']),
     );
+    node.fullyHidden = json['fullyHidden'] == true;
     if (json['runtimeValues'] is Map) {
       node.runtimeValues.addAll(
         Map<String, dynamic>.from(json['runtimeValues'] as Map),
@@ -236,6 +256,62 @@ class WorkspaceNode {
               entry.key as String: WorkspacePortType.fromJson(entry.value),
         }
       : {};
+}
+
+/// Host-owned freehand markup drawn over a workspace graph. It is separate
+/// from module settings and never participates in runtime execution.
+class WorkspaceAnnotation {
+  const WorkspaceAnnotation({
+    required this.id,
+    required this.points,
+    this.color = 0xFFE7E7E7,
+    this.width = 3,
+  });
+
+  final String id;
+  final List<Offset> points;
+  final int color;
+  final double width;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'points': [
+      for (final point in points) [point.dx, point.dy],
+    ],
+    'color': color,
+    'width': width,
+  };
+
+  factory WorkspaceAnnotation.fromJson(Map<String, dynamic> json) {
+    final rawPoints = json['points'] as List? ?? const [];
+    if (rawPoints.length > 10000) {
+      throw const FormatException('Workspace annotation is too large.');
+    }
+    final points = <Offset>[];
+    for (final raw in rawPoints) {
+      if (raw is! List || raw.length != 2 || raw[0] is! num || raw[1] is! num) {
+        throw const FormatException('Invalid workspace annotation point.');
+      }
+      final point = Offset(
+        (raw[0] as num).toDouble(),
+        (raw[1] as num).toDouble(),
+      );
+      if (!point.dx.isFinite || !point.dy.isFinite) {
+        throw const FormatException('Invalid workspace annotation point.');
+      }
+      points.add(point);
+    }
+    final width = (json['width'] as num?)?.toDouble() ?? 3;
+    if (width <= 0 || !width.isFinite) {
+      throw const FormatException('Invalid workspace annotation width.');
+    }
+    return WorkspaceAnnotation(
+      id: json['id'] as String? ?? WorkspaceId.create('annotation'),
+      points: points,
+      color: (json['color'] as num?)?.toInt() ?? 0xFFE7E7E7,
+      width: width.clamp(1, 32).toDouble(),
+    );
+  }
 }
 
 class WorkspaceLink {

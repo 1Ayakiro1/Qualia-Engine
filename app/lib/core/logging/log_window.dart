@@ -1,3 +1,4 @@
+import '../theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'dart:async';
@@ -40,11 +41,13 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     debugLabel: 'debug log',
   );
   final TextEditingController _search = TextEditingController();
-  Timer? _poller;
+  StreamSubscription<FileSystemEvent>? _watcher;
   RandomAccessFile? _tail;
   bool _openingTail = false;
   int _fileOffset = 0;
   String _tailBuffer = '';
+  bool _reading = false;
+  bool _readAgain = false;
 
   bool _paused = false;
   bool _autoScroll = true;
@@ -58,8 +61,23 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
     _search.addListener(
       () => setState(() => _query = _search.text.trim().toLowerCase()),
     );
-    _openTail();
-    _poller = Timer.periodic(const Duration(milliseconds: 400), (_) => _poll());
+    _watchLog();
+  }
+
+  Future<void> _watchLog() async {
+    try {
+      final directory = LogLocations.sessionLogDir();
+      await directory.create(recursive: true);
+      if (!mounted) return;
+      _watcher = directory.watch().listen((event) {
+        if (event.path.endsWith('latest.log')) unawaited(_poll());
+      }, onError: (Object error) {
+        // An unsupported filesystem watcher must not crash the console.
+      });
+      await _openTail();
+    } catch (_) {
+      if (mounted) setState(() => _fileMissing = true);
+    }
   }
 
   Future<void> _openTail() async {
@@ -84,6 +102,10 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
   }
 
   Future<void> _poll() async {
+    if (_reading) {
+      _readAgain = true;
+      return;
+    }
     if (!mounted || _paused) {
       return;
     }
@@ -91,6 +113,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       await _openTail();
       return;
     }
+    _reading = true;
     try {
       final int length = await _tail!.length();
       if (length < _fileOffset) {
@@ -139,6 +162,12 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
       await _tail?.close();
       _tail = null;
       if (mounted) setState(() => _fileMissing = true);
+    } finally {
+      _reading = false;
+      if (_readAgain && mounted) {
+        _readAgain = false;
+        unawaited(_poll());
+      }
     }
   }
 
@@ -206,7 +235,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
 
   @override
   void dispose() {
-    _poller?.cancel();
+    _watcher?.cancel();
     _tail?.close();
     _scroll.dispose();
     _search.dispose();
@@ -241,7 +270,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                 controller: _search,
                 decoration: InputDecoration(
                   hintText: context.l10n.textSearchSourceAndText8,
-                  prefixIcon: Icon(Icons.search, size: 20),
+                  prefixIcon: Icon(AppIcons.search, size: 20),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,
@@ -286,7 +315,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.hourglass_empty, size: 42),
+                          const Icon(AppIcons.hourglass, size: 42),
                           const SizedBox(height: 12),
                           Text(context.l10n.textTheLatestLogFileHasNotBeen10),
                           const SizedBox(height: 4),
@@ -294,7 +323,7 @@ class _LogConsoleScreenState extends ConsumerState<LogConsoleScreen> {
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: _openTail,
-                            icon: const Icon(Icons.refresh),
+                            icon: const Icon(AppIcons.refresh),
                             label: Text(context.l10n.textRetry12),
                           ),
                         ],
@@ -411,7 +440,7 @@ class _LogHeader extends StatelessWidget {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.terminal,
+                          AppIcons.terminal,
                           size: 19,
                           color: context.palette.text,
                         ),
@@ -432,30 +461,28 @@ class _LogHeader extends StatelessWidget {
                   tooltip: paused
                       ? context.l10n.textResume14
                       : context.l10n.textPause15,
-                  icon: paused ? Icons.play_arrow : Icons.pause,
+                  icon: paused ? AppIcons.play : AppIcons.pause,
                   onPressed: onPause,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textAutoScroll16,
-                  icon: autoScroll
-                      ? Icons.vertical_align_bottom
-                      : Icons.vertical_align_top,
+                  icon: autoScroll ? AppIcons.toBottom : AppIcons.toTop,
                   active: autoScroll,
                   onPressed: onAutoScroll,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textSaveVisibleEntries17,
-                  icon: Icons.save_outlined,
+                  icon: AppIcons.save,
                   onPressed: onSave,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textClearView18,
-                  icon: Icons.delete_sweep_outlined,
+                  icon: AppIcons.trash,
                   onPressed: onClear,
                 ),
                 _LogIconButton(
                   tooltip: context.l10n.textCloseWindow19,
-                  icon: Icons.close,
+                  icon: AppIcons.close,
                   onPressed: onClose,
                 ),
                 const SizedBox(width: 6),

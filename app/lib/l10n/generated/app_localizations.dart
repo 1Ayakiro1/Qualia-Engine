@@ -98,6 +98,306 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @workspaceCanvasHints.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas hints'**
+  String get workspaceCanvasHints;
+
+  /// No description provided for @sceneCreateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create group'**
+  String get sceneCreateGroup;
+
+  /// No description provided for @sceneEditGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit group'**
+  String get sceneEditGroup;
+
+  /// No description provided for @sceneGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get sceneGroupName;
+
+  /// No description provided for @sceneMoveToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to group'**
+  String get sceneMoveToGroup;
+
+  /// No description provided for @sceneRemoveFromGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from group'**
+  String get sceneRemoveFromGroup;
+
+  /// No description provided for @sceneDissolveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Dissolve group'**
+  String get sceneDissolveGroup;
+
+  /// No description provided for @workspaceObjectVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible on canvas'**
+  String get workspaceObjectVisible;
+
+  /// No description provided for @workspaceObjectGeometry.
+  ///
+  /// In en, this message translates to:
+  /// **'Position and size'**
+  String get workspaceObjectGeometry;
+
+  /// No description provided for @canvasEraser.
+  ///
+  /// In en, this message translates to:
+  /// **'Eraser'**
+  String get canvasEraser;
+
+  /// No description provided for @canvasBrush.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush'**
+  String get canvasBrush;
+
+  /// No description provided for @canvasBrushColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush color'**
+  String get canvasBrushColor;
+
+  /// No description provided for @canvasColorWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get canvasColorWhite;
+
+  /// No description provided for @canvasColorBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get canvasColorBlack;
+
+  /// No description provided for @canvasDiameter.
+  ///
+  /// In en, this message translates to:
+  /// **'Diameter'**
+  String get canvasDiameter;
+
+  /// No description provided for @workspaceSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save workspace'**
+  String get workspaceSave;
+
+  /// No description provided for @workspaceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace saved'**
+  String get workspaceSaved;
+
+  /// No description provided for @sceneSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'SCENE OBJECTS'**
+  String get sceneSelection;
+
+  /// No description provided for @sceneCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse scene selection'**
+  String get sceneCollapse;
+
+  /// No description provided for @sceneExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand scene selection'**
+  String get sceneExpand;
+
+  /// No description provided for @sceneNoObjects.
+  ///
+  /// In en, this message translates to:
+  /// **'No objects found'**
+  String get sceneNoObjects;
+
+  /// No description provided for @sceneSelectObject.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an object'**
+  String get sceneSelectObject;
+
+  /// No description provided for @workspaceSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the workspace. Your draft is still available.'**
+  String get workspaceSaveFailed;
+
+  /// No description provided for @canvasFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen canvas'**
+  String get canvasFullscreen;
+
+  /// No description provided for @canvasExitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit canvas fullscreen'**
+  String get canvasExitFullscreen;
+
+  /// No description provided for @canvasScreenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Save canvas screenshot'**
+  String get canvasScreenshot;
+
+  /// No description provided for @canvasScreenshotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas screenshot saved'**
+  String get canvasScreenshotSaved;
+
+  /// No description provided for @canvasScreenshotFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the canvas screenshot.'**
+  String get canvasScreenshotFailed;
+
+  /// No description provided for @workspaceUnsavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save workspace changes?'**
+  String get workspaceUnsavedTitle;
+
+  /// No description provided for @workspaceUnsavedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your workspace has unsaved changes. Save them before closing, or discard changes since the last save.'**
+  String get workspaceUnsavedMessage;
+
+  /// No description provided for @workspaceDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t save'**
+  String get workspaceDiscard;
+
+  /// No description provided for @workspaceUndoNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Action undone'**
+  String get workspaceUndoNotice;
+
+  /// No description provided for @workspaceRedoNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Action redone'**
+  String get workspaceRedoNotice;
+
+  /// No description provided for @privacyDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data privacy'**
+  String get privacyDataTitle;
+
+  /// No description provided for @privacyDataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Local processing is the default. Optional diagnostics are disabled until you explicitly enable them.'**
+  String get privacyDataDescription;
+
+  /// No description provided for @privacyCrashReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Crash reports'**
+  String get privacyCrashReports;
+
+  /// No description provided for @privacyCrashReportsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow anonymized crash diagnostics to be prepared for an external reporting service. No report is sent by this build.'**
+  String get privacyCrashReportsDescription;
+
+  /// No description provided for @privacyMetrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage metrics'**
+  String get privacyMetrics;
+
+  /// No description provided for @privacyMetricsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Consent to optional usage metrics. This build has no metrics upload service and sends no metrics.'**
+  String get privacyMetricsDescription;
+
+  /// No description provided for @privacyExternalData.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow data outside the app'**
+  String get privacyExternalData;
+
+  /// No description provided for @privacyExternalDataDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Supabase sign-in, catalog, covers and explicit publishing. Off blocks new application HTTP requests. It does not sandbox installed modules or cancel requests already sent.'**
+  String get privacyExternalDataDescription;
+
+  /// No description provided for @privacyOutboundLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Outbound audit: logs/outbound.jsonl in the local app data directory. Records destination, field names, byte count and response/failure, never field values or tokens. Browser sign-in is recorded as a handoff, not a completed transfer. See docs/DATA_PRIVACY.md.'**
+  String get privacyOutboundLog;
+
+  /// No description provided for @workspaceHideFully.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide completely'**
+  String get workspaceHideFully;
+
+  /// No description provided for @workspaceShowFully.
+  ///
+  /// In en, this message translates to:
+  /// **'Show completely'**
+  String get workspaceShowFully;
+
+  /// No description provided for @railBottomZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom of rail'**
+  String get railBottomZone;
+
+  /// No description provided for @railUnusedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Unused items'**
+  String get railUnusedItems;
+
+  /// No description provided for @railUsedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'On the rail'**
+  String get railUsedItems;
+
+  /// No description provided for @railPinBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to bottom'**
+  String get railPinBottom;
+
+  /// No description provided for @railPinTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to top'**
+  String get railPinTop;
+
+  /// No description provided for @railDragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag buttons into the rail to add or reorder them. Drag back here to remove. Click to toggle; Alt + ↑ / ↓ moves a focused button.'**
+  String get railDragHint;
+
   /// No description provided for @logicBlocks.
   ///
   /// In en, this message translates to:
@@ -731,8 +1031,38 @@ abstract class AppLocalizations {
   /// No description provided for @workspaceSelectHint.
   ///
   /// In en, this message translates to:
-  /// **'Shift + click to select multiple modules'**
+  /// **'Shift / Alt + click — select multiple; Space + drag — pan canvas'**
   String get workspaceSelectHint;
+
+  /// No description provided for @workspaceCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get workspaceCopy;
+
+  /// No description provided for @workspaceCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut'**
+  String get workspaceCut;
+
+  /// No description provided for @workspacePaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get workspacePaste;
+
+  /// No description provided for @workspaceMoveJunction.
+  ///
+  /// In en, this message translates to:
+  /// **'Move point'**
+  String get workspaceMoveJunction;
+
+  /// No description provided for @workspaceClipboardFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy or paste nodes. Check module availability and scene size.'**
+  String get workspaceClipboardFailed;
 
   /// Host UI: Supabase Auth is unavailable.
   ///
@@ -2665,7 +2995,7 @@ abstract class AppLocalizations {
   /// Host UI: Return to modules
   ///
   /// In en, this message translates to:
-  /// **'Return to modules'**
+  /// **'Return to start'**
   String get textReturnToModules304;
 
   /// Host UI: MMB / drag to pan · wheel to zoom · F to frame

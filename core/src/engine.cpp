@@ -1,25 +1,18 @@
-// Engine implementation: worker thread + lock-free queues + pipeline.
+// Engine implementation: worker thread + bounded ownership queues + pipeline.
 #include "bci_engine/core.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <utility>
 
-#ifdef BCI_HAVE_RWQ
-#include <readerwriterqueue.h>
-#else
-#include "spsc_queue.hpp"
-#endif
+#include "block_queue.hpp"
 
 #include "modules.hpp"
 #include "log_hook.hpp"
 
 namespace bci {
-
-namespace {
-constexpr auto kIdleSleep = std::chrono::microseconds(200);
-}  // namespace
 
 // ---------------------------------------------------------------- context
 
@@ -33,29 +26,20 @@ void EngineContext::log(const std::string& message) {
 // ---------------------------------------------------------------- pimpl
 
 struct Engine::Impl {
-#ifdef BCI_HAVE_RWQ
-  moodycamel::ReaderWriterQueue<BlockPtr> in_queue;
-  moodycamel::ReaderWriterQueue<BlockPtr> out_queue;
-#else
-  internal::SpscRing<BlockPtr> in_queue;
-  internal::SpscRing<BlockPtr> out_queue;
-#endif
-
-  explicit Impl(size_t capacity)
-      : in_queue(capacity), out_queue(capacity) {}
+  internal::BlockQueue in_queue;
+  internal::BlockQueue out_queue;
 };
 
 // ---------------------------------------------------------------- lifecycle
 
-Engine::Engine() : impl_(std::make_unique<Impl>(kQueueCapacity)) {}
+Engine::Engine() : impl_(std::make_unique<Impl>()) {}
 
 Engine::~Engine() {
-  if (running_.load(std::memory_order_acquire)) {
-    stop();
-  }
+  stop();
 }
 
 Status Engine::start(int sample_rate, int channels) {
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
   if (sample_rate <= 0 || channels <= 0) {
     set_last_error("start: sample_rate and channels must be positive");
     return Status::kInvalidArgument;
@@ -63,6 +47,7 @@ Status Engine::start(int sample_rate, int channels) {
   if (running_.load(std::memory_order_acquire)) {
     return Status::kAlreadyRunning;
   }
+  if (worker_.joinable()) worker_.join();
 
   sample_rate_ = static_cast<double>(sample_rate);
   channels_ = channels;
@@ -74,13 +59,20 @@ Status Engine::start(int sample_rate, int channels) {
     module->init(ctx);
   }
 
-  // Drop stale output from a previous run.
-  BlockPtr stale;
-  while (impl_->out_queue.try_dequeue(stale)) {
-  }
+  draining_.reset();
+  drain_offset_ = 0;
+  impl_->in_queue.open();
+  impl_->out_queue.open();
 
   running_.store(true, std::memory_order_release);
-  worker_ = std::thread(&Engine::worker_loop, this);
+  try {
+    worker_ = std::thread(&Engine::worker_loop, this);
+  } catch (...) {
+    running_.store(false, std::memory_order_release);
+    impl_->in_queue.close(true);
+    impl_->out_queue.close(true);
+    throw;
+  }
   core_log("engine started: " + std::to_string(sample_rate) + " Hz, " +
            std::to_string(channels) + " ch, " +
            std::to_string(pipeline_.size()) + " modules");
@@ -88,12 +80,14 @@ Status Engine::start(int sample_rate, int channels) {
 }
 
 Status Engine::stop() {
-  if (!running_.exchange(false, std::memory_order_acq_rel)) {
-    return Status::kNotStarted;
-  }
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+  const bool was_running = running_.exchange(false, std::memory_order_acq_rel);
+  impl_->in_queue.close(true);
+  impl_->out_queue.close(false);
   if (worker_.joinable()) {
     worker_.join();
   }
+  if (!was_running) return Status::kNotStarted;
   core_log("engine stopped");
   return Status::kOk;
 }
@@ -112,39 +106,67 @@ void Engine::build_pipeline() {
 
 Status Engine::push_samples(const float* interleaved, int frames,
                             int channels) {
-  if (interleaved == nullptr || frames <= 0 || channels <= 0) {
-    return Status::kInvalidArgument;
-  }
-  if (!running_.load(std::memory_order_acquire)) {
-    return Status::kNotStarted;
-  }
-  if (channels != channels_) {
-    set_last_error("push_samples: channel count mismatch");
-    return Status::kInvalidArgument;
-  }
-
-  auto block = std::make_unique<Block>();
-  block->data.assign(interleaved, interleaved + frames * channels);
-  block->frames = frames;
-  block->channels = channels;
-  block->sample_rate = sample_rate_;
-  block->first_sample = sample_counter_;
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+  if (!running_.load(std::memory_order_acquire)) return Status::kNotStarted;
+  SampleBlock info;
+  info.data = const_cast<float*>(interleaved);
+  info.frames = frames;
+  info.channels = channels;
+  info.sample_rate = sample_rate_;
+  info.first_sample = sample_counter_;
+  if (!info.valid() || channels != channels_) return Status::kInvalidArgument;
+  auto block = std::make_unique<OwnedSampleBlock>(info);
+  std::copy_n(interleaved, info.size(), block->view().data);
+  uint64_t dropped = 0;
+  if (!impl_->in_queue.push(block, dropped)) return Status::kQueueOverflow;
+  metrics_.dropped_blocks.fetch_add(dropped, std::memory_order_relaxed);
   sample_counter_ += static_cast<uint64_t>(frames);
-
-  if (!impl_->in_queue.try_enqueue(std::move(block))) {
-    // Latency-bounded policy: drop the oldest input block.
-    BlockPtr dropped;
-    if (impl_->in_queue.try_dequeue(dropped)) {
-      metrics_.dropped_blocks.fetch_add(1, std::memory_order_relaxed);
-    }
-    if (!impl_->in_queue.try_enqueue(std::move(block))) {
-      return Status::kQueueOverflow;
-    }
-  }
   return Status::kOk;
 }
 
+Status Engine::configure_queues(size_t capacity, size_t max_bytes,
+                                QueuePolicy input, QueuePolicy output) {
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+  if (running_.load(std::memory_order_acquire)) return Status::kAlreadyRunning;
+  if (worker_.joinable()) worker_.join();
+  // Validate both policies before making either change.
+  internal::BlockQueue check_input, check_output;
+  if (!check_input.configure(capacity, max_bytes, input) ||
+      !check_output.configure(capacity, max_bytes, output)) {
+    return Status::kInvalidArgument;
+  }
+  impl_->in_queue.close(true);
+  impl_->out_queue.close(true);
+  draining_.reset();
+  drain_offset_ = 0;
+  impl_->in_queue.configure(capacity, max_bytes, input);
+  impl_->out_queue.configure(capacity, max_bytes, output);
+  return Status::kOk;
+}
+
+Status Engine::push_block(SampleBlockPtr& block) {
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+  if (!block || !block->view().valid()) return Status::kInvalidArgument;
+  if (!running_.load(std::memory_order_acquire)) return Status::kNotStarted;
+  const auto& info = block->view();
+  if (info.channels != channels_ || info.sample_rate != sample_rate_) {
+    set_last_error("push_block: channel count/sample rate mismatch");
+    return Status::kInvalidArgument;
+  }
+  uint64_t dropped = 0;
+  if (!impl_->in_queue.push(block, dropped)) return Status::kQueueOverflow;
+  metrics_.dropped_blocks.fetch_add(dropped, std::memory_order_relaxed);
+  return Status::kOk;
+}
+
+Status Engine::pop_block(SampleBlockPtr& block) {
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+  if (draining_) return Status::kInvalidArgument; // Don't reorder legacy data.
+  return impl_->out_queue.pop(block) ? Status::kOk : Status::kQueueEmpty;
+}
+
 int Engine::pop_samples(float* out_interleaved, int frames, int channels) {
+  std::lock_guard<std::mutex> lock(lifecycle_mutex_);
   if (out_interleaved == nullptr || frames <= 0 || channels <= 0) {
     return static_cast<int>(Status::kInvalidArgument);
   }
@@ -153,56 +175,50 @@ int Engine::pop_samples(float* out_interleaved, int frames, int channels) {
   }
 
   int filled = 0;
-  const int total = frames * channels;
-  while (filled < total) {
-    BlockPtr block;
-    if (!impl_->out_queue.try_dequeue(block)) {
-      break;
+  if (static_cast<size_t>(frames) >
+      SampleBlock::kMaxBytes / sizeof(float) / static_cast<size_t>(channels)) {
+    return static_cast<int>(Status::kInvalidArgument);
+  }
+  while (filled < frames) {
+    if (!draining_ && !impl_->out_queue.pop(draining_)) break;
+    const auto& info = draining_->view();
+    const int count = std::min(info.frames - drain_offset_, frames - filled);
+    for (int f = 0; f < count; ++f) {
+      for (int c = 0; c < channels; ++c) {
+        out_interleaved[static_cast<size_t>(filled + f) * channels + c] =
+            info.at(drain_offset_ + f, c);
+      }
     }
-    const int available = block->frames * block->channels;
-    const int to_copy = std::min(available, total - filled);
-    for (int i = 0; i < to_copy; ++i) {
-      out_interleaved[filled + i] = block->data[i];
-    }
-    filled += to_copy;
-    if (to_copy < available) {
-      // Partial drain: rebuild the remainder and put the block back.
-      auto remainder = std::make_unique<Block>();
-      const int remainder_frames = available - to_copy;
-      remainder->data.assign(block->data.begin() + to_copy, block->data.end());
-      remainder->frames = remainder_frames / block->channels;
-      remainder->channels = block->channels;
-      remainder->sample_rate = block->sample_rate;
-      remainder->first_sample = block->first_sample + to_copy / block->channels;
-      impl_->out_queue.try_enqueue(std::move(remainder));
+    filled += count;
+    drain_offset_ += count;
+    if (drain_offset_ == info.frames) {
+      draining_.reset();
+      drain_offset_ = 0;
     }
   }
-  return filled / channels;
+  return filled;
 }
 
 void Engine::worker_loop() {
-  BlockPtr block;
-  while (running_.load(std::memory_order_acquire)) {
-    if (!impl_->in_queue.try_dequeue(block)) {
-      std::this_thread::sleep_for(kIdleSleep);
-      continue;
+  try {
+    SampleBlockPtr block;
+    while (running_.load(std::memory_order_acquire) &&
+           impl_->in_queue.pop(block, true)) {
+      for (auto& module : pipeline_) {
+        module->process(block->view());
+      }
+      metrics_.processed_blocks.fetch_add(1, std::memory_order_relaxed);
+      uint64_t dropped = 0;
+      // `every` propagates pressure to input; no loss on output saturation.
+      // stop() closes both queues and wakes this wait before joining.
+      if (!impl_->out_queue.push(block, dropped, true)) ++dropped;
+      metrics_.dropped_blocks.fetch_add(dropped, std::memory_order_relaxed);
     }
-
-    SampleBlock view;
-    view.data = block->data.data();
-    view.frames = block->frames;
-    view.channels = block->channels;
-    view.sample_rate = block->sample_rate;
-    view.first_sample = block->first_sample;
-
-    for (auto& module : pipeline_) {
-      module->process(view);
-    }
-
-    metrics_.processed_blocks.fetch_add(1, std::memory_order_relaxed);
-    if (!impl_->out_queue.try_enqueue(std::move(block))) {
-      metrics_.dropped_blocks.fetch_add(1, std::memory_order_relaxed);
-    }
+  } catch (const std::exception& error) {
+    set_last_error(error.what());
+    running_.store(false, std::memory_order_release);
+    impl_->in_queue.close(true);
+    impl_->out_queue.close(false);
   }
 }
 
@@ -227,4 +243,3 @@ void Engine::core_log(const std::string& message) {
 }
 
 }  // namespace bci
-

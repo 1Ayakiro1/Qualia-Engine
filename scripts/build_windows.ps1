@@ -17,8 +17,15 @@ if (-not (Test-Path "$Bundle\bci_engine_core.dll")) {
     throw "Native core DLL not included in Windows bundle"
 }
 
-$Dist = if ($env:DIST_OUT) { $env:DIST_OUT } else { "$Root\builds" }
-New-Item -ItemType Directory -Force -Path $Dist | Out-Null
-$Zip = "$Dist\Qualia-Engine-$Version-windows-x64.zip"
-Compress-Archive -Path "$Bundle\*" -DestinationPath $Zip -Force
-Write-Host "[bci] Windows zip: $Zip"
+$Dist = if ($env:DIST_OUT) { $env:DIST_OUT } else { "$Root\builds\$Version" }
+$Staging = Join-Path $Root (".build-staging-" + [guid]::NewGuid().ToString())
+New-Item -ItemType Directory -Path $Staging | Out-Null
+try {
+    $Zip = "$Staging\Qualia-Engine-$Version-windows-x64.zip"
+    Compress-Archive -Path "$Bundle\*" -DestinationPath $Zip -Force
+    python "$Root\scripts\publish_build.py" --source $Staging --output $Dist --platform windows
+    if ($LASTEXITCODE -ne 0) { throw "Build publication failed ($LASTEXITCODE)" }
+} finally {
+    Remove-Item -LiteralPath $Staging -Recurse -Force
+}
+Write-Host "[bci] Windows zip: $Dist\Qualia-Engine-$Version-windows-x64.zip"

@@ -1,0 +1,61 @@
+{
+  "format": "qualia-api-layers",
+  "schemaVersion": 1,
+  "classification": "responsibility-not-transport-or-privilege",
+  "layers": {
+    "internal": {
+      "version": "1.0.0",
+      "scope": "module-to-module",
+      "owner": "host-router",
+      "address": ["workspaceId", "instanceId", "portId"],
+      "binding": "workspace-links-v1",
+      "messages": ["input", "output"],
+      "routing": "host-owned-links-only",
+      "implemented": ["declared-port-routing", "fan-out", "port-schemas", "hop-and-delivery-budgets"],
+      "notImplemented": ["direct-instance-rpc", "cross-workspace-routing", "module-discovery", "binary-module-data-plane"]
+    },
+    "middle": {
+      "version": "1.0.0",
+      "scope": "module-to-engine",
+      "owner": "module-supervisor",
+      "binding": "process-v1",
+      "manifestSchema": 1,
+      "protocol": 1,
+      "transports": ["stdio-ndjson", "tcp-ndjson"],
+      "moduleToHost": ["ready", "state", "output"],
+      "hostToModule": ["init", "parameters", "event", "input"],
+      "capabilities": ["port-schemas-v1", "host-logic-v1"],
+      "implemented": ["handshake", "per-instance-process", "parameter-allowlist", "ui-state", "integrity-before-launch"],
+      "notImplemented": ["os-sandbox", "protocol-v2", "host-service-rpc", "automatic-restart"]
+    },
+    "external": {
+      "version": "1.0.0",
+      "scope": "engine-to-third-party",
+      "owner": "integration-adapter",
+      "bindings": {
+        "aiDevelopment": {
+          "version": "1.1.0",
+          "transport": "stdio-jsonrpc-2.0",
+          "runtimeControl": false,
+          "methods": ["initialize", "engine.context", "api.describe", "engine.plan_change", "module.validate", "workspace.validate", "workspace.fork", "version.compare"]
+        },
+        "supabase": {
+          "contract": "repository-migrations-and-client-adapters",
+          "direction": "outbound",
+          "authorization": "auth-session-and-rls"
+        }
+      },
+      "implemented": ["local-development-api", "supabase-auth-and-catalog-adapters"],
+      "notImplemented": ["public-http-control-server", "live-module-gateway", "generic-webhooks", "automatic-model-code-execution"]
+    }
+  },
+  "invariants": [
+    "layer-does-not-grant-permissions",
+    "host-binds-source-identity-to-instance",
+    "payload-cannot-select-an-unauthorized-target",
+    "transport-does-not-change-layer",
+    "core-ffi-is-host-implementation-not-a-module-api",
+    "unknown-contracts-must-not-silently-downgrade",
+    "module-processes-are-trusted-not-os-sandboxed"
+  ]
+}

@@ -1,3 +1,4 @@
+import '../../core/theme/app_icons.dart';
 import '../../l10n/app_strings.dart';
 
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class DatasetsScreen extends StatelessWidget {
             padding: EdgeInsets.all(24),
             child: Column(
               children: [
-                Icon(Icons.folder_copy_outlined, size: 48),
+                Icon(AppIcons.folders, size: 48),
                 SizedBox(height: 12),
                 Text(context.l10n.textYourDatasetsWillAppearHere394),
                 SizedBox(height: 8),

@@ -4,7 +4,7 @@ import '../modules/module_registry.dart';
 import '../modules/port_schema.dart';
 import 'logic_script.dart';
 
-enum LogicBlockType { condition, filter, select, validate, script }
+enum LogicBlockType { condition, filter, select, validate, script, junction }
 
 class LogicBlocks {
   static SystemModule module(LogicBlockType type) => SystemModule(
@@ -26,11 +26,13 @@ class LogicBlocks {
     LogicBlockType.select => 'Select fields',
     LogicBlockType.validate => 'Validate',
     LogicBlockType.script => 'Script',
+    LogicBlockType.junction => 'Junction',
   };
   static List<String> outputs(LogicBlockType type) => switch (type) {
     LogicBlockType.condition => ['true', 'false'],
     LogicBlockType.validate => ['valid', 'invalid'],
     LogicBlockType.script => ['output', 'true', 'false', 'valid', 'invalid'],
+    LogicBlockType.junction => ['output'],
     _ => ['output'],
   };
   static Map<String, dynamic> defaults(LogicBlockType type) => switch (type) {
@@ -43,6 +45,7 @@ class LogicBlocks {
     LogicBlockType.script => {
       'script': 'if has(value, "score") and value.score >= 0.7 {\n  emit true select(value, "score", "channel");\n} else {\n  emit false value;\n}',
     },
+    LogicBlockType.junction => const {},
   };
   static List<LogicEmission> run(
     LogicBlockType type,
@@ -51,6 +54,8 @@ class LogicBlocks {
   ) {
     final config = {...defaults(type), ...settings};
     switch (type) {
+      case LogicBlockType.junction:
+        return [LogicEmission('output', value)];
       case LogicBlockType.condition:
       case LogicBlockType.filter:
         final matches = LogicScript.condition(

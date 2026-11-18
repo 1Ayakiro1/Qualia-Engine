@@ -1,3 +1,5 @@
+import '../../core/theme/app_icons.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_strings.dart';
@@ -143,15 +145,15 @@ String marketplaceKindLabel(MarketplaceKind kind) => switch (kind) {
 };
 
 IconData catalogIcon(String name) => switch (name) {
-  'signal' => Icons.graphic_eq,
-  'workspace' => Icons.account_tree_outlined,
-  'brain' => Icons.psychology_outlined,
-  'terrain' => Icons.terrain_outlined,
-  'notes' => Icons.sticky_note_2_outlined,
-  'chart' => Icons.multiline_chart,
-  'moon' => Icons.dark_mode_outlined,
-  'sun' => Icons.light_mode_outlined,
-  _ => Icons.extension_outlined,
+  'signal' => AppIcons.waveform,
+  'workspace' => AppIcons.workflow,
+  'brain' => AppIcons.brain,
+  'terrain' => AppIcons.mountains,
+  'notes' => AppIcons.note,
+  'chart' => AppIcons.chart,
+  'moon' => AppIcons.moon,
+  'sun' => AppIcons.sun,
+  _ => AppIcons.puzzle,
 };
 
 const engineThemes = [
