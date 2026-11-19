@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/logic/logic_blocks.dart';
+import '../../core/modules/module_registry.dart';
 import '../../core/workspace/workspace_model.dart';
 
 /// Commands shared by the scene pane and its canvas. All targets are instances.
@@ -10,6 +11,7 @@ class WorkspaceCanvasController {
   /// screens no longer store a second ValueNotifier selection state here.
   void Function(WorkspaceNode node, bool toggle)? selectFromScene;
   VoidCallback? addModule;
+  ValueChanged<SystemModule>? insertModule;
   void Function(LogicBlockType)? addLogic;
   void Function(WorkspaceNode)? open;
   void Function(WorkspaceNode)? detach;
@@ -19,6 +21,7 @@ class WorkspaceCanvasController {
 
   void clear() {
     addModule = null;
+    insertModule = null;
     addLogic = null;
     open = null;
     detach = null;

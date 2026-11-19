@@ -882,6 +882,12 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
           if (!mounted) return;
           ref.read(workspaceProvider.notifier).addToLibrary(module);
           setState(() => _selectedModule = module);
+          _selectSection(SectionId.modules, ref.read(appModeProvider));
+          // The canvas may not have been mounted when import started. Insert
+          // after navigation/layout so placement uses its current viewport.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _workspaceCanvasController.insertModule?.call(module);
+          });
         case 'add-online':
           _selectSection(SectionId.extensions, ref.read(appModeProvider));
         default:

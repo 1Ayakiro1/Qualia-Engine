@@ -287,6 +287,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     final controller = widget.canvasController;
     if (controller == null) return;
     controller.addModule = () => _onCanvas(() => _pick());
+    controller.insertModule = (module) => _onCanvas(() {
+      _controller.beginHistoryGroup();
+      try {
+        _select(_addAt(module, _center - const Offset(120, 80)));
+      } finally {
+        _controller.endHistoryGroup();
+      }
+      _focus.requestFocus();
+    });
     controller.addLogic = (type) {
       _onCanvas(() {
         _select(
@@ -652,6 +661,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   }
 
   WorkspaceNode _addAt(SystemModule module, Offset position) {
+    // An explicit add must not silently create an invisible instance.
+    final graph = ref.read(workspaceProvider);
+    if (!graph.showModuleBlocks) _controller.setBlockVisibility(modules: true);
+    if (graph.hiddenModuleIds.contains(module.id)) {
+      _controller.setModuleHidden(module.id, false);
+    }
     final node = _controller.addNode(module, position);
     if (_colorFilter != null) {
       _controller.setNodeColors({node.id}, _colorFilter!);
@@ -1360,6 +1375,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
     if (node != null && !_selection.contains(node.id)) _select(node);
     _menuOpen = true;
     final graph = ref.read(workspaceProvider);
+    final projectId = graph.activeProjectId;
     final hidden =
         node != null &&
         (node.fullyHidden ||
@@ -1414,9 +1430,15 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                   ),
               ],
             ),
-          if (node == null)
-            DesktopMenuEntry(value: 'add', label: context.l10n.textAdd294)
-          else ...[
+          if (node == null) ...[
+            DesktopMenuEntry(value: 'add', label: context.l10n.textAdd294),
+            ...modules.map(
+              (module) => DesktopMenuEntry(
+                value: 'module:${module.id}',
+                label: module.displayName(context),
+              ),
+            ),
+          ] else ...[
             DesktopMenuEntry(
               value: 'copy',
               label: context.l10n.workspaceCopy,
@@ -1488,6 +1510,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
         ],
       );
       if (!mounted) return;
+      if (ref.read(workspaceProvider).activeProjectId != projectId) return;
       if (action == 'copy') await _copySelection();
       if (action == 'cut') await _copySelection(cut: true);
       if (action == 'paste') await _pasteSelection(scene);
