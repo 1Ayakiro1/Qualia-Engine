@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.2-dev.7] — 2026-11-19 (development snapshot, not a 0.5.2 release)
+
+- Add EternalCortex 0.1.0, a separate PySide6/PyQtGraph EEG review window:
+  plain EDF/numeric NPZ, waveform/spectrum timeline, local replay, selections,
+  undoable annotations, self-contained projects and CSV/NPZ export.
+- Add standalone Linux bundle, AppImage and self-contained process-v1 `.qmod`
+  packaging; source development stays independent of Flutter.
+- Preserve a bounded, sanitized per-instance stderr tail on module failures,
+  so missing dependencies no longer disappear behind a bare exit code.
+- Keep process-v1 and C ABI unchanged. EternalCortex does not yet acquire live
+  input or publish replay into workspace links; no binary module data plane,
+  EDF+ import, medical validation or GPU performance guarantees are implied.
+
 ## [0.5.2-dev.6] — 2026-11-19 (development snapshot, not a 0.5.2 release)
 
 - Add persistent live-signal presentation caps, canvas grid quality and Linux

@@ -533,6 +533,52 @@ void main() {
     },
   );
 
+  test(
+    'failed startup preserves a bounded per-instance stderr diagnostic',
+    () async {
+      final failed = await store.install(
+        package(
+          manifest,
+          source: '''import sys, time
+sys.stderr.write('x' * 20000 + '\\x1b[31mMissing dependency: PySide6\\x1b[0m\\n')
+sys.stderr.flush()
+time.sleep(0.1)
+sys.exit(2)
+''',
+        ),
+      );
+      final sibling = await store.install(
+        package({...manifest, 'id': 'sibling'}),
+      );
+      final statuses = <String, String>{};
+      final runtime = ModuleRuntime(
+        store: store,
+        launchPackaged: launchTracked,
+        onUpdate: (id, status, _) => statuses[id] = status,
+      );
+      addTearDown(runtime.dispose);
+      runtime.sync(
+        'diagnostics',
+        [
+          WorkspaceNode(id: 'failed', module: failed),
+          WorkspaceNode(id: 'sibling', module: sibling),
+        ],
+        [],
+        [failed, sibling],
+      );
+      await wait(
+        () =>
+            (statuses['failed']?.startsWith('exited (2):') ?? false) &&
+            statuses['sibling'] == 'running',
+        statuses,
+      );
+      expect(statuses['failed'], contains('Missing dependency: PySide6'));
+      expect(statuses['failed']!.length, lessThanOrEqualTo(524));
+      expect(statuses['failed'], isNot(contains('\x1b')));
+      expect(statuses['sibling'], isNot(contains('PySide6')));
+    },
+  );
+
   for (final handshake in [
     {'type': 'ready', 'protocol': 2},
     {

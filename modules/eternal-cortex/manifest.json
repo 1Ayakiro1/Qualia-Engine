@@ -1,0 +1,21 @@
+{
+  "format": "qualia-module",
+  "schemaVersion": 1,
+  "runtime": "process-v1",
+  "platform": "portable",
+  "id": "eternal-cortex",
+  "name": "EternalCortex",
+  "version": "0.1.0",
+  "languages": ["Python"],
+  "description": "Local EEG review, spectrograms, replay and annotations in a dedicated desktop window.",
+  "launch": {
+    "launcher": {"linux-x64": "python3", "linux-arm64": "python3", "macos-x64": "python3", "macos-arm64": "python3", "windows-x64": "python", "windows-arm64": "python"},
+    "executable": "main.py",
+    "arguments": ["--qualia"]
+  },
+  "ports": {"inputs": [], "outputs": []},
+  "ui": [
+    {"id": "show_window", "type": "button", "label": "Open EternalCortex"},
+    {"id": "status", "type": "label", "label": "Studio", "default": "Starting dedicated window…"}
+  ]
+}

@@ -148,12 +148,18 @@ class ModuleRuntime {
         () => _fail(id, instance, 'handshake timeout'),
       );
       // Always drain diagnostics, also while a TCP listener is starting.
-      instance.stderr = process.stderr.listen((_) {});
+      instance.stderr = process.stderr.listen(instance.captureDiagnostic);
       unawaited(
         process.exitCode.then((code) {
           if (!instance.stopped) {
             instance.stop();
-            _update(id, instance, 'exited ($code)');
+            _update(
+              id,
+              instance,
+              code == 0
+                  ? 'exited ($code)'
+                  : instance.withDiagnostic('exited ($code)'),
+            );
           }
         }),
       );
@@ -285,7 +291,7 @@ class ModuleRuntime {
   void _fail(String id, _Instance instance, String reason) {
     if (instance.stopped) return;
     instance.stop();
-    _update(id, instance, 'error: $reason');
+    _update(id, instance, instance.withDiagnostic('error: $reason'));
   }
 
   void _message(String id, _Instance instance, dynamic data) {
@@ -497,6 +503,34 @@ class _Instance {
   bool ready = false, stopped = false;
   int pending = 0;
   Future<void> writes = Future<void>.value();
+  // Per-instance bounded tail, including before the ready handshake. Never
+  // interpret diagnostic text as protocol, markup, commands or global state.
+  final List<int> _diagnosticTail = [];
+  void captureDiagnostic(List<int> chunk) {
+    const limit = 4096;
+    if (chunk.length >= limit) {
+      _diagnosticTail
+        ..clear()
+        ..addAll(chunk.skip(chunk.length - limit));
+    } else {
+      final overflow = _diagnosticTail.length + chunk.length - limit;
+      if (overflow > 0) _diagnosticTail.removeRange(0, overflow);
+      _diagnosticTail.addAll(chunk);
+    }
+  }
+
+  String withDiagnostic(String reason) {
+    final text = utf8
+        .decode(_diagnosticTail, allowMalformed: true)
+        .replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '')
+        .replaceAll(RegExp(r'[\x00-\x1f\x7f-\x9f]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (text.isEmpty) return reason;
+    final tail = text.length > 512 ? text.substring(text.length - 512) : text;
+    return '$reason: $tail';
+  }
+
   void send(Map<String, dynamic> message) {
     if (stopped || process == null) return;
     final frame = '${jsonEncode(message)}\n';
