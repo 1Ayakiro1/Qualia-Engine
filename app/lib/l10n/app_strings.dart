@@ -65,6 +65,7 @@ extension AppStrings on BuildContext {
   /// Explicit adapter for the shell's stable host-label registries only.
   /// Do not use for author metadata, paths, IDs or external error messages.
   String hostLabel(String key) => switch (key) {
+    'Performance' => l10n.renderPerformance,
     'Workspace' => l10n.workspace,
     'Последние сессии' => l10n.recentSessions,
     'waves' => l10n.shapeWaves,

@@ -376,7 +376,7 @@ void main() {
           'workspace select menu',
           'workspace view menu',
         ]) {
-          expect(tester.getSize(find.byKey(ValueKey(key))).height, 40);
+          expect(tester.getSize(find.byKey(ValueKey(key))).height, 36);
         }
         final c = container.read(workspaceProvider.notifier);
         final node = c.addNode(module, const Offset(4900, 4900));

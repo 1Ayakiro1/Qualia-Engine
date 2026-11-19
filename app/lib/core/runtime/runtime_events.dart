@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/scheduler.dart';
 
@@ -14,11 +15,22 @@ class RuntimeFrame {
 }
 
 class RuntimeSignalBlock {
-  const RuntimeSignalBlock(this.samples, this.sampleRate, this.sequence);
+  const RuntimeSignalBlock(
+    this.samples,
+    this.sampleRate,
+    this.sequence, {
+    this.channels = 1,
+    this.timestampSeconds,
+    this.sourceId = 'simulator',
+  });
 
   final List<double> samples;
   final double sampleRate;
   final int sequence;
+  final int channels;
+  final double? timestampSeconds;
+  final String sourceId;
+  int get frames => samples.length ~/ channels;
 }
 
 /// Host-local data events and a single Flutter frame clock (which uses the
@@ -46,8 +58,11 @@ class RuntimeEventHub {
   late final StreamController<RuntimeFrame> _frames;
   late final StreamController<RuntimeSignalBlock> _signals;
   Ticker? _ticker;
+  Timer? _simulationTimer;
+  Stopwatch? _simulationClock;
+  int _generatedSamples = 0;
+  bool _externalSource = false;
   Duration? _lastFrame;
-  double _sampleRemainder = 0;
   int _frameSequence = 0;
   int _signalSequence = 0;
 
@@ -56,17 +71,41 @@ class RuntimeEventHub {
 
   bool get _hasConsumers => _frames.hasListener || _signals.hasListener;
 
+  void useExternalSource(bool active) {
+    _externalSource = active;
+    _simulationClock?.reset();
+    _generatedSamples = 0;
+  }
+
   void _ensureTicker() {
     if (_ticker != null || !_hasConsumers) return;
     _lastFrame = null;
-    _sampleRemainder = 0;
     _ticker = Ticker(_onTick)..start();
+    if (simulateSignal) {
+      _simulationClock = Stopwatch()..start();
+      _generatedSamples = 0;
+      _simulationTimer = Timer.periodic(const Duration(milliseconds: 8), (_) {
+        final target =
+            (_simulationClock!.elapsedMicroseconds *
+                    _simulator.sampleRate /
+                    Duration.microsecondsPerSecond)
+                .floor();
+        final count = math.min(target - _generatedSamples, 4096);
+        _generatedSamples = target;
+        if (!_externalSource && _signals.hasListener && count > 0) {
+          publishSignal(_simulator.take(count));
+        }
+      });
+    }
   }
 
   void _stopIfUnused() {
     if (_hasConsumers) return;
     _ticker?.dispose();
     _ticker = null;
+    _simulationTimer?.cancel();
+    _simulationTimer = null;
+    _simulationClock = null;
     _lastFrame = null;
   }
 
@@ -74,26 +113,37 @@ class RuntimeEventHub {
     final previous = _lastFrame;
     _lastFrame = elapsed;
     final delta = previous == null ? Duration.zero : elapsed - previous;
-    if (simulateSignal && _signals.hasListener) {
-      // Fractional accumulation preserves 256 Hz at 60/144/165/240 Hz. A
-      // suspended window does not create an unbounded catch-up allocation.
-      _sampleRemainder += math.min(delta.inMicroseconds, 250000) *
-          _simulator.sampleRate / Duration.microsecondsPerSecond;
-      final count = _sampleRemainder.floor();
-      _sampleRemainder -= count;
-      if (count > 0) publishSignal(_simulator.take(count));
-    }
     // Deliver data before the frame event so observers commit once per frame.
     _frames.add(RuntimeFrame(elapsed, delta, _frameSequence++));
   }
 
-  void publishSignal(List<double> samples, {double sampleRate = 256}) {
+  void publishSignal(
+    List<double> samples, {
+    double sampleRate = 256,
+    int channels = 1,
+    double? timestampSeconds,
+    String sourceId = 'simulator',
+  }) {
     if (!sampleRate.isFinite || sampleRate <= 0) {
       throw ArgumentError.value(sampleRate, 'sampleRate');
     }
     if (samples.isEmpty) return;
-    _signals.add(RuntimeSignalBlock(
-      List<double>.unmodifiable(samples), sampleRate, _signalSequence++,
-    ));
+    if (channels < 1 ||
+        channels > 256 ||
+        samples.length % channels != 0 ||
+        samples.length > 1048576 ||
+        samples.any((v) => !v.isFinite)) {
+      throw ArgumentError('Invalid signal block');
+    }
+    _signals.add(
+      RuntimeSignalBlock(
+        Float32List.fromList(samples).asUnmodifiableView(),
+        sampleRate,
+        _signalSequence++,
+        channels: channels,
+        timestampSeconds: timestampSeconds,
+        sourceId: sourceId,
+      ),
+    );
   }
 }

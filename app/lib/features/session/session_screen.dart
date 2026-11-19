@@ -4,14 +4,22 @@ import '../../l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_selector/file_selector.dart';
 
 import '../../state/engine_provider.dart';
 import '../../core/runtime/runtime_events.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/logging/log_entry.dart';
+import '../../core/session/edf_codec.dart';
+import '../../core/session/session_store.dart';
+import '../../state/render_preferences.dart';
+import '../../core/render/frame_gate.dart';
+import '../../core/session/session_recorder.dart';
+import '../../state/lsl_source.dart';
 import '../common/widgets.dart';
 
 class _SessionRecord {
@@ -40,6 +48,15 @@ class SessionScreen extends ConsumerStatefulWidget {
 
 class _SessionScreenState extends ConsumerState<SessionScreen> {
   final List<_SessionRecord> _history = <_SessionRecord>[];
+  SessionRecorder _recorder = SessionRecorder();
+  List<Map<String, dynamic>> _savedSessions = [];
+  SessionDocument? _selectedDocument;
+  String? _storageError;
+  String? _selectedSessionId;
+  String _sourceId = 'simulator';
+  double _sampleRate = 256;
+  int _channels = 1;
+  final SessionStore _sessionStore = SessionStore();
 
   StreamSubscription<RuntimeSignalBlock>? _signals;
   StreamSubscription<RuntimeFrame>? _frameSubscription;
@@ -54,6 +71,8 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   double _pendingRms = 0;
   double _pendingPeakHz = 0;
   double _pendingQuality = 0;
+  FrameGate _frameGate = FrameGate();
+  bool _saving = false;
 
   static const int _blockFrames = 64;
   static const int _popWindow = 256;
@@ -61,16 +80,38 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   Pointer<Float>? _outBuffer;
 
   bool get _coreOnline => ref.read(engineProvider).isOnline;
+  late final EngineController _engineController;
+
+  @override
+  void initState() {
+    super.initState();
+    _engineController = ref.read(engineProvider.notifier);
+    _refreshSessions();
+  }
+
+  Future<void> _refreshSessions() async {
+    try {
+      final items = await _sessionStore.list();
+      if (mounted) setState(() => _savedSessions = items.reversed.toList());
+    } catch (error) {
+      if (mounted) setState(() => _storageError = '$error');
+    }
+  }
 
   @override
   void dispose() {
     _stopStreams();
+    if (_running) {
+      final document = _recorder.finish(_startedAt ?? DateTime.now());
+      if (document != null) unawaited(_saveDocument(document));
+      if (_inBuffer != null) _engineController.stop();
+    }
     _freeBuffers();
     super.dispose();
   }
 
   void _freeBuffers() {
-    final EngineController controller = ref.read(engineProvider.notifier);
+    final EngineController controller = _engineController;
     if (_inBuffer != null) {
       controller.freeSamples(_inBuffer!);
       _inBuffer = null;
@@ -82,7 +123,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   }
 
   void _start() {
-    final bool viaCore = _coreOnline;
+    if (_saving || _running) return;
+    final source = ref.read(lslSourceProvider)?.active;
+    final bool viaCore =
+        _coreOnline &&
+        (source == null || (source.channels == 1 && source.nominalRate == 256));
     if (viaCore) {
       final int? code = ref
           .read(engineProvider.notifier)
@@ -110,7 +155,9 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     } else {
       AppLogger.instance.log(
         LogSource.session,
-        'сессия стартовала в Dart-симуляции (ядро офлайн)',
+        source == null
+            ? 'сессия стартовала в Dart-симуляции'
+            : 'сессия стартовала: raw LSL capture без legacy DSP',
       );
     }
 
@@ -126,11 +173,20 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       _pendingRms = 0;
       _pendingPeakHz = 0;
       _pendingQuality = 0;
+      _recorder = SessionRecorder();
+      _frameGate = FrameGate();
+      _storageError = null;
+      final source = ref.read(lslSourceProvider)?.active;
+      _sourceId = source?.sourceId ?? 'simulator';
+      _sampleRate = source?.nominalRate ?? 256;
+      _channels = source?.channels ?? 1;
     });
 
     _signals = RuntimeEventHub.instance.signals.listen(_processBlock);
-    _frameSubscription = RuntimeEventHub.instance.frames.listen((_) {
+    _frameSubscription = RuntimeEventHub.instance.frames.listen((frame) {
       if (mounted && _running) {
+        final cap = ref.read(renderPreferencesProvider).frameRate;
+        if (!_frameGate.accept(frame.timestamp, cap)) return;
         setState(() {
           _rms = _pendingRms;
           _peakHz = _pendingPeakHz;
@@ -145,14 +201,33 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       return;
     }
     final List<double> block = signal.samples;
+    _sourceId = signal.sourceId;
+    _sampleRate = signal.sampleRate;
+    _channels = signal.channels;
+    try {
+      _recorder.add(signal);
+    } catch (error) {
+      _storageError = '$error';
+      unawaited(_stop());
+      return;
+    }
 
-    if (_coreOnline && _inBuffer != null && _outBuffer != null) {
-      final int frames = math.min(block.length, _blockFrames);
-      for (int i = 0; i < frames; i++) {
-        _inBuffer![i] = block[i];
-      }
+    // This legacy DSP preview is mono/256 Hz only. Preserve all raw channels
+    // in the recorder; never flatten multichannel data into that pipeline.
+
+    if (_coreOnline &&
+        _inBuffer != null &&
+        _outBuffer != null &&
+        signal.channels == 1 &&
+        signal.sampleRate == 256) {
       final EngineController controller = ref.read(engineProvider.notifier);
-      controller.pushSamples(_inBuffer!, frames, 1);
+      for (var offset = 0; offset < block.length; offset += _blockFrames) {
+        final frames = math.min(block.length - offset, _blockFrames);
+        for (var i = 0; i < frames; i++) {
+          _inBuffer![i] = block[offset + i];
+        }
+        controller.pushSamples(_inBuffer!, frames, 1);
+      }
       final int? popped = controller.popSamplesInto(_outBuffer!, _popWindow, 1);
       final List<double>? metrics = controller.metrics();
       if (popped != null && popped > 0) _frames += popped;
@@ -168,15 +243,21 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       for (final double v in block) {
         sum += v * v;
       }
-      _frames += block.length;
+      _frames += signal.frames;
       _pendingRms = math.sqrt(sum / block.length);
-      _pendingQuality = _pendingRms > 1e-4 ? 0.75 : 0.2;
+      // No impedance/artifact estimator exists for arbitrary raw sources.
+      _pendingQuality = 0;
       _rmsSum += _pendingRms;
       _metricSamples++;
     }
   }
 
-  void _stop() {
+  Future<void> _stop() async {
+    if (!_running || _saving) return;
+    setState(() {
+      _running = false;
+      _saving = true;
+    });
     final DateTime startedAt = _startedAt ?? DateTime.now();
     final bool wasCore = _coreOnline && _inBuffer != null;
     _history.insert(
@@ -193,13 +274,72 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
       LogSource.session,
       'сессия завершена: $_frames кадров за ${DateTime.now().difference(startedAt).inSeconds} с (RMS ${(_metricSamples > 0 ? _rmsSum / _metricSamples : 0).toStringAsFixed(3)})',
     );
-    if (_coreOnline) {
+    if (_inBuffer != null) {
       ref.read(engineProvider.notifier).stop();
     }
     _stopStreams();
     _freeBuffers();
+    final document = _recorder.finish(startedAt);
+    if (document != null) await _saveDocument(document);
+    await _refreshSessions();
     if (mounted) {
-      setState(() => _running = false);
+      setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _saveDocument(SessionDocument document) async {
+    try {
+      final id = 'session_${document.startedAt!.microsecondsSinceEpoch}';
+      await _sessionStore.save(id, document);
+      _selectedDocument = document;
+      _selectedSessionId = id;
+      AppLogger.instance.log(LogSource.session, 'сессия сохранена: $id.edf');
+    } catch (error) {
+      if (mounted) setState(() => _storageError = '$error');
+      AppLogger.instance.log(
+        LogSource.session,
+        'не удалось сохранить EDF: $error',
+        level: LogLevel.warning,
+      );
+    }
+  }
+
+  Future<void> _importEdf() async {
+    if (_running || _saving) return;
+    final file = await openFile(
+      acceptedTypeGroups: [
+        const XTypeGroup(label: 'EDF', extensions: ['edf']),
+      ],
+    );
+    if (file == null || !mounted || _running || _saving) return;
+    setState(() => _saving = true);
+    try {
+      if (await file.length() > EdfCodec.maxBytes) {
+        throw const FormatException('EDF too large');
+      }
+      final document = await _sessionStore.importEdf(await file.readAsBytes());
+      final id = 'import_${DateTime.now().microsecondsSinceEpoch}';
+      await _sessionStore.save(id, document);
+      _selectedDocument = document;
+      _selectedSessionId = id;
+      await _refreshSessions();
+    } catch (error) {
+      if (mounted) setState(() => _storageError = '$error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _exportEdf() async {
+    final document = _selectedDocument;
+    if (document == null) return;
+    final target = await getSaveLocation(suggestedName: 'session.edf');
+    if (target == null) return;
+    try {
+      await File(target.path)
+          .writeAsBytes(await _sessionStore.exportEdf(document), flush: true);
+    } catch (error) {
+      if (mounted) setState(() => _storageError = '$error');
     }
   }
 
@@ -224,15 +364,17 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool viaCore = _coreOnline;
+    final bool viaCore = _coreOnline && _channels == 1 && _sampleRate == 256;
 
     return ListView(
       children: [
         ScreenHeader(
           title: context.l10n.textSession40,
-          subtitle: viaCore
-              ? context.l10n.textStreamingThroughTheCCorePushPipeline273
-              : context.l10n.textCoreOfflineLocalDartSimulation274,
+          subtitle: context.l10n.signalSourceDescription(
+            _sourceId,
+            _channels,
+            _sampleRate.toStringAsFixed(1),
+          ),
         ),
         InfoCard(
           title: _running
@@ -261,11 +403,11 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                 MetricTile(label: 'RMS', value: _rms.toStringAsFixed(4)),
                 MetricTile(
                   label: context.l10n.textPeakHz281,
-                  value: _peakHz.toStringAsFixed(1),
+                  value: viaCore ? _peakHz.toStringAsFixed(1) : '—',
                 ),
                 MetricTile(
                   label: context.l10n.textQuality282,
-                  value: _quality.toStringAsFixed(2),
+                  value: viaCore ? _quality.toStringAsFixed(2) : '—',
                 ),
               ],
             ),
@@ -274,7 +416,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
               children: [
                 if (!_running)
                   FilledButton.icon(
-                    onPressed: _start,
+                    onPressed: _saving ? null : _start,
                     icon: const Icon(AppIcons.play),
                     label: Text(context.l10n.textStart283),
                   )
@@ -285,12 +427,16 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
                     label: Text(context.l10n.textStop284),
                   ),
                 const SizedBox(width: 12),
-                Text(
-                  context.l10n.textSimulator256Hz1ChannelBlockOf285(
-                    (_blockFrames).toString(),
-                  ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                Flexible(
+                  child: Text(
+                    context.l10n.signalSourceDescription(
+                      _sourceId,
+                      _channels,
+                      _sampleRate.toStringAsFixed(1),
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -298,10 +444,49 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
           ],
         ),
         InfoCard(
-          title: context.l10n.textSessionHistoryInMemoryV01286,
+          title: context.l10n.savedSessions,
           headerIcon: AppIcons.history,
           children: [
-            if (_history.isEmpty)
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _running || _saving ? null : _importEdf,
+                  child: Text(context.l10n.importEdf),
+                ),
+                OutlinedButton(
+                  onPressed: _selectedDocument == null || _saving
+                      ? null
+                      : _exportEdf,
+                  child: Text(context.l10n.exportEdf),
+                ),
+              ],
+            ),
+            if (_storageError != null) Text(_storageError!),
+            for (final entry in _savedSessions)
+              ListTile(
+                title: Text(entry['id'] as String),
+                subtitle: Text(
+                  '${entry['channels']} ch · ${entry['sampleRate']} Hz · ${entry['frames']} frames',
+                ),
+                selected: _selectedSessionId == entry['id'],
+                onTap: () async {
+                  try {
+                    final document = await _sessionStore.load(
+                      entry['id'] as String,
+                    );
+                    if (mounted) {
+                      setState(() {
+                        _selectedDocument = document;
+                        _selectedSessionId = entry['id'] as String;
+                      });
+                    }
+                  } catch (error) {
+                    if (mounted) setState(() => _storageError = '$error');
+                  }
+                },
+              ),
+            if (_history.isEmpty && _savedSessions.isEmpty)
               Text(
                 context.l10n.textNoSessionsYetStartASession287,
                 style: theme.textTheme.bodySmall?.copyWith(

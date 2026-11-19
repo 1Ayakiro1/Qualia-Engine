@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.2-dev.6] — 2026-11-19 (development snapshot, not a 0.5.2 release)
+
+- Add persistent live-signal presentation caps, canvas grid quality and Linux
+  startup Skia/experimental Impeller selection; acquisition is not tied to FPS.
+- Compact the canvas header and index return-to-scene wire endpoint lookups.
+- Correct optional liblsl C signatures and add host-owned discovery/acquisition
+  on worker isolates, float32 blocks, bounded delivery and explicit connection.
+- Persist bounded raw multichannel sessions, list/select stored sessions and
+  import/export plain uniform-rate EDF with physical calibration and record order.
+- Add native LSL fixture/FFI tests and recording/EDF/presentation regressions.
+- Not implemented: binary `.qmod` data plane, per-wire probes, board drivers,
+  EDF+ annotations, durable streaming recordings or clock synchronization.
+
 ## [0.5.2-dev.5] — 2026-11-18 (development snapshot, not a 0.5.2 release)
 
 - Add local-only privacy defaults, persistent diagnostic opt-ins, consent-gated

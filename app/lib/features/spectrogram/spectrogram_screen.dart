@@ -4,6 +4,10 @@ import '../../l10n/app_strings.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../state/render_preferences.dart';
+import '../../core/render/frame_gate.dart';
 
 import '../../core/runtime/runtime_events.dart';
 import '../common/widgets.dart';
@@ -11,32 +15,55 @@ import 'spectro_model.dart';
 import 'spectro_painter.dart';
 
 /// Real-time scrolling spectrogram (Dart STFT demo; native core later).
-class SpectrogramScreen extends StatefulWidget {
+class SpectrogramScreen extends ConsumerStatefulWidget {
   const SpectrogramScreen({super.key});
 
   @override
-  State<SpectrogramScreen> createState() => _SpectrogramScreenState();
+  ConsumerState<SpectrogramScreen> createState() => _SpectrogramScreenState();
 }
 
-class _SpectrogramScreenState extends State<SpectrogramScreen> {
+class _SpectrogramScreenState extends ConsumerState<SpectrogramScreen> {
   final SpectroModel _model = SpectroModel();
   StreamSubscription<RuntimeSignalBlock>? _signals;
   StreamSubscription<RuntimeFrame>? _frames;
   final List<List<double>> _pendingBlocks = <List<double>>[];
+  final FrameGate _gate = FrameGate();
+  String _sourceId = 'simulator';
+  double _sampleRate = 256;
+  int _channels = 1;
 
   @override
   void initState() {
     super.initState();
     _signals = RuntimeEventHub.instance.signals.listen((block) {
-      if (mounted) _pendingBlocks.add(block.samples);
+      if (mounted && !_model.paused) {
+        if (_sourceId != block.sourceId || _sampleRate != block.sampleRate) {
+          _model.clear();
+          _pendingBlocks.clear();
+          setState(() {
+            _sourceId = block.sourceId;
+            _sampleRate = block.sampleRate;
+            _channels = block.channels;
+          });
+        }
+        if (_pendingBlocks.length == 64) _pendingBlocks.removeAt(0);
+        _pendingBlocks.add([
+          for (var i = 0; i < block.samples.length; i += block.channels)
+            block.samples[i],
+        ]);
+      }
     });
-    _frames = RuntimeEventHub.instance.frames.listen((_) {
+    _frames = RuntimeEventHub.instance.frames.listen((frame) {
       if (!mounted || _pendingBlocks.isEmpty) return;
+      if (!_gate.accept(
+        frame.timestamp,
+        ref.read(renderPreferencesProvider).frameRate,
+      )) {
+        return;
+      }
       final blocks = List<List<double>>.of(_pendingBlocks);
       _pendingBlocks.clear();
-      for (final block in blocks) {
-        _model.push(block);
-      }
+      _model.push([for (final block in blocks) ...block]);
     });
   }
 
@@ -57,7 +84,11 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
       children: [
         ScreenHeader(
           title: context.l10n.textSpectrogram44,
-          subtitle: context.l10n.textSTFT256Hop32Simulator256Hz329,
+          subtitle: context.l10n.signalSourceDescription(
+            _sourceId,
+            _channels,
+            _sampleRate.toStringAsFixed(1),
+          ),
           actions: [
             IconButton(
               tooltip: _model.paused
@@ -115,7 +146,7 @@ class _SpectrogramScreenState extends State<SpectrogramScreen> {
                           left: 8,
                           top: 6,
                           child: Text(
-                            context.l10n.text127Hz333,
+                            '${(_sampleRate / 4).toStringAsFixed(1)} Hz · CH 1',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: Colors.white70,
                             ),

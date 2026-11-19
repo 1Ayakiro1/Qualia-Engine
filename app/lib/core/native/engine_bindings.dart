@@ -1,8 +1,37 @@
 import 'dart:ffi';
+import 'dart:convert';
 
 import 'package:ffi/ffi.dart';
 
 import 'engine_loader.dart';
+
+class LslStreamDescriptor {
+  const LslStreamDescriptor({
+    required this.name,
+    required this.type,
+    required this.sourceId,
+    required this.channels,
+    required this.nominalRate,
+    required this.channelFormat,
+  });
+
+  final String name;
+  final String type;
+  final String sourceId;
+  final int channels;
+  final double nominalRate;
+  final String channelFormat;
+
+  factory LslStreamDescriptor.fromJson(Map<String, dynamic> json) =>
+      LslStreamDescriptor(
+        name: json['name'] as String? ?? '',
+        type: json['type'] as String? ?? '',
+        sourceId: json['sourceId'] as String? ?? '',
+        channels: (json['channels'] as num?)?.toInt() ?? 0,
+        nominalRate: (json['nominalRate'] as num?)?.toDouble() ?? 0,
+        channelFormat: json['channelFormat'] as String? ?? '',
+      );
+}
 
 /// ABI v3 metadata. Float32 signal payload stays in native-owned memory.
 final class CoreBlockInfo extends Struct {
@@ -28,11 +57,16 @@ final class CoreBlockInfo extends Struct {
 
 final class CoreBlock extends Opaque {}
 
+final class LslInletHandle extends Opaque {}
+
 enum CoreQueuePolicy { every, dropOldest, latestOnly }
 
 /// Raw bindings over the stable C ABI (core/include/bci_engine/c_api.h).
 class CoreBindings {
   CoreBindings._(this._lib, this.path);
+
+  factory CoreBindings.open(String path) =>
+      CoreBindings._(DynamicLibrary.open(path), path);
 
   final DynamicLibrary _lib;
 
@@ -152,6 +186,55 @@ class CoreBindings {
         int Function(Pointer<Void>, Pointer<Float>)
       >('bci_engine_get_metrics');
 
+  late final int Function() _lslAvailable = _lib
+      .lookupFunction<Int32 Function(), int Function()>('bci_lsl_available');
+
+  late final int Function(Pointer<Utf8>, Pointer<Utf8>, int) _lslDiscover = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
+        int Function(Pointer<Utf8>, Pointer<Utf8>, int)
+      >('bci_lsl_discover_json');
+
+  late final _lslCreate = _lib
+      .lookupFunction<
+        Pointer<LslInletHandle> Function(),
+        Pointer<LslInletHandle> Function()
+      >('bci_lsl_create');
+  late final _lslDestroy = _lib
+      .lookupFunction<
+        Void Function(Pointer<LslInletHandle>),
+        void Function(Pointer<LslInletHandle>)
+      >('bci_lsl_destroy');
+  late final _lslOpen = _lib
+      .lookupFunction<
+        Int32 Function(Pointer<LslInletHandle>, Pointer<Utf8>, Double),
+        int Function(Pointer<LslInletHandle>, Pointer<Utf8>, double)
+      >('bci_lsl_open_source');
+  late final _lslPull = _lib
+      .lookupFunction<
+        Int32 Function(
+          Pointer<LslInletHandle>,
+          Pointer<Float>,
+          Int32,
+          Double,
+          Pointer<Int32>,
+          Pointer<Double>,
+        ),
+        int Function(
+          Pointer<LslInletHandle>,
+          Pointer<Float>,
+          int,
+          double,
+          Pointer<Int32>,
+          Pointer<Double>,
+        )
+      >('bci_lsl_pull');
+  late final _lslInfo = _lib
+      .lookupFunction<
+        Pointer<Utf8> Function(Pointer<LslInletHandle>),
+        Pointer<Utf8> Function(Pointer<LslInletHandle>)
+      >('bci_lsl_info_json');
+
   late final int Function(Pointer<Void>) _moduleCount = _lib
       .lookupFunction<
         Int32 Function(Pointer<Void>),
@@ -177,24 +260,26 @@ class CoreBindings {
     Pointer<Float>,
     int,
     int,
-  ) _stft = _lib.lookupFunction<
-    Int32 Function(
-      Pointer<Float>,
-      Uint32,
-      Pointer<NativeStftConfig>,
-      Pointer<Float>,
-      Uint32,
-      Uint32,
-    ),
-    int Function(
-      Pointer<Float>,
-      int,
-      Pointer<NativeStftConfig>,
-      Pointer<Float>,
-      int,
-      int,
-    )
-  >('bci_stft_compute');
+  )
+  _stft = _lib
+      .lookupFunction<
+        Int32 Function(
+          Pointer<Float>,
+          Uint32,
+          Pointer<NativeStftConfig>,
+          Pointer<Float>,
+          Uint32,
+          Uint32,
+        ),
+        int Function(
+          Pointer<Float>,
+          int,
+          Pointer<NativeStftConfig>,
+          Pointer<Float>,
+          int,
+          int,
+        )
+      >('bci_stft_compute');
 
   // ---- friendly wrappers -------------------------------------------------
 
@@ -264,6 +349,57 @@ class CoreBindings {
       malloc.free(buf);
     }
   }
+
+  bool get lslAvailable {
+    try {
+      return _lslAvailable() == 1;
+    } on ArgumentError {
+      return false; // Older ABI-v3 cores need not have the additive LSL symbols.
+    }
+  }
+
+  List<LslStreamDescriptor> discoverLsl({String type = ''}) {
+    final typePointer = type.toNativeUtf8();
+    final output = calloc<Uint8>(64 * 1024);
+    try {
+      final code = _lslDiscover(typePointer, output.cast<Utf8>(), 64 * 1024);
+      if (code < 0) throw StateError('LSL discovery failed ($code)');
+      final json = output.cast<Utf8>().toDartString();
+      final value = jsonDecode(json);
+      if (value is! List) return const <LslStreamDescriptor>[];
+      return [
+        for (final item in value)
+          if (item is Map<String, dynamic>) LslStreamDescriptor.fromJson(item),
+      ];
+    } finally {
+      calloc.free(typePointer);
+      calloc.free(output);
+    }
+  }
+
+  Pointer<LslInletHandle> createLslInlet() => _lslCreate();
+  LslStreamDescriptor lslInletInfo(Pointer<LslInletHandle> inlet) =>
+      LslStreamDescriptor.fromJson(
+        jsonDecode(_lslInfo(inlet).toDartString()) as Map<String, dynamic>,
+      );
+  void destroyLslInlet(Pointer<LslInletHandle> inlet) => _lslDestroy(inlet);
+
+  int openLslInlet(Pointer<LslInletHandle> inlet, String sourceId) {
+    final source = sourceId.toNativeUtf8();
+    try {
+      return _lslOpen(inlet, source, 2.0);
+    } finally {
+      calloc.free(source);
+    }
+  }
+
+  int pullLsl(
+    Pointer<LslInletHandle> inlet,
+    Pointer<Float> destination,
+    int maxSamples,
+    Pointer<Int32> channels,
+    Pointer<Double> timestamp,
+  ) => _lslPull(inlet, destination, maxSamples, 0.0, channels, timestamp);
 
   int moduleCount(Pointer<Void> engine) => _moduleCount(engine);
 

@@ -10,6 +10,83 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get renderPerformance => 'Производительность';
+
+  @override
+  String get renderBackend => 'Графический backend (Linux)';
+
+  @override
+  String get renderRestart =>
+      'Применяется после перезапуска. Impeller — экспериментальный; если приложение не запускается, удалите ~/.config/com.ayakiro.bci_engine/render-backend для возврата к «Авто».';
+
+  @override
+  String get renderDescription =>
+      'Настройки отображения не меняют частоту получения и обработки сигнала.';
+
+  @override
+  String get renderBackendDescription =>
+      'Авто использует настройку Flutter. Skia и Impeller работают через системный графический драйвер.';
+
+  @override
+  String get renderQuality => 'Качество сетки канваса';
+
+  @override
+  String get renderQualityDescription =>
+      'Производительность — только крупная сетка. Баланс и Качество сохраняют все уровни сетки.';
+
+  @override
+  String get renderBalanced => 'Баланс';
+
+  @override
+  String get renderHigh => 'Качество';
+
+  @override
+  String get renderAuto => 'Авто';
+
+  @override
+  String get renderFrameRate => 'Частота отображения сигнала';
+
+  @override
+  String get renderFrameRateDescription =>
+      'Ограничивает только обновление метрик сессии и спектрограммы. Канвас и анимации приложения следуют частоте дисплея.';
+
+  @override
+  String get lslUnavailable =>
+      'LSL недоступен: установите liblsl и перезапустите приложение.';
+
+  @override
+  String get lslSearching => 'LSL: выполняется операция…';
+
+  @override
+  String get lslDiscoveryHint =>
+      'Поиск LSL-потоков в локальной сети запускается по запросу.';
+
+  @override
+  String get lslDiscover => 'Найти LSL';
+
+  @override
+  String get lslOpenFailed => 'Не удалось открыть LSL-поток.';
+
+  @override
+  String lslFound(int count) {
+    return 'LSL: найдено потоков — $count';
+  }
+
+  @override
+  String get savedSessions => 'Сохранённые сессии (EDF)';
+
+  @override
+  String signalSourceDescription(String source, int channels, String rate) {
+    return 'Источник: $source · каналов: $channels · $rate Гц';
+  }
+
+  @override
+  String get importEdf => 'Импорт EDF';
+
+  @override
+  String get exportEdf => 'Экспорт выбранного EDF';
+
+  @override
   String get workspaceCanvasHints => 'Подсказки на канвасе';
 
   @override
@@ -2208,7 +2285,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get deviceSimulatorDescription =>
-      'Встроенный генератор сигнала (256 Гц, 8 каналов). Используется для разработки без железа.';
+      'Встроенный генератор сигнала (256 Гц, 1 канал). Используется для разработки без железа.';
 
   @override
   String get deviceBoardDescription =>

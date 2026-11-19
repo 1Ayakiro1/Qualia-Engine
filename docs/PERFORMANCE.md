@@ -1,5 +1,24 @@
 # Плавность интерфейса и частота кадров
 
+## Настройки dev.6
+
+«Настройки → Производительность» сохраняет качество сетки и частоту обновления
+live metrics/спектрограммы (Auto, 30/60/90/120/144/165/240). Это **не глобальный
+FPS limiter** канваса/анимаций и не смена режима монитора. Frame gate использует
+монотонное время и сохраняет фазу дробного отношения частот (144 Hz / 60 updates).
+Симулятор и LSL acquisition работают независимо от display ticks.
+
+Linux runner читает `~/.config/com.ayakiro.bci_engine/render-backend` (с учётом
+XDG_CONFIG_HOME) до создания FlView: `auto`, `skia`, `impeller`. Выбор применяется
+после перезапуска; это два GPU backend, не CPU/GPU selector. Impeller экспериментален
+и зависит от драйвера. При сбое удалить этот файл для возврата к SDK default.
+Environment Flutter switches имеют приоритет. Windows/macOS renderer selector
+не показывается: их startup glue в этой версии не реализован.
+
+Уменьшена геометрия header canvas, O(E×N) обход return-to-scene заменён индексом.
+Это не доказательство «плавности как Blender»: hardware profile 144+ Hz, frame
+timings, pan/drag на большом графе и GPU-driver matrix ещё требуют измерений.
+
 ## Native vsync в Linux-сборке
 
 Приложение собирается на Flutter 3.47.5 (engine revision `af7e796e16`).

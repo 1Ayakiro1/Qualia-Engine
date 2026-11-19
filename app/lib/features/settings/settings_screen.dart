@@ -4,6 +4,8 @@ import '../common/desktop_menu.dart';
 
 import 'package:flutter/material.dart';
 
+import 'dart:io';
+
 import '../common/desktop_focus.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,8 @@ import '../../core/logging/log_entry.dart';
 import '../../core/privacy/privacy_preferences.dart';
 import '../../core/theme/app_palette.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/render/render_preferences.dart';
+import '../../state/render_preferences.dart';
 import 'keyboard_shortcuts_panel.dart';
 import '../../l10n/locale_controller.dart';
 import '../../state/engine_provider.dart';
@@ -210,6 +214,7 @@ class _PreferencesSidebar extends StatelessWidget {
     ('Privacy', AppIcons.shieldCheck),
     ('Personalization', AppIcons.history),
     ('Navigation', AppIcons.cursor),
+    ('Performance', AppIcons.cpu),
     ('Account', AppIcons.userCircle),
   ];
 
@@ -470,6 +475,70 @@ class _PreferencesContent extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      );
+    }
+    if (selectedItem == 'Performance') {
+      final render = ref.watch(renderPreferencesProvider);
+      final controller = ref.read(renderPreferencesProvider.notifier);
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(48, 42, 48, 80),
+        children: [
+          Text(
+            context.hostLabel('Performance'),
+            style: const TextStyle(fontSize: 30),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.renderDescription,
+            style: TextStyle(color: context.palette.mutedText, fontSize: 14),
+          ),
+          const SizedBox(height: 28),
+          _SettingsCard(
+            children: [
+              if (Platform.isLinux)
+                _PreferenceRow(
+                  title: context.l10n.renderBackend,
+                  description: context.l10n.renderBackendDescription,
+                  extra: Text(context.l10n.renderRestart),
+                  control: _PreferenceDropdown<RenderBackend>(
+                    value: render.backend,
+                    values: RenderBackend.values,
+                    label: (value) => switch (value) {
+                      RenderBackend.auto => context.l10n.renderAuto,
+                      RenderBackend.skia => 'Skia',
+                      RenderBackend.impeller => 'Impeller',
+                    },
+                    onChanged: (value) => controller.update(backend: value),
+                  ),
+                ),
+              _PreferenceRow(
+                title: context.l10n.renderQuality,
+                description: context.l10n.renderQualityDescription,
+                control: _PreferenceDropdown<RenderQuality>(
+                  value: render.quality,
+                  values: RenderQuality.values,
+                  label: (value) => switch (value) {
+                    RenderQuality.low => context.hostLabel('Performance'),
+                    RenderQuality.balanced => context.l10n.renderBalanced,
+                    RenderQuality.high => context.l10n.renderHigh,
+                  },
+                  onChanged: (value) => controller.update(quality: value),
+                ),
+              ),
+              _PreferenceRow(
+                title: context.l10n.renderFrameRate,
+                description: context.l10n.renderFrameRateDescription,
+                control: _PreferenceDropdown<int>(
+                  value: render.frameRate,
+                  values: const [0, 30, 60, 90, 120, 144, 165, 240],
+                  label: (value) =>
+                      value == 0 ? context.l10n.renderAuto : '$value FPS',
+                  onChanged: (value) => controller.update(frameRate: value),
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -781,6 +850,31 @@ class _DropButton extends StatelessWidget {
     onPressed: () {},
     icon: const Icon(AppIcons.caretsUpDown, size: 17),
     label: Text(label),
+  );
+}
+
+class _PreferenceDropdown<T> extends StatelessWidget {
+  const _PreferenceDropdown({
+    required this.value,
+    required this.values,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final T value;
+  final List<T> values;
+  final String Function(T value) label;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DesktopMenuButton<T>(
+    tooltip: label(value),
+    entries: [
+      for (final item in values)
+        DesktopMenuEntry<T>(value: item, label: label(item)),
+    ],
+    onSelected: onChanged,
+    child: _DropButton(label: label(value)),
   );
 }
 

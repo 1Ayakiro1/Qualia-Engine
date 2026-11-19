@@ -149,6 +149,20 @@ AI API — **development binding**, не мост к живому Flutter runtim
 
 ## Версии и совместимость
 
+### LSL acquisition (external, dev.6)
+
+`apiLayers: ["external"]`: пользователь явно запускает discovery и выбирает
+LSL source ID. Адаптер движка владеет inlet на worker isolate; host/core C ABI
+переносит interleaved float32, Dart mailbox ограничен одним блоком с ack.
+Это не `middle` module service и не `internal` port transport: `.qmod` не получает
+доступ к inlet/устройству через payload. Process-v1 остаётся JSON.
+Частота и число каналов проверяются при открытии; remote LSL timestamp сохраняется
+в live block без обещания clock synchronization. Требуются отдельно установленная
+liblsl, непустой source ID, положительная равномерная частота и ≤256 каналов.
+Нет board driver, cross-workspace routing, clock sync или binary module plane.
+Native C ABI extension additive, ABI v3 сохранён; старое ядро без LSL symbols
+показывается как LSL unavailable. `api.describe`/`engine.context` читают descriptor.
+
 Уровни имеют отдельные contract versions; конкретный binding — свою версию.
 Сейчас уровни `internal/middle/external` описаны как `1.0.0`, AI development
 binding — **1.1.0** (additive `api.describe`, `apiLayers` в context/plan).

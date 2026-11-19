@@ -43,9 +43,18 @@
           "contract": "repository-migrations-and-client-adapters",
           "direction": "outbound",
           "authorization": "auth-session-and-rls"
+        },
+        "lslAcquisition": {
+          "version": "0.1.0",
+          "direction": "inbound-user-selected",
+          "transport": "liblsl-runtime-loaded",
+          "owner": "host-acquisition-isolate",
+          "signalLayout": "interleaved-float32",
+          "clock": "remote-lsl-unnormalized",
+          "limitations": ["source-id-required", "uniform-positive-sample-rate", "max-256-channels", "no-qmod-routing", "no-clock-sync"]
         }
       },
-      "implemented": ["local-development-api", "supabase-auth-and-catalog-adapters"],
+      "implemented": ["local-development-api", "supabase-auth-and-catalog-adapters", "optional-host-lsl-acquisition"],
       "notImplemented": ["public-http-control-server", "live-module-gateway", "generic-webhooks", "automatic-model-code-execution"]
     }
   },

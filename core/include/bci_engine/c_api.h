@@ -31,7 +31,7 @@ extern "C" {
 // Returns BCI_CORE_ABI_VERSION.
 BCI_API int bci_engine_abi_version(void);
 
-// Returns the core semantic version string ("0.5.2-dev.5"). Valid for the whole
+// Returns the core semantic version string ("0.5.2-dev.6"). Valid for the whole
 // process lifetime.
 BCI_API const char* bci_engine_core_version(void);
 
@@ -81,6 +81,7 @@ typedef struct bci_block_info {
 } bci_block_info;
 
 typedef struct bci_block bci_block;
+typedef struct bci_lsl bci_lsl;
 typedef void (*bci_block_release_callback)(float* samples, void* context);
 
 // Allocate a block, or adopt an EXCLUSIVE mutable external lease without copy.
@@ -121,7 +122,29 @@ BCI_API int bci_engine_pop_block(void* engine, bci_block** block);
 // Pops processed samples into out_interleaved. Returns the number of frames
 // actually popped (>= 0) or a negative error code.
 BCI_API int bci_engine_pop_samples(void* engine, float* out_interleaved,
-                                   int frames, int channels);
+                                    int frames, int channels);
+
+// Optional Lab Streaming Layer host adapter. These functions are available
+// when liblsl can be loaded at runtime; they do not make LSL a module API.
+// Discovery writes a bounded JSON array of stream descriptors into `output`
+// and returns the number of discovered streams (or a negative status).
+// Overflow returns BCI_QUEUE_OVERFLOW and an empty buffer, never partial JSON.
+// Discovery/open can block; run them on a host worker, not the UI thread.
+BCI_API int bci_lsl_available(void);
+BCI_API int bci_lsl_discover_json(const char* type, char* output,
+                                  int output_bytes);
+BCI_API bci_lsl* bci_lsl_create(void);
+BCI_API void bci_lsl_destroy(bci_lsl* inlet);
+BCI_API int bci_lsl_open_source(bci_lsl* inlet, const char* source_id,
+                                double timeout_seconds);
+BCI_API void bci_lsl_close(bci_lsl* inlet);
+BCI_API int bci_lsl_pull(bci_lsl* inlet, float* destination, int max_samples,
+                         double timeout_seconds, int* channels,
+                         double* timestamp_seconds);
+// Pull returns FRAMES (not float count), channels and the first remote LSL
+// timestamp. Layout is interleaved; clocks are not normalized to engine time.
+// The returned JSON pointer is thread-local and valid until the next info call.
+BCI_API const char* bci_lsl_info_json(bci_lsl* inlet);
 
 // Fills out4 with { rms, peak_freq_hz, quality_0_to_1, reserved }.
 // Returns BCI_OK or a negative error code.

@@ -1,4 +1,28 @@
 {
+  "renderPerformance": "Performance",
+  "renderBackend": "Graphics backend (Linux)",
+  "renderRestart": "Applies after restarting the app. Impeller is experimental; if startup fails, delete ~/.config/com.ayakiro.bci_engine/render-backend to restore Auto.",
+  "renderDescription": "Presentation settings do not change signal acquisition or processing clocks.",
+  "renderBackendDescription": "Auto uses the Flutter default. Skia and Impeller use your system graphics driver.",
+  "renderQuality": "Canvas grid quality",
+  "renderQualityDescription": "Performance shows only the coarse grid. Balanced and Quality retain all grid levels.",
+  "renderBalanced": "Balanced",
+  "renderHigh": "Quality",
+  "renderAuto": "Auto",
+  "renderFrameRate": "Live signal update rate",
+  "renderFrameRateDescription": "Caps session metrics and spectrogram updates only. Canvas interaction and app animations still follow display timing.",
+  "lslUnavailable": "LSL is unavailable: install liblsl and restart the app.",
+  "lslSearching": "LSL: working…",
+  "lslDiscoveryHint": "Discover LSL streams on your local network when needed.",
+  "lslDiscover": "Discover LSL",
+  "lslOpenFailed": "Could not open the LSL stream.",
+  "lslFound": "LSL: {count} stream(s) found",
+  "@lslFound": {"placeholders": {"count": {"type": "int"}}},
+  "savedSessions": "Saved sessions (EDF)",
+  "signalSourceDescription": "Source: {source} · {channels} ch · {rate} Hz",
+  "@signalSourceDescription": {"placeholders": {"source": {"type": "String"}, "channels": {"type": "int"}, "rate": {"type": "String"}}},
+  "importEdf": "Import EDF",
+  "exportEdf": "Export selected EDF",
   "workspaceCanvasHints": "Canvas hints",
   "sceneCreateGroup": "Create group",
   "sceneEditGroup": "Edit group",
@@ -2338,7 +2362,7 @@
   "@simulatorNotice": {
     "description": "Application-owned UI text"
   },
-  "deviceSimulatorDescription": "Built-in signal generator (256 Hz, 8 channels). Used for development without hardware.",
+  "deviceSimulatorDescription": "Built-in signal generator (256 Hz, 1 channel). Used for development without hardware.",
   "@deviceSimulatorDescription": {
     "description": "Application-owned UI text"
   },

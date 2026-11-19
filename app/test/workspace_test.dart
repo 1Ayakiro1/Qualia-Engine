@@ -511,7 +511,7 @@ void main() {
               find.byType(DesktopMenuSurface<String>),
             )
             .itemHeight,
-        48,
+        44,
       );
       expect(
         tester.getSize(find.byType(DesktopMenuSurface<String>)).width,

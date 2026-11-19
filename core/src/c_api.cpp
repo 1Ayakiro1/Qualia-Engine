@@ -3,18 +3,24 @@
 
 #include <atomic>
 #include <algorithm>
+#include <cmath>
 #include <mutex>
 #include <new>
 #include <string>
 
 #include "bci_engine/core.hpp"
 #include "bci_engine/stft.hpp"
+#include "bci_engine/lsl_hal.hpp"
 #include "log_hook.hpp"
 #include "modules.hpp"
 
 using bci::Engine;
 using bci::ModuleCategory;
 using Status = bci::Status;
+
+struct bci_lsl {
+  std::unique_ptr<bci::hal::LslInlet> inlet;
+};
 
 namespace {
 
@@ -61,6 +67,22 @@ std::string json_escape(const std::string& input) {
     }
   }
   return out;
+}
+
+void write_json(char* output, int output_bytes, const std::string& value) {
+  if (!output || output_bytes <= 0) return;
+  const size_t count = std::min(value.size(), static_cast<size_t>(output_bytes - 1));
+  std::copy_n(value.data(), count, output);
+  output[count] = '\0';
+}
+
+std::string lsl_stream_json(const bci::hal::LslStreamInfo& stream) {
+  return "{\"name\":\"" + json_escape(stream.name) +
+         "\",\"type\":\"" + json_escape(stream.type) +
+         "\",\"sourceId\":\"" + json_escape(stream.source_id) +
+         "\",\"channels\":" + std::to_string(stream.channels) +
+         ",\"nominalRate\":" + std::to_string(stream.nominal_srate) +
+         ",\"channelFormat\":\"" + json_escape(stream.channel_format) + "\"}";
 }
 
 }  // namespace
@@ -218,6 +240,96 @@ BCI_API int bci_engine_pop_samples(void* engine, float* out_interleaved,
   } catch (...) {
     return BCI_INTERNAL_ERROR;
   }
+}
+
+BCI_API int bci_lsl_available(void) {
+  return bci::hal::LslInlet::available() ? 1 : 0;
+}
+
+BCI_API int bci_lsl_discover_json(const char* type, char* output,
+                                  int output_bytes) {
+  if (!output || output_bytes <= 0) return BCI_NULL_ARGUMENT;
+  try {
+    const auto streams = bci::hal::LslInlet::discover(type ? type : "");
+    std::string json = "[";
+    for (size_t i = 0; i < streams.size(); ++i) {
+      if (i) json += ',';
+      json += lsl_stream_json(streams[i]);
+    }
+    json += ']';
+    if (json.size() >= static_cast<size_t>(output_bytes)) {
+      output[0] = '\0';
+      return BCI_QUEUE_OVERFLOW;
+    }
+    write_json(output, output_bytes, json);
+    return static_cast<int>(streams.size());
+  } catch (...) {
+    write_json(output, output_bytes, "[]");
+    return BCI_INTERNAL_ERROR;
+  }
+}
+
+BCI_API bci_lsl* bci_lsl_create(void) {
+  try {
+    auto result = std::make_unique<bci_lsl>();
+    result->inlet = std::make_unique<bci::hal::LslInlet>();
+    return result.release();
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+BCI_API void bci_lsl_destroy(bci_lsl* inlet) { delete inlet; }
+
+BCI_API int bci_lsl_open_source(bci_lsl* inlet, const char* source_id,
+                                double timeout_seconds) {
+  if (!inlet || !inlet->inlet || !source_id) {
+    return BCI_NULL_ARGUMENT;
+  }
+  if (!*source_id || !std::isfinite(timeout_seconds) || timeout_seconds < 0 ||
+      timeout_seconds > 30) return BCI_INVALID_ARGUMENT;
+  try {
+    const auto streams = bci::hal::LslInlet::discover();
+    for (const auto& stream : streams) {
+      if (stream.source_id == source_id) {
+        return inlet->inlet->open(stream, timeout_seconds) ? BCI_OK
+                                                            : BCI_INTERNAL_ERROR;
+      }
+    }
+    return BCI_QUEUE_EMPTY;
+  } catch (...) {
+    return BCI_INTERNAL_ERROR;
+  }
+}
+
+BCI_API void bci_lsl_close(bci_lsl* inlet) {
+  if (inlet && inlet->inlet) inlet->inlet->close();
+}
+
+BCI_API int bci_lsl_pull(bci_lsl* inlet, float* destination, int max_samples,
+                         double timeout_seconds, int* channels,
+                         double* timestamp_seconds) {
+  if (!inlet || !inlet->inlet || !destination || !channels ||
+      !timestamp_seconds) {
+    return BCI_NULL_ARGUMENT;
+  }
+  if (max_samples <= 0 || max_samples > 1048576 ||
+      !std::isfinite(timeout_seconds) || timeout_seconds < 0 ||
+      timeout_seconds > 30) return BCI_INVALID_ARGUMENT;
+  try {
+    return inlet->inlet->pull(destination, max_samples, timeout_seconds, channels,
+                              timestamp_seconds);
+  } catch (...) { return BCI_INTERNAL_ERROR; }
+}
+
+BCI_API const char* bci_lsl_info_json(bci_lsl* inlet) {
+  static thread_local std::string json;
+  if (!inlet || !inlet->inlet || !inlet->inlet->opened()) {
+    json = "{}";
+    return json.c_str();
+  }
+  json = lsl_stream_json(inlet->inlet->info());
+  return json.c_str();
 }
 
 BCI_API int bci_engine_get_metrics(void* engine, float* out4) {

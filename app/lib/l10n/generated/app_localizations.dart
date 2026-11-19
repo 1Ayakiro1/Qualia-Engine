@@ -98,6 +98,138 @@ abstract class AppLocalizations {
     Locale('ru'),
   ];
 
+  /// No description provided for @renderPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
+  String get renderPerformance;
+
+  /// No description provided for @renderBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphics backend (Linux)'**
+  String get renderBackend;
+
+  /// No description provided for @renderRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies after restarting the app. Impeller is experimental; if startup fails, delete ~/.config/com.ayakiro.bci_engine/render-backend to restore Auto.'**
+  String get renderRestart;
+
+  /// No description provided for @renderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Presentation settings do not change signal acquisition or processing clocks.'**
+  String get renderDescription;
+
+  /// No description provided for @renderBackendDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto uses the Flutter default. Skia and Impeller use your system graphics driver.'**
+  String get renderBackendDescription;
+
+  /// No description provided for @renderQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas grid quality'**
+  String get renderQuality;
+
+  /// No description provided for @renderQualityDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance shows only the coarse grid. Balanced and Quality retain all grid levels.'**
+  String get renderQualityDescription;
+
+  /// No description provided for @renderBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get renderBalanced;
+
+  /// No description provided for @renderHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get renderHigh;
+
+  /// No description provided for @renderAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get renderAuto;
+
+  /// No description provided for @renderFrameRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Live signal update rate'**
+  String get renderFrameRate;
+
+  /// No description provided for @renderFrameRateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Caps session metrics and spectrogram updates only. Canvas interaction and app animations still follow display timing.'**
+  String get renderFrameRateDescription;
+
+  /// No description provided for @lslUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'LSL is unavailable: install liblsl and restart the app.'**
+  String get lslUnavailable;
+
+  /// No description provided for @lslSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'LSL: working…'**
+  String get lslSearching;
+
+  /// No description provided for @lslDiscoveryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover LSL streams on your local network when needed.'**
+  String get lslDiscoveryHint;
+
+  /// No description provided for @lslDiscover.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover LSL'**
+  String get lslDiscover;
+
+  /// No description provided for @lslOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the LSL stream.'**
+  String get lslOpenFailed;
+
+  /// No description provided for @lslFound.
+  ///
+  /// In en, this message translates to:
+  /// **'LSL: {count} stream(s) found'**
+  String lslFound(int count);
+
+  /// No description provided for @savedSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved sessions (EDF)'**
+  String get savedSessions;
+
+  /// No description provided for @signalSourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {source} · {channels} ch · {rate} Hz'**
+  String signalSourceDescription(String source, int channels, String rate);
+
+  /// No description provided for @importEdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Import EDF'**
+  String get importEdf;
+
+  /// No description provided for @exportEdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Export selected EDF'**
+  String get exportEdf;
+
   /// No description provided for @workspaceCanvasHints.
   ///
   /// In en, this message translates to:
@@ -4065,7 +4197,7 @@ abstract class AppLocalizations {
   /// Application-owned UI text
   ///
   /// In en, this message translates to:
-  /// **'Built-in signal generator (256 Hz, 8 channels). Used for development without hardware.'**
+  /// **'Built-in signal generator (256 Hz, 1 channel). Used for development without hardware.'**
   String get deviceSimulatorDescription;
 
   /// Application-owned UI text

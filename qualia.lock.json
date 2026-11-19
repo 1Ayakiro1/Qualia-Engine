@@ -4,8 +4,8 @@
   "generatedBy": "scripts/generate_version_lock.py",
   "engine": {
     "name": "Qualia Engine",
-    "version": "0.5.2-dev.5",
-    "coreVersion": "0.5.2-dev.5",
+    "version": "0.5.2-dev.6",
+    "coreVersion": "0.5.2-dev.6",
     "coreAbi": 3,
     "apiVersion": "1.1.0"
   },
@@ -106,11 +106,27 @@
             "contract": "repository-migrations-and-client-adapters",
             "direction": "outbound",
             "authorization": "auth-session-and-rls"
+          },
+          "lslAcquisition": {
+            "version": "0.1.0",
+            "direction": "inbound-user-selected",
+            "transport": "liblsl-runtime-loaded",
+            "owner": "host-acquisition-isolate",
+            "signalLayout": "interleaved-float32",
+            "clock": "remote-lsl-unnormalized",
+            "limitations": [
+              "source-id-required",
+              "uniform-positive-sample-rate",
+              "max-256-channels",
+              "no-qmod-routing",
+              "no-clock-sync"
+            ]
           }
         },
         "implemented": [
           "local-development-api",
-          "supabase-auth-and-catalog-adapters"
+          "supabase-auth-and-catalog-adapters",
+          "optional-host-lsl-acquisition"
         ],
         "notImplemented": [
           "public-http-control-server",

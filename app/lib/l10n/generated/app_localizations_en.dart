@@ -10,6 +10,83 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get renderPerformance => 'Performance';
+
+  @override
+  String get renderBackend => 'Graphics backend (Linux)';
+
+  @override
+  String get renderRestart =>
+      'Applies after restarting the app. Impeller is experimental; if startup fails, delete ~/.config/com.ayakiro.bci_engine/render-backend to restore Auto.';
+
+  @override
+  String get renderDescription =>
+      'Presentation settings do not change signal acquisition or processing clocks.';
+
+  @override
+  String get renderBackendDescription =>
+      'Auto uses the Flutter default. Skia and Impeller use your system graphics driver.';
+
+  @override
+  String get renderQuality => 'Canvas grid quality';
+
+  @override
+  String get renderQualityDescription =>
+      'Performance shows only the coarse grid. Balanced and Quality retain all grid levels.';
+
+  @override
+  String get renderBalanced => 'Balanced';
+
+  @override
+  String get renderHigh => 'Quality';
+
+  @override
+  String get renderAuto => 'Auto';
+
+  @override
+  String get renderFrameRate => 'Live signal update rate';
+
+  @override
+  String get renderFrameRateDescription =>
+      'Caps session metrics and spectrogram updates only. Canvas interaction and app animations still follow display timing.';
+
+  @override
+  String get lslUnavailable =>
+      'LSL is unavailable: install liblsl and restart the app.';
+
+  @override
+  String get lslSearching => 'LSL: working…';
+
+  @override
+  String get lslDiscoveryHint =>
+      'Discover LSL streams on your local network when needed.';
+
+  @override
+  String get lslDiscover => 'Discover LSL';
+
+  @override
+  String get lslOpenFailed => 'Could not open the LSL stream.';
+
+  @override
+  String lslFound(int count) {
+    return 'LSL: $count stream(s) found';
+  }
+
+  @override
+  String get savedSessions => 'Saved sessions (EDF)';
+
+  @override
+  String signalSourceDescription(String source, int channels, String rate) {
+    return 'Source: $source · $channels ch · $rate Hz';
+  }
+
+  @override
+  String get importEdf => 'Import EDF';
+
+  @override
+  String get exportEdf => 'Export selected EDF';
+
+  @override
   String get workspaceCanvasHints => 'Canvas hints';
 
   @override
@@ -2203,7 +2280,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deviceSimulatorDescription =>
-      'Built-in signal generator (256 Hz, 8 channels). Used for development without hardware.';
+      'Built-in signal generator (256 Hz, 1 channel). Used for development without hardware.';
 
   @override
   String get deviceBoardDescription =>

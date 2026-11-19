@@ -42,6 +42,21 @@ static void my_application_activate(GApplication* application) {
                               module_window ? 360 : 640);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Renderer selection must happen before FlView starts the Flutter engine.
+  // Unknown or missing values retain the SDK default. Environment switches
+  // still take precedence for recovery/diagnostics.
+  g_autofree gchar* backend_path = g_build_filename(g_get_user_config_dir(),
+      APPLICATION_ID, "render-backend", nullptr);
+  g_autofree gchar* backend = nullptr;
+  gsize backend_size = 0;
+  if (g_file_get_contents(backend_path, &backend, &backend_size, nullptr) &&
+      backend_size < 32) {
+    if (g_strcmp0(backend, "skia") == 0) {
+      fl_dart_project_set_enable_impeller(project, FALSE);
+    } else if (g_strcmp0(backend, "impeller") == 0) {
+      fl_dart_project_set_enable_impeller(project, TRUE);
+    }
+  }
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 

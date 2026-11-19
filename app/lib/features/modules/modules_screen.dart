@@ -19,6 +19,7 @@ import '../../core/workspace/workspace_model.dart';
 import '../../core/workspace/workspace_project.dart';
 import '../../state/workspace_state.dart';
 import '../../state/workspace_providers.dart';
+import '../../state/render_preferences.dart';
 import '../common/widgets.dart';
 import '../common/desktop_menu.dart';
 import 'module_ui.dart';
@@ -28,6 +29,7 @@ import 'workspace_connections.dart';
 import 'active_module_view.dart';
 import '../common/desktop_focus.dart';
 import '../../core/modules/module_window_session.dart';
+import '../../core/render/render_preferences.dart';
 import '../../core/workspace/workspace_id.dart';
 import '../../core/workspace/workspace_eraser.dart';
 import '../../core/workspace/workspace_fragment.dart';
@@ -1780,6 +1782,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
 
   Widget _buildWorkspace(BuildContext context) {
     final graph = ref.watch(workspaceProvider);
+    final renderPreferences = ref.watch(renderPreferencesProvider);
     final renderNodes = graph.nodes
         .where(
           (node) =>
@@ -1802,6 +1805,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
           (node) => _colorFilter == null || node.headerColor == _colorFilter,
         )
         .toList();
+    final visibleById = {for (final node in visibleNodes) node.id: node};
     final opened = graph.nodes
         .where(
           (node) =>
@@ -1903,7 +1907,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      height: 60,
+                      height: 52,
                       color: context.palette.panel,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: LayoutBuilder(
@@ -1954,7 +1958,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                           childBounds.maxWidth < 120;
                                       return SizedBox(
                                         width: double.infinity,
-                                        height: 40,
+                                        height: 36,
                                         child: compact
                                             ? const Center(
                                                 child: Icon(
@@ -2011,7 +2015,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                     DesktopMenuButton<String>(
                                       key: const ValueKey('workspace add menu'),
                                       width: 320,
-                                      itemHeight: 48,
+                                      itemHeight: 44,
                                       tooltip:
                                           context.l10n.textAddModuleToCanvas299,
                                       entries: [
@@ -2075,7 +2079,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                         'workspace select menu',
                                       ),
                                       width: 340,
-                                      itemHeight: 48,
+                                      itemHeight: 44,
                                       tooltip: context.l10n.workspaceSelectHint,
                                       entries: [
                                         DesktopMenuEntry(
@@ -2200,7 +2204,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                         'workspace view menu',
                                       ),
                                       width: 360,
-                                      itemHeight: 48,
+                                      itemHeight: 44,
                                       tooltip: context.l10n.textView62,
                                       entries: [
                                         DesktopMenuEntry(
@@ -2349,8 +2353,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                               key: const ValueKey('workspace toggle snap'),
                               icon: AppIcons.magnet,
                               tooltip: context.hostLabel('Magnetic alignment'),
-                              size: 42,
-                              iconSize: 21,
+                              size: 36,
+                              iconSize: 19,
                               active: _snapToGrid,
                               onPressed: () =>
                                   setState(() => _snapToGrid = !_snapToGrid),
@@ -2367,8 +2371,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                               tooltip: _toolRailVisible
                                   ? context.hostLabel('Hide canvas tools')
                                   : context.hostLabel('Show canvas tools'),
-                              size: 42,
-                              iconSize: 21,
+                              size: 36,
+                              iconSize: 19,
                               onPressed: () => setState(
                                 () => _toolRailVisible = !_toolRailVisible,
                               ),
@@ -2386,8 +2390,8 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                       : inspector)
                                   ? context.l10n.workspaceHideSidebar
                                   : context.l10n.workspaceShowSidebar,
-                              size: 42,
-                              iconSize: 22,
+                              size: 36,
+                              iconSize: 20,
                               onPressed: () => _setInspector(
                                 !(widget.canvasController != null
                                     ? widget.explorerVisible
@@ -2568,6 +2572,9 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                                             .value
                                                             .clone(),
                                                         fadeScale: fadeScale,
+                                                        quality:
+                                                            renderPreferences
+                                                                .quality,
                                                         color: context
                                                             .palette
                                                             .mutedText,
@@ -2986,20 +2993,12 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
                                               );
                                               final wiresNearby = graph.links
                                                   .any((link) {
-                                                    final source = visibleNodes
-                                                        .where(
-                                                          (node) =>
-                                                              node.id ==
-                                                              link.source,
-                                                        )
-                                                        .firstOrNull;
-                                                    final target = visibleNodes
-                                                        .where(
-                                                          (node) =>
-                                                              node.id ==
-                                                              link.target,
-                                                        )
-                                                        .firstOrNull;
+                                                    final source =
+                                                        visibleById[link
+                                                            .source];
+                                                    final target =
+                                                        visibleById[link
+                                                            .target];
                                                     if (source == null ||
                                                         target == null) {
                                                       return false;
@@ -3377,7 +3376,7 @@ class _ModulesScreenState extends ConsumerState<ModulesScreen> {
   }
 
   Widget _toolbarLabel(String label) => SizedBox(
-    height: 40,
+    height: 36,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -4147,12 +4146,14 @@ class _GridPainter extends CustomPainter {
     required this.background,
     this.rulersOnly = false,
     this.fadeScale,
+    this.quality = RenderQuality.balanced,
   });
   final Matrix4 transform;
   final Color color;
   final Color background;
   final bool rulersOnly;
   final double? fadeScale;
+  final RenderQuality quality;
   @override
   void paint(Canvas canvas, Size size) {
     final inverse = Matrix4.inverted(transform);
@@ -4164,7 +4165,12 @@ class _GridPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     final scale = transform.getMaxScaleOnAxis();
     if (!rulersOnly) {
-      for (final level in WorkspaceGridLevel.levels) {
+      final levels = switch (quality) {
+        RenderQuality.low => WorkspaceGridLevel.levels.take(1),
+        RenderQuality.balanced => WorkspaceGridLevel.levels,
+        RenderQuality.high => WorkspaceGridLevel.levels,
+      };
+      for (final level in levels) {
         final alpha = (85 * level.opacity(fadeScale ?? scale)).round();
         if (alpha == 0) continue;
         final step = level.spacing;
@@ -4191,7 +4197,7 @@ class _GridPainter extends CustomPainter {
           points,
           Paint()
             ..color = color.withAlpha(alpha)
-            ..strokeWidth = 2
+            ..strokeWidth = quality == RenderQuality.high ? 2 : 1.5
             ..strokeCap = StrokeCap.round,
         );
       }
@@ -4250,6 +4256,7 @@ class _GridPainter extends CustomPainter {
       oldDelegate.color != color ||
       oldDelegate.background != background ||
       oldDelegate.fadeScale != fadeScale ||
+      oldDelegate.quality != quality ||
       oldDelegate.rulersOnly != rulersOnly;
 }
 
